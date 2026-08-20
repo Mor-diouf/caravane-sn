@@ -91,7 +91,7 @@ function CaravansPage() {
   const [form, setForm] = useState(emptyForm);
 
   const saveMutation = useMutation({
-    mutationFn: (data: Extract<Parameters<typeof organizerSaveCaravan>[0], { data: unknown }>["data"]) =>
+    mutationFn: (data: { id?: string; from_label: string; to_label: string; departure_at: string; pickup: string; dropoff: string; price_fcfa: number; total_seats: number; amenities?: string[]; about?: string; image_url?: string; status?: "draft" | "published" | "full" | "completed" | "cancelled" }) =>
       saveCaravanFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
@@ -102,7 +102,7 @@ function CaravansPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (data: Extract<Parameters<typeof organizerSetCaravanStatus>[0], { data: unknown }>["data"]) =>
+    mutationFn: (data: { caravanId: string; status?: "draft" | "published" | "full" | "completed" | "cancelled"; hidden?: boolean }) =>
       setStatusFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });

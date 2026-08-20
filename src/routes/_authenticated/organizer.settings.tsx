@@ -48,7 +48,7 @@ function SettingsPage() {
   }, [settings]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: Extract<Parameters<typeof organizerUpdateSettings>[0], { data: unknown }>["data"]) => updateFn({ data }),
+    mutationFn: (data: { name?: string; description?: string; phone?: string; whatsapp?: string; university_id?: string }) => updateFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
       toast.success("Paramètres enregistrés");
