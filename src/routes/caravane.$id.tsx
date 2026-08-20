@@ -6,7 +6,6 @@ import {
   Check,
   Clock,
   Heart,
-  MapPin,
   Monitor,
   Plug,
   ShieldCheck,
@@ -23,8 +22,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PaymentMark } from "@/components/PaymentMark";
+import { UniversityMark } from "@/components/UniversityMark";
 
-import { formatPrice, getCaravane, seatTone, student } from "@/lib/caravanes";
+import { formatPrice, getCaravane, seatTone, student, universities } from "@/lib/caravanes";
 import { useBookings, useFavorites } from "@/hooks/use-local-store";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +78,7 @@ function CaravaneDetail() {
   const favorite = favorites.includes(caravane.id);
   const tone = seatTone(caravane.seatsLeft);
   const total = caravane.price * seats;
+  const university = universities.find((u) => u.id === caravane.universityId);
 
   const pay = () => {
     setPending(true);
@@ -240,7 +241,9 @@ function CaravaneDetail() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-surface-blur px-5 py-4 backdrop-blur-xl">
         <div className="mx-auto grid max-w-3xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-medium text-muted-foreground">Total estimé</p>
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Total estimé · {caravane.time}
+            </p>
             <p className="truncate text-lg font-extrabold">
               {formatPrice(caravane.price)} <span className="text-xs">FCFA</span>
             </p>
