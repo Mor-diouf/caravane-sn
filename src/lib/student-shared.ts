@@ -120,3 +120,16 @@ export const paymentLabels: Record<string, string> = {
   orange: "Orange Money",
   free: "Free Money",
 };
+
+/** Champs modifiables du profil étudiant. */
+export type ProfileUpdate = {
+  full_name?: string;
+  phone?: string | null;
+  email?: string | null;
+  student_id?: string | null;
+  university_id?: string | null;
+  preferred_payment?: "wave" | "orange" | "free";
+  notify_departures?: boolean;
+  notify_promos?: boolean;
+  notify_whatsapp?: boolean;
+};

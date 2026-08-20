@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
 import { PaymentMark } from "@/components/PaymentMark";
 import { UniversityMark } from "@/components/UniversityMark";
-import { formatPrice } from "@/lib/student-shared";
+import { formatPrice, type ProfileUpdate } from "@/lib/student-shared";
 import {
   favoritesQuery,
   profileQuery,
@@ -129,8 +129,7 @@ function Profil() {
   }, [profile]);
 
   const save = useMutation({
-    mutationFn: (input: Parameters<typeof updateMyProfile>[0]["data"]) =>
-      updateMyProfile({ data: input }),
+    mutationFn: (input: ProfileUpdate) => updateMyProfile({ data: input }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["profile"] });
       setEditing(false);
