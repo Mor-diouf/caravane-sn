@@ -8,7 +8,7 @@ export function PageHeader({
   subtitle,
   actions,
 }: {
-  title: string;
+  title: ReactNode;
   subtitle?: string;
   actions?: ReactNode;
 }) {
@@ -31,8 +31,8 @@ export function Panel({
   className,
   bodyClassName,
 }: {
-  title?: string;
-  description?: string;
+  title?: ReactNode;
+  description?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;

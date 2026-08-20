@@ -12,7 +12,7 @@ export const organization = {
   rating: 4.8,
   reviews: 124,
   plan: "pro" as Plan,
-  owner: { name: "Amadou Diallo", role: "Propriétaire", initials: "AD" },
+  owner: { name: "Amadou Diallo", role: "Propriétaire", initials: "AD", phone: "+221 77 145 88 20", email: "amadou@amicale-uasz.sn" },
 };
 
 export const activeCaravan = {
@@ -66,6 +66,7 @@ export type Booking = {
   initials: string;
   phone: string;
   destination: string;
+  seats: number;
   amount: number;
   method: "Wave" | "Orange Money" | "Free Money" | "Carte";
   status: Status;
@@ -74,14 +75,14 @@ export type Booking = {
 };
 
 export const bookings: Booking[] = [
-  { id: "CE-8F21A", student: "Fatou Ndiaye", initials: "FN", phone: "+221 77 512 44 18", destination: "Dakar", amount: 8500, method: "Wave", status: "confirmed", ticket: "émis", date: "12 oct. 09:12" },
-  { id: "CE-7B93C", student: "Moussa Sarr", initials: "MS", phone: "+221 78 220 91 03", destination: "Dakar", amount: 8500, method: "Orange Money", status: "paid", ticket: "émis", date: "12 oct. 08:41" },
-  { id: "CE-5D02E", student: "Aïssatou Baldé", initials: "AB", phone: "+221 76 884 12 77", destination: "Dakar", amount: 17000, method: "Wave", status: "confirmed", ticket: "scanné", date: "11 oct. 21:03" },
-  { id: "CE-3A77F", student: "Cheikh Diouf", initials: "CD", phone: "+221 77 301 55 62", destination: "Thiès", amount: 6000, method: "Free Money", status: "pending", ticket: "en attente", date: "11 oct. 18:22" },
-  { id: "CE-9C41B", student: "Mariama Cissé", initials: "MC", phone: "+221 70 118 76 30", destination: "Dakar", amount: 8500, method: "Carte", status: "boarded", ticket: "scanné", date: "11 oct. 15:47" },
-  { id: "CE-2E64D", student: "Ibrahima Fall", initials: "IF", phone: "+221 78 909 23 14", destination: "Kolda", amount: 5500, method: "Wave", status: "cancelled", ticket: "en attente", date: "10 oct. 12:05" },
-  { id: "CE-6H18K", student: "Ndeye Gueye", initials: "NG", phone: "+221 77 654 02 88", destination: "Dakar", amount: 8500, method: "Orange Money", status: "refunded", ticket: "en attente", date: "10 oct. 10:31" },
-  { id: "CE-1K90M", student: "Ousmane Ba", initials: "OB", phone: "+221 76 445 71 20", destination: "Dakar", amount: 8500, method: "Wave", status: "confirmed", ticket: "émis", date: "09 oct. 19:58" },
+  { id: "CE-8F21A", student: "Fatou Ndiaye", initials: "FN", phone: "+221 77 512 44 18", destination: "Dakar", seats: 1, amount: 8500, method: "Wave", status: "confirmed", ticket: "émis", date: "12 oct. 09:12" },
+  { id: "CE-7B93C", student: "Moussa Sarr", initials: "MS", phone: "+221 78 220 91 03", destination: "Dakar", seats: 1, amount: 8500, method: "Orange Money", status: "paid", ticket: "émis", date: "12 oct. 08:41" },
+  { id: "CE-5D02E", student: "Aïssatou Baldé", initials: "AB", phone: "+221 76 884 12 77", destination: "Dakar", seats: 2, amount: 17000, method: "Wave", status: "confirmed", ticket: "scanné", date: "11 oct. 21:03" },
+  { id: "CE-3A77F", student: "Cheikh Diouf", initials: "CD", phone: "+221 77 301 55 62", destination: "Thiès", seats: 1, amount: 6000, method: "Free Money", status: "pending", ticket: "en attente", date: "11 oct. 18:22" },
+  { id: "CE-9C41B", student: "Mariama Cissé", initials: "MC", phone: "+221 70 118 76 30", destination: "Dakar", seats: 1, amount: 8500, method: "Carte", status: "boarded", ticket: "scanné", date: "11 oct. 15:47" },
+  { id: "CE-2E64D", student: "Ibrahima Fall", initials: "IF", phone: "+221 78 909 23 14", destination: "Kolda", seats: 1, amount: 5500, method: "Wave", status: "cancelled", ticket: "en attente", date: "10 oct. 12:05" },
+  { id: "CE-6H18K", student: "Ndeye Gueye", initials: "NG", phone: "+221 77 654 02 88", destination: "Dakar", seats: 1, amount: 8500, method: "Orange Money", status: "refunded", ticket: "en attente", date: "10 oct. 10:31" },
+  { id: "CE-1K90M", student: "Ousmane Ba", initials: "OB", phone: "+221 76 445 71 20", destination: "Dakar", seats: 1, amount: 8500, method: "Wave", status: "confirmed", ticket: "émis", date: "09 oct. 19:58" },
 ];
 
 export type Caravan = {
