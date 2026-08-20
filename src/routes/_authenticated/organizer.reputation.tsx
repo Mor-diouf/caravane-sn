@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Avatar, KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
 import { badges, organization, reviewCriteria, reviews } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/reputation")({
+export const Route = createFileRoute("/_authenticated/organizer/reputation")({
   head: () => ({
     meta: [
       { title: "Avis & réputation — CaravaneHub Organisateur" },

@@ -15,7 +15,7 @@ import { InsightBanner, KpiCard, PageHeader, Panel, ProgressBar } from "@/compon
 import { platformGrowth, platformKpis, universitySplit } from "@/lib/admin";
 import { destinationPerformance, fcfa, fmt } from "@/lib/organizer";
 
-export const Route = createFileRoute("/admin/analytics")({
+export const Route = createFileRoute("/_authenticated/admin/analytics")({
   head: () => ({
     meta: [
       { title: "Analytics — CaravaneHub Admin" },

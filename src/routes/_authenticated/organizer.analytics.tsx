@@ -14,7 +14,7 @@ import { Gauge, TrendingUp, Users, Wallet } from "lucide-react";
 import { InsightBanner, KpiCard, PageHeader, Panel, ProBadge, ProgressBar } from "@/components/organizer/ui";
 import { destinationPerformance, fcfa, insights, monthlySeries } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/analytics")({
+export const Route = createFileRoute("/_authenticated/organizer/analytics")({
   head: () => ({
     meta: [
       { title: "Analytics — CaravaneHub Organisateur" },

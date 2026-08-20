@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Avatar, KpiCard, PageHeader, Panel, ProBadge } from "@/components/organizer/ui";
 import { roleLabels, team } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/team")({
+export const Route = createFileRoute("/_authenticated/organizer/team")({
   head: () => ({
     meta: [
       { title: "Équipe — CaravaneHub Organisateur" },

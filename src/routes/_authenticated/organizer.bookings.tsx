@@ -13,7 +13,7 @@ import {
 import { bookings, fcfa, statusLabels, type Status } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/organizer/bookings")({
+export const Route = createFileRoute("/_authenticated/organizer/bookings")({
   head: () => ({
     meta: [
       { title: "Réservations — CaravaneHub Organisateur" },

@@ -3,7 +3,7 @@ import { History, Star } from "lucide-react";
 import { KpiCard, PageHeader, Panel, ProBadge, ProgressBar } from "@/components/organizer/ui";
 import { caravans, fcfa, pct } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/history")({
+export const Route = createFileRoute("/_authenticated/organizer/history")({
   head: () => ({
     meta: [
       { title: "Historique des caravanes — CaravaneHub Organisateur" },

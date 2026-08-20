@@ -5,7 +5,7 @@ import { PageHeader, Panel, ProBadge } from "@/components/organizer/ui";
 import { fcfa, organization } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/organizer/subscription")({
+export const Route = createFileRoute("/_authenticated/organizer/subscription")({
   head: () => ({
     meta: [
       { title: "Abonnement — CaravaneHub Organisateur" },

@@ -152,10 +152,13 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
       <NavList onNavigate={onNavigate} />
       <div className="m-3 rounded-2xl bg-brand-foreground/8 p-4 ring-1 ring-brand-foreground/10">
         <p className="flex items-center gap-1.5 text-xs font-bold">
-          <Crown className="size-3.5 text-mint" /> Plan Pro actif
+          <Crown className="size-3.5 text-mint" />{" "}
+          {access.data?.organizerIsPro ? "Plan Pro actif" : "Plan Standard"}
         </p>
         <p className="mt-1 text-[11px] leading-snug text-brand-foreground/60">
-          Analytics, exports et assistant intelligent inclus.
+          {access.data?.organizerIsPro
+            ? "Analytics, exports et assistant intelligent inclus."
+            : "Passez au Pro pour les analytics avancées et les exports."}
         </p>
         <Link
           to="/organizer/subscription"

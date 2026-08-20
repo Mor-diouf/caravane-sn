@@ -7,7 +7,7 @@ import { AdminButton, TonePill } from "@/components/admin/ui";
 import { moderationQueue, type ModerationItem } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/admin/moderation")({
+export const Route = createFileRoute("/_authenticated/admin/moderation")({
   head: () => ({
     meta: [
       { title: "Modération — CaravaneHub Admin" },

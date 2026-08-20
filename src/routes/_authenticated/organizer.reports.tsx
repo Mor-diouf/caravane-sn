@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { KpiCard, PageHeader, Panel, ProBadge } from "@/components/organizer/ui";
 import { caravans, fcfa, monthlySeries, pct } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/reports")({
+export const Route = createFileRoute("/_authenticated/organizer/reports")({
   head: () => ({
     meta: [
       { title: "Rapports — CaravaneHub Organisateur" },

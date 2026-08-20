@@ -7,7 +7,7 @@ import { AdminButton, Tabs, TonePill } from "@/components/admin/ui";
 import { caravans, caravanStatusLabels, fcfa, fmt, pct } from "@/lib/organizer";
 import { organizerAccounts, platformKpis } from "@/lib/admin";
 
-export const Route = createFileRoute("/admin/caravans")({
+export const Route = createFileRoute("/_authenticated/admin/caravans")({
   head: () => ({
     meta: [
       { title: "Caravanes — CaravaneHub Admin" },

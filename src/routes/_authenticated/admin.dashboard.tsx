@@ -37,7 +37,7 @@ import {
 import { fcfa, fmt } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/admin/dashboard")({
+export const Route = createFileRoute("/_authenticated/admin/dashboard")({
   head: () => ({
     meta: [
       { title: "Vue plateforme — CaravaneHub Admin" },

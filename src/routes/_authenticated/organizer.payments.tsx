@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { KpiCard, PageHeader, Panel, StatusPill } from "@/components/organizer/ui";
 import { bookings, fcfa, monthlySeries, paymentMethodSplit } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/payments")({
+export const Route = createFileRoute("/_authenticated/organizer/payments")({
   head: () => ({
     meta: [
       { title: "Paiements — CaravaneHub Organisateur" },

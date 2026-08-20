@@ -7,7 +7,7 @@ import { AdminButton, Tabs, TonePill } from "@/components/admin/ui";
 import { disputes as initialDisputes, disputeStatusLabels, type Dispute } from "@/lib/admin";
 import { fcfa } from "@/lib/organizer";
 
-export const Route = createFileRoute("/admin/disputes")({
+export const Route = createFileRoute("/_authenticated/admin/disputes")({
   head: () => ({
     meta: [
       { title: "Litiges — CaravaneHub Admin" },

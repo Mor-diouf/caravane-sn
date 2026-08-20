@@ -5,7 +5,7 @@ import { KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/
 import { activeCaravan, bookings } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/organizer/scanner")({
+export const Route = createFileRoute("/_authenticated/organizer/scanner")({
   head: () => ({
     meta: [
       { title: "Scanner les billets — CaravaneHub Organisateur" },

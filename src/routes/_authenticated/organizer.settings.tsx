@@ -6,7 +6,7 @@ import { PageHeader, Panel } from "@/components/organizer/ui";
 import { organization } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/organizer/settings")({
+export const Route = createFileRoute("/_authenticated/organizer/settings")({
   head: () => ({
     meta: [
       { title: "Paramètres — CaravaneHub Organisateur" },
