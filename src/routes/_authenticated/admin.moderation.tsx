@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, MessageSquareWarning, Star, Trash2 } from "lucide-react";
+import { Check, Loader2, MessageSquareWarning, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Avatar, EmptyState, KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
 import { AdminButton, TonePill } from "@/components/admin/ui";
-import { moderationQueue, type ModerationItem } from "@/lib/admin";
+import { adminReviewsQuery } from "@/lib/dash-queries";
+import { adminSetReviewStatus } from "@/lib/admin.functions";
+import { dateFr, initialsOf } from "@/lib/dash-shared";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/moderation")({
@@ -45,13 +49,33 @@ function Stars({ score }: { score: number }) {
 }
 
 function ModerationPage() {
-  const [queue, setQueue] = useState<ModerationItem[]>(moderationQueue);
+  const { data: reviews, isLoading } = useQuery(adminReviewsQuery());
   const [treated, setTreated] = useState(0);
 
-  function resolve(item: ModerationItem, action: "keep" | "remove") {
-    setQueue((prev) => prev.filter((x) => x.id !== item.id));
-    setTreated((n) => n + 1);
-    toast.success(action === "keep" ? "Avis publié et conservé." : "Avis supprimé de la plateforme.");
+  const queryClient = useQueryClient();
+  const setReviewStatusFn = useServerFn(adminSetReviewStatus);
+  const mutation = useMutation({
+    mutationFn: setReviewStatusFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "reviews"] }),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const all = reviews ?? [];
+  const queue = all.filter((r) => r.status === "reported");
+  const avgRating = all.length ? all.reduce((a, r) => a + r.rating, 0) / all.length : 0;
+
+  function resolve(item: (typeof queue)[number], action: "keep" | "remove") {
+    mutation.mutate(
+      { data: { reviewId: item.id, status: action === "keep" ? "published" : "hidden" } },
+      {
+        onSuccess: () => {
+          setTreated((n) => n + 1);
+          toast.success(
+            action === "keep" ? "Avis publié et conservé." : "Avis supprimé de la plateforme.",
+          );
+        },
+      },
+    );
   }
 
   return (
@@ -64,40 +88,60 @@ function ModerationPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
           title="À modérer"
-          value={String(queue.length)}
+          value={isLoading ? "…" : String(queue.length)}
           secondary="Signalements en attente"
           icon={MessageSquareWarning}
           accent="warning"
         />
         <KpiCard title="Traités aujourd'hui" value={String(treated)} secondary="Décisions prises" icon={Check} accent="mint" />
-        <KpiCard title="Note moyenne plateforme" value="4,6/5" secondary="1 842 avis vérifiés" icon={Star} accent="info" />
+        <KpiCard
+          title="Note moyenne plateforme"
+          value={isLoading ? "…" : `${avgRating.toFixed(1)}/5`}
+          secondary={`${all.length} avis vérifiés`}
+          icon={Star}
+          accent="info"
+        />
       </div>
 
       <div className="mt-4">
         <Panel title="File de modération" bodyClassName="p-0">
-          {queue.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 px-5 py-14 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Chargement…
+            </div>
+          ) : queue.length === 0 ? (
             <EmptyState icon={Check} message="Plus rien à modérer. Excellente hygiène de plateforme." />
           ) : (
             <ul className="divide-y divide-border">
               {queue.map((item) => (
                 <li key={item.id} className="flex flex-wrap items-start gap-4 px-5 py-4">
-                  <Avatar initials={item.initials} />
+                  <Avatar initials={initialsOf(item.author)} />
                   <div className="min-w-56 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-bold">{item.author}</p>
-                      <Stars score={item.score} />
+                      <Stars score={item.rating} />
                       <TonePill tone="warning">{item.reason}</TonePill>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">« {item.text} »</p>
+                    {item.comment && (
+                      <p className="mt-1 text-sm text-muted-foreground">« {item.comment} »</p>
+                    )}
                     <p className="mt-1 text-[11px] text-muted-foreground/80">
-                      {item.organizer} · {item.date}
+                      {item.organizer} · {dateFr(item.createdAt)}
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <AdminButton variant="success" onClick={() => resolve(item, "keep")}>
+                    <AdminButton
+                      variant="success"
+                      disabled={mutation.isPending}
+                      onClick={() => resolve(item, "keep")}
+                    >
                       <Check className="size-3.5" /> Conserver
                     </AdminButton>
-                    <AdminButton variant="danger" onClick={() => resolve(item, "remove")}>
+                    <AdminButton
+                      variant="danger"
+                      disabled={mutation.isPending}
+                      onClick={() => resolve(item, "remove")}
+                    >
                       <Trash2 className="size-3.5" /> Supprimer
                     </AdminButton>
                   </div>
