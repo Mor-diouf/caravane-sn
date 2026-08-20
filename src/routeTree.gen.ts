@@ -24,6 +24,7 @@ import { Route as OrganizerHistoryRouteImport } from './routes/organizer.history
 import { Route as OrganizerPassengersRouteImport } from './routes/organizer.passengers'
 import { Route as OrganizerPaymentsRouteImport } from './routes/organizer.payments'
 import { Route as OrganizerPromotionsRouteImport } from './routes/organizer.promotions'
+import { Route as OrganizerReportsRouteImport } from './routes/organizer.reports'
 import { Route as OrganizerReputationRouteImport } from './routes/organizer.reputation'
 import { Route as OrganizerScannerRouteImport } from './routes/organizer.scanner'
 import { Route as OrganizerTeamRouteImport } from './routes/organizer.team'
@@ -103,6 +104,11 @@ const OrganizerPromotionsRoute = OrganizerPromotionsRouteImport.update({
   path: '/promotions',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerReportsRoute = OrganizerReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 const OrganizerReputationRoute = OrganizerReputationRouteImport.update({
   id: '/reputation',
   path: '/reputation',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/organizer/passengers': typeof OrganizerPassengersRoute
   '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/promotions': typeof OrganizerPromotionsRoute
+  '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
   '/organizer/team': typeof OrganizerTeamRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/organizer/passengers': typeof OrganizerPassengersRoute
   '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/promotions': typeof OrganizerPromotionsRoute
+  '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
   '/organizer/team': typeof OrganizerTeamRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/organizer/passengers': typeof OrganizerPassengersRoute
   '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/promotions': typeof OrganizerPromotionsRoute
+  '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
   '/organizer/team': typeof OrganizerTeamRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/organizer/passengers'
     | '/organizer/payments'
     | '/organizer/promotions'
+    | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
     | '/organizer/team'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/organizer/passengers'
     | '/organizer/payments'
     | '/organizer/promotions'
+    | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
     | '/organizer/team'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/organizer/passengers'
     | '/organizer/payments'
     | '/organizer/promotions'
+    | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
     | '/organizer/team'
@@ -357,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerPromotionsRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/reports': {
+      id: '/organizer/reports'
+      path: '/reports'
+      fullPath: '/organizer/reports'
+      preLoaderRoute: typeof OrganizerReportsRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
     '/organizer/reputation': {
       id: '/organizer/reputation'
       path: '/reputation'
@@ -390,6 +409,7 @@ interface OrganizerRouteChildren {
   OrganizerPassengersRoute: typeof OrganizerPassengersRoute
   OrganizerPaymentsRoute: typeof OrganizerPaymentsRoute
   OrganizerPromotionsRoute: typeof OrganizerPromotionsRoute
+  OrganizerReportsRoute: typeof OrganizerReportsRoute
   OrganizerReputationRoute: typeof OrganizerReputationRoute
   OrganizerScannerRoute: typeof OrganizerScannerRoute
   OrganizerTeamRoute: typeof OrganizerTeamRoute
@@ -405,6 +425,7 @@ const OrganizerRouteChildren: OrganizerRouteChildren = {
   OrganizerPassengersRoute: OrganizerPassengersRoute,
   OrganizerPaymentsRoute: OrganizerPaymentsRoute,
   OrganizerPromotionsRoute: OrganizerPromotionsRoute,
+  OrganizerReportsRoute: OrganizerReportsRoute,
   OrganizerReputationRoute: OrganizerReputationRoute,
   OrganizerScannerRoute: OrganizerScannerRoute,
   OrganizerTeamRoute: OrganizerTeamRoute,
