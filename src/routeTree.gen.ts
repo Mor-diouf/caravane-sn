@@ -16,6 +16,7 @@ import { Route as OrganizerRouteImport } from './routes/organizer'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as CaravaneIdRouteImport } from './routes/caravane.$id'
 import { Route as OrganizerIndexRouteImport } from './routes/organizer.index'
+import { Route as OrganizerDashboardRouteImport } from './routes/organizer.dashboard'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,11 @@ const OrganizerIndexRoute = OrganizerIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerDashboardRoute = OrganizerDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/organizer': typeof OrganizerRouteWithChildren
   '/profil': typeof ProfilRoute
   '/caravane/$id': typeof CaravaneIdRoute
+  '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRoutesByTo {
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/favoris': typeof FavorisRoute
   '/profil': typeof ProfilRoute
   '/caravane/$id': typeof CaravaneIdRoute
+  '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer': typeof OrganizerIndexRoute
 }
 export interface FileRoutesById {
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/organizer': typeof OrganizerRouteWithChildren
   '/profil': typeof ProfilRoute
   '/caravane/$id': typeof CaravaneIdRoute
+  '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRouteTypes {
@@ -89,9 +98,17 @@ export interface FileRouteTypes {
     | '/organizer'
     | '/profil'
     | '/caravane/$id'
+    | '/organizer/dashboard'
     | '/organizer/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/billets' | '/favoris' | '/profil' | '/caravane/$id' | '/organizer'
+  to:
+    | '/'
+    | '/billets'
+    | '/favoris'
+    | '/profil'
+    | '/caravane/$id'
+    | '/organizer/dashboard'
+    | '/organizer'
   id:
     | '__root__'
     | '/'
@@ -100,6 +117,7 @@ export interface FileRouteTypes {
     | '/organizer'
     | '/profil'
     | '/caravane/$id'
+    | '/organizer/dashboard'
     | '/organizer/'
   fileRoutesById: FileRoutesById
 }
@@ -163,14 +181,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerIndexRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/dashboard': {
+      id: '/organizer/dashboard'
+      path: '/dashboard'
+      fullPath: '/organizer/dashboard'
+      preLoaderRoute: typeof OrganizerDashboardRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
   }
 }
 
 interface OrganizerRouteChildren {
+  OrganizerDashboardRoute: typeof OrganizerDashboardRoute
   OrganizerIndexRoute: typeof OrganizerIndexRoute
 }
 
 const OrganizerRouteChildren: OrganizerRouteChildren = {
+  OrganizerDashboardRoute: OrganizerDashboardRoute,
   OrganizerIndexRoute: OrganizerIndexRoute,
 }
 
