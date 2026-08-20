@@ -1,4 +1,7 @@
+import type { ReactElement } from "react";
+
 type Props = { value: string; size?: number; className?: string };
+
 
 /** Deterministic decorative QR-style matrix rendered as crisp SVG. */
 export function QrCode({ value, size = 200, className }: Props) {
@@ -15,28 +18,24 @@ export function QrCode({ value, size = 200, className }: Props) {
     cells.push(((state >>> 16) & 0xff) > 118);
   }
 
-  const isFinder = (r: number, c: number) => {
-    const zones = [
-      [0, 0],
-      [0, modules - 7],
-      [modules - 7, 0],
-    ];
-    return zones.some(([zr, zc]) => r >= zr && r < zr + 7 && c >= zc && c < zc + 7);
-  };
+  const zones: Array<[number, number]> = [
+    [0, 0],
+    [0, modules - 7],
+    [modules - 7, 0],
+  ];
+  const inZone = (r: number, c: number, zr: number, zc: number) =>
+    r >= zr && r < zr + 7 && c >= zc && c < zc + 7;
+  const isFinder = (r: number, c: number) =>
+    zones.some(([zr, zc]) => inZone(r, c, zr, zc));
   const finderOn = (r: number, c: number) => {
-    const zones = [
-      [0, 0],
-      [0, modules - 7],
-      [modules - 7, 0],
-    ];
-    const zone = zones.find(([zr, zc]) => r >= zr && r < zr + 7 && c >= zc && c < zc + 7)!;
-    const dr = r - zone[0];
-    const dc = c - zone[1];
-    const ring = Math.max(Math.abs(dr - 3), Math.abs(dc - 3));
+    const zone = zones.find(([zr, zc]) => inZone(r, c, zr, zc));
+    if (!zone) return false;
+    const ring = Math.max(Math.abs(r - zone[0] - 3), Math.abs(c - zone[1] - 3));
     return ring !== 2;
   };
 
-  const rects: React.ReactElement[] = [];
+  const rects: ReactElement[] = [];
+
   for (let r = 0; r < modules; r++) {
     for (let c = 0; c < modules; c++) {
       const on = isFinder(r, c) ? finderOn(r, c) : cells[r * modules + c];
