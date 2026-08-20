@@ -235,6 +235,9 @@ function NotificationBell() {
 
 export function OrgShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const access = useQuery(accessQuery());
+  const ownerName = access.data?.fullName || "Organisateur";
+
 
   return (
     <div className="min-h-screen bg-background">
