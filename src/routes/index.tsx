@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { Bell, Search, ShieldCheck, SlidersHorizontal, Sparkle } from "lucide-react";
 import { CaravanCard } from "@/components/CaravanCard";
 import { BottomNav } from "@/components/BottomNav";
+import { UniversityMark } from "@/components/UniversityMark";
 import { universities, caravanes, student } from "@/lib/caravanes";
+
 import { useFavorites } from "@/hooks/use-local-store";
 import { cn } from "@/lib/utils";
 
