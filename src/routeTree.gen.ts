@@ -23,6 +23,7 @@ import { Route as AdminDisputesRouteImport } from './routes/admin.disputes'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
 import { Route as AdminOrganizersRouteImport } from './routes/admin.organizers'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as CaravaneIdRouteImport } from './routes/caravane.$id'
 import { Route as OrganizerIndexRouteImport } from './routes/organizer.index'
@@ -109,6 +110,11 @@ const AdminModerationRoute = AdminModerationRouteImport.update({
 const AdminOrganizersRoute = AdminOrganizersRouteImport.update({
   id: '/organizers',
   path: '/organizers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/moderation': typeof AdminModerationRoute
   '/admin/organizers': typeof AdminOrganizersRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
   '/organizer/analytics': typeof OrganizerAnalyticsRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/moderation': typeof AdminModerationRoute
   '/admin/organizers': typeof AdminOrganizersRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
   '/organizer/analytics': typeof OrganizerAnalyticsRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/moderation': typeof AdminModerationRoute
   '/admin/organizers': typeof AdminOrganizersRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
   '/organizer/analytics': typeof OrganizerAnalyticsRoute
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | '/admin/finance'
     | '/admin/moderation'
     | '/admin/organizers'
+    | '/admin/settings'
     | '/admin/users'
     | '/caravane/$id'
     | '/organizer/analytics'
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/admin/finance'
     | '/admin/moderation'
     | '/admin/organizers'
+    | '/admin/settings'
     | '/admin/users'
     | '/caravane/$id'
     | '/organizer/analytics'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/admin/finance'
     | '/admin/moderation'
     | '/admin/organizers'
+    | '/admin/settings'
     | '/admin/users'
     | '/caravane/$id'
     | '/organizer/analytics'
@@ -503,6 +515,13 @@ declare module '@tanstack/react-router' {
       path: '/organizers'
       fullPath: '/admin/organizers'
       preLoaderRoute: typeof AdminOrganizersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/users': {
@@ -635,6 +654,7 @@ interface AdminRouteChildren {
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminModerationRoute: typeof AdminModerationRoute
   AdminOrganizersRoute: typeof AdminOrganizersRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -647,6 +667,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFinanceRoute: AdminFinanceRoute,
   AdminModerationRoute: AdminModerationRoute,
   AdminOrganizersRoute: AdminOrganizersRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
