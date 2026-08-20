@@ -100,10 +100,12 @@ export function UniversityMark({
           stroke="rgba(255,255,255,0.5)"
           strokeWidth="1"
         />
-        <Motif motif={crest.motif} />
+        <g transform="translate(0,-3)">
+          <Motif motif={crest.motif} />
+        </g>
       </svg>
       {showAbbr && (
-        <span className="relative mt-4 text-[8px] font-black uppercase leading-none tracking-tight text-white">
+        <span className="relative mt-5 text-[8px] font-black uppercase leading-none tracking-tight text-white">
           {key.slice(0, 4)}
         </span>
       )}
