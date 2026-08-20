@@ -1,0 +1,254 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Coins, Download, Wallet, Percent } from "lucide-react";
+import { toast } from "sonner";
+import { KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
+import { AdminButton, TonePill } from "@/components/admin/ui";
+import {
+  paymentStatusLabels,
+  payoutStatusLabels,
+  payouts as initialPayouts,
+  platformGrowth,
+  platformKpis,
+  platformPayments,
+  universitySplit,
+  type Payout,
+} from "@/lib/admin";
+import { fcfa } from "@/lib/organizer";
+
+export const Route = createFileRoute("/admin/finance")({
+  head: () => ({
+    meta: [
+      { title: "Finances — CaravaneHub Admin" },
+      {
+        name: "description",
+        content:
+          "Commissions, transactions mobile money et versements aux organisateurs de la plateforme.",
+      },
+      { property: "og:title", content: "Finances — CaravaneHub Admin" },
+      {
+        property: "og:description",
+        content: "Suivez chaque franc CFA qui transite sur Caravane Étudiants.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: FinancePage,
+});
+
+const pieColors = [
+  "var(--color-primary)",
+  "var(--color-mint)",
+  "var(--color-info)",
+  "var(--color-warning)",
+  "var(--color-muted-foreground)",
+];
+
+function FinancePage() {
+  const [payouts, setPayouts] = useState<Payout[]>(initialPayouts);
+
+  function approve(p: Payout) {
+    setPayouts((prev) => prev.map((x) => (x.id === p.id ? { ...x, status: "paid" } : x)));
+    toast.success(`Versement de ${fcfa(p.amount)} validé pour ${p.organizer}.`);
+  }
+
+  function exportCsv() {
+    toast.success("Export comptable CSV généré.");
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Finances"
+        subtitle="Commissions plateforme, transactions et versements organisateurs."
+        actions={
+          <AdminButton variant="ghost" onClick={exportCsv}>
+            <Download className="size-3.5" /> Export comptable
+          </AdminButton>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          title="Volume traité"
+          value={fcfa(platformKpis.gmv)}
+          secondary="Depuis le lancement"
+          trend={platformKpis.gmvTrend}
+          icon={Coins}
+        />
+        <KpiCard
+          title="Commissions encaissées"
+          value={fcfa(platformKpis.commission)}
+          secondary={`Taux de ${platformKpis.commission && 4} %`}
+          trend={platformKpis.commissionTrend}
+          icon={Percent}
+          accent="mint"
+        />
+        <KpiCard
+          title="Versements en attente"
+          value={fcfa(
+            payouts.filter((p) => p.status !== "paid").reduce((sum, p) => sum + p.amount, 0),
+          )}
+          secondary={`${payouts.filter((p) => p.status !== "paid").length} demandes`}
+          icon={Wallet}
+          accent="warning"
+        />
+        <KpiCard
+          title="Litiges financiers"
+          value={String(platformKpis.disputes)}
+          secondary="À arbitrer"
+          icon={Coins}
+          accent="info"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+        <Panel className="xl:col-span-2" title="Commissions mensuelles">
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={platformGrowth} margin={{ left: -12, right: 8, top: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={11} />
+                <YAxis tickLine={false} axisLine={false} fontSize={11} width={64} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid var(--color-border)",
+                    fontSize: 12,
+                  }}
+                  formatter={(value: number) => fcfa(value)}
+                />
+                <Bar
+                  dataKey="commission"
+                  name="Commissions"
+                  fill="var(--color-primary)"
+                  radius={[6, 6, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel title="Répartition par université">
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={universitySplit}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={52}
+                  outerRadius={82}
+                  paddingAngle={2}
+                >
+                  {universitySplit.map((u, i) => (
+                    <Cell key={u.name} fill={pieColors[i % pieColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid var(--color-border)",
+                    fontSize: 12,
+                  }}
+                  formatter={(value: number) => `${value} %`}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <ul className="mt-2 space-y-2">
+            {universitySplit.map((u, i) => (
+              <li key={u.name} className="flex items-center gap-2 text-xs">
+                <span
+                  className="size-2 rounded-full"
+                  style={{ background: pieColors[i % pieColors.length] }}
+                />
+                <span className="flex-1 font-semibold">{u.name}</span>
+                <span className="text-muted-foreground">{fcfa(u.revenue)}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Panel title="Demandes de versement" bodyClassName="p-0">
+          <ul className="divide-y divide-border">
+            {payouts.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                <div className="min-w-40 flex-1">
+                  <p className="text-sm font-bold">{p.organizer}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fcfa(p.amount)} · {p.method} · {p.requested}
+                  </p>
+                </div>
+                <TonePill
+                  tone={p.status === "paid" ? "success" : p.status === "processing" ? "info" : "warning"}
+                >
+                  {payoutStatusLabels[p.status]}
+                </TonePill>
+                {p.status !== "paid" && (
+                  <AdminButton onClick={() => approve(p)}>Valider</AdminButton>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+        <Panel title="Dernières transactions" bodyClassName="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-5 py-3 font-bold">Réf.</th>
+                  <th className="px-5 py-3 font-bold">Organisateur</th>
+                  <th className="px-5 py-3 font-bold">Montant</th>
+                  <th className="px-5 py-3 font-bold">Commission</th>
+                  <th className="px-5 py-3 font-bold">Statut</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {platformPayments.map((t) => (
+                  <tr key={t.id}>
+                    <td className="px-5 py-3 font-mono text-xs font-bold">{t.id}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{t.organizer}</td>
+                    <td className="px-5 py-3 font-semibold">{fcfa(t.amount)}</td>
+                    <td className="px-5 py-3 text-mint">{fcfa(t.commission)}</td>
+                    <td className="px-5 py-3">
+                      <TonePill
+                        tone={
+                          t.status === "settled"
+                            ? "success"
+                            : t.status === "pending"
+                              ? "warning"
+                              : t.status === "failed"
+                                ? "danger"
+                                : "neutral"
+                        }
+                      >
+                        {paymentStatusLabels[t.status]}
+                      </TonePill>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      </div>
+    </>
+  );
+}
