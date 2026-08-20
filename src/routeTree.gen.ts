@@ -21,6 +21,7 @@ import { Route as OrganizerCaravansRouteImport } from './routes/organizer.carava
 import { Route as OrganizerDashboardRouteImport } from './routes/organizer.dashboard'
 import { Route as OrganizerPassengersRouteImport } from './routes/organizer.passengers'
 import { Route as OrganizerPaymentsRouteImport } from './routes/organizer.payments'
+import { Route as OrganizerScannerRouteImport } from './routes/organizer.scanner'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +83,11 @@ const OrganizerPaymentsRoute = OrganizerPaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerScannerRoute = OrganizerScannerRouteImport.update({
+  id: '/scanner',
+  path: '/scanner',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/passengers': typeof OrganizerPassengersRoute
   '/organizer/payments': typeof OrganizerPaymentsRoute
+  '/organizer/scanner': typeof OrganizerScannerRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRoutesByTo {
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/passengers': typeof OrganizerPassengersRoute
   '/organizer/payments': typeof OrganizerPaymentsRoute
+  '/organizer/scanner': typeof OrganizerScannerRoute
   '/organizer': typeof OrganizerIndexRoute
 }
 export interface FileRoutesById {
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/passengers': typeof OrganizerPassengersRoute
   '/organizer/payments': typeof OrganizerPaymentsRoute
+  '/organizer/scanner': typeof OrganizerScannerRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRouteTypes {
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/organizer/dashboard'
     | '/organizer/passengers'
     | '/organizer/payments'
+    | '/organizer/scanner'
     | '/organizer/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/organizer/dashboard'
     | '/organizer/passengers'
     | '/organizer/payments'
+    | '/organizer/scanner'
     | '/organizer'
   id:
     | '__root__'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/organizer/dashboard'
     | '/organizer/passengers'
     | '/organizer/payments'
+    | '/organizer/scanner'
     | '/organizer/'
   fileRoutesById: FileRoutesById
 }
@@ -264,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerPaymentsRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/scanner': {
+      id: '/organizer/scanner'
+      path: '/scanner'
+      fullPath: '/organizer/scanner'
+      preLoaderRoute: typeof OrganizerScannerRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
   }
 }
 
@@ -273,6 +292,7 @@ interface OrganizerRouteChildren {
   OrganizerDashboardRoute: typeof OrganizerDashboardRoute
   OrganizerPassengersRoute: typeof OrganizerPassengersRoute
   OrganizerPaymentsRoute: typeof OrganizerPaymentsRoute
+  OrganizerScannerRoute: typeof OrganizerScannerRoute
   OrganizerIndexRoute: typeof OrganizerIndexRoute
 }
 
@@ -282,6 +302,7 @@ const OrganizerRouteChildren: OrganizerRouteChildren = {
   OrganizerDashboardRoute: OrganizerDashboardRoute,
   OrganizerPassengersRoute: OrganizerPassengersRoute,
   OrganizerPaymentsRoute: OrganizerPaymentsRoute,
+  OrganizerScannerRoute: OrganizerScannerRoute,
   OrganizerIndexRoute: OrganizerIndexRoute,
 }
 
