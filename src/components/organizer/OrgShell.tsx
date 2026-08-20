@@ -300,17 +300,19 @@ export function OrgShell({ children }: { children: ReactNode }) {
               <NotificationBell />
               <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5">
                 <span className="grid size-7 place-items-center rounded-lg bg-brand text-[10px] font-black text-brand-foreground">
-                  {organization.owner.initials}
+                  {initialsOf(ownerName)}
                 </span>
                 <span className="hidden min-w-0 leading-tight sm:block">
-                  <span className="block truncate text-xs font-bold">{organization.owner.name}</span>
+                  <span className="block truncate text-xs font-bold">{ownerName}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
-                    {organization.name}
+                    {access.data?.organizerName ?? "Mon amicale"}
                   </span>
                 </span>
-                <span className="ml-1 rounded-md bg-mint/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-mint">
-                  Pro
-                </span>
+                {access.data?.organizerIsPro && (
+                  <span className="ml-1 rounded-md bg-mint/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-mint">
+                    Pro
+                  </span>
+                )}
               </div>
             </div>
           </div>
