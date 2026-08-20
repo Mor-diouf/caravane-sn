@@ -1,4 +1,7 @@
+import type { ReactElement } from "react";
+
 type Props = { value: string; size?: number; className?: string };
+
 
 /** Deterministic decorative QR-style matrix rendered as crisp SVG. */
 export function QrCode({ value, size = 200, className }: Props) {
