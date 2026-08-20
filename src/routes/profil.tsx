@@ -45,21 +45,30 @@ function Profil() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      <header className="bg-gradient-primary px-5 pb-16 pt-8 text-primary-foreground">
-        <div className="mx-auto flex max-w-3xl items-center gap-4">
-          <span className="grid size-16 shrink-0 place-items-center rounded-3xl bg-primary-foreground/15 text-xl font-black backdrop-blur">
+      <header className="relative overflow-hidden bg-gradient-primary px-5 pb-16 pt-5 text-primary-foreground">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-primary-foreground/10 blur-2xl"
+        />
+        <div className="relative mx-auto grid max-w-3xl grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
+          <span className="grid size-14 shrink-0 place-items-center rounded-3xl bg-primary-foreground/15 text-lg font-black backdrop-blur">
             MD
           </span>
           <div className="min-w-0">
-            <h1 className="flex items-center gap-2 truncate text-xl font-extrabold tracking-tight">
-              {student.name}
+            <h1 className="flex items-center gap-2 truncate text-[18px] font-extrabold leading-tight tracking-tight">
+              <span className="truncate">{student.name}</span>
               <BadgeCheck className="size-4 shrink-0 text-secondary-accent" />
             </h1>
-            <p className="truncate text-sm text-primary-foreground/75">{student.university}</p>
-            <p className="truncate text-xs text-primary-foreground/60">{student.studentId}</p>
+            <p className="truncate text-[13px] font-medium leading-relaxed text-primary-foreground/75">
+              {student.university}
+            </p>
+            <p className="truncate text-[11px] leading-relaxed text-primary-foreground/60">
+              {student.studentId}
+            </p>
           </div>
         </div>
       </header>
+
 
       <main className="mx-auto -mt-10 max-w-3xl space-y-5 px-5">
         <section className="grid grid-cols-2 gap-4">
