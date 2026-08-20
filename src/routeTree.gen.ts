@@ -16,6 +16,7 @@ import { Route as FavorisRouteImport } from './routes/favoris'
 import { Route as OrganizerRouteImport } from './routes/organizer'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminCaravansRouteImport } from './routes/admin.caravans'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminDisputesRouteImport } from './routes/admin.disputes'
@@ -73,6 +74,11 @@ const ProfilRoute = ProfilRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCaravansRoute = AdminCaravansRouteImport.update({
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/favoris': typeof FavorisRoute
   '/organizer': typeof OrganizerRouteWithChildren
   '/profil': typeof ProfilRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/billets': typeof BilletsRoute
   '/favoris': typeof FavorisRoute
   '/profil': typeof ProfilRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/favoris': typeof FavorisRoute
   '/organizer': typeof OrganizerRouteWithChildren
   '/profil': typeof ProfilRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/disputes': typeof AdminDisputesRoute
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/favoris'
     | '/organizer'
     | '/profil'
+    | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
     | '/admin/disputes'
@@ -325,6 +335,7 @@ export interface FileRouteTypes {
     | '/billets'
     | '/favoris'
     | '/profil'
+    | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
     | '/admin/disputes'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/favoris'
     | '/organizer'
     | '/profil'
+    | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
     | '/admin/disputes'
@@ -442,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/caravans': {
@@ -609,6 +628,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminCaravansRoute: typeof AdminCaravansRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDisputesRoute: typeof AdminDisputesRoute
@@ -620,6 +640,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminCaravansRoute: AdminCaravansRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDisputesRoute: AdminDisputesRoute,
