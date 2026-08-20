@@ -25,6 +25,7 @@ import { Route as OrganizerPassengersRouteImport } from './routes/organizer.pass
 import { Route as OrganizerPaymentsRouteImport } from './routes/organizer.payments'
 import { Route as OrganizerReputationRouteImport } from './routes/organizer.reputation'
 import { Route as OrganizerScannerRouteImport } from './routes/organizer.scanner'
+import { Route as OrganizerTeamRouteImport } from './routes/organizer.team'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -106,6 +107,11 @@ const OrganizerScannerRoute = OrganizerScannerRouteImport.update({
   path: '/scanner',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerTeamRoute = OrganizerTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/team': typeof OrganizerTeamRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRoutesByTo {
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/team': typeof OrganizerTeamRoute
   '/organizer': typeof OrganizerIndexRoute
 }
 export interface FileRoutesById {
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/team': typeof OrganizerTeamRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/organizer/payments'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/team'
     | '/organizer/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/organizer/payments'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/team'
     | '/organizer'
   id:
     | '__root__'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/organizer/payments'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/team'
     | '/organizer/'
   fileRoutesById: FileRoutesById
 }
@@ -340,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerScannerRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/team': {
+      id: '/organizer/team'
+      path: '/team'
+      fullPath: '/organizer/team'
+      preLoaderRoute: typeof OrganizerTeamRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
   }
 }
 
@@ -353,6 +372,7 @@ interface OrganizerRouteChildren {
   OrganizerPaymentsRoute: typeof OrganizerPaymentsRoute
   OrganizerReputationRoute: typeof OrganizerReputationRoute
   OrganizerScannerRoute: typeof OrganizerScannerRoute
+  OrganizerTeamRoute: typeof OrganizerTeamRoute
   OrganizerIndexRoute: typeof OrganizerIndexRoute
 }
 
@@ -366,6 +386,7 @@ const OrganizerRouteChildren: OrganizerRouteChildren = {
   OrganizerPaymentsRoute: OrganizerPaymentsRoute,
   OrganizerReputationRoute: OrganizerReputationRoute,
   OrganizerScannerRoute: OrganizerScannerRoute,
+  OrganizerTeamRoute: OrganizerTeamRoute,
   OrganizerIndexRoute: OrganizerIndexRoute,
 }
 
