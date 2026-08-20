@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CalendarDays,
@@ -23,15 +24,18 @@ import {
 } from "@/components/ui/dialog";
 import { PaymentMark } from "@/components/PaymentMark";
 import { UniversityMark } from "@/components/UniversityMark";
-
-import { formatPrice, getCaravane, seatTone, student, universities } from "@/lib/caravanes";
-import { useBookings, useFavorites } from "@/hooks/use-local-store";
+import { formatPrice, seatTone } from "@/lib/student-shared";
+import { caravanQuery, universitiesQuery } from "@/lib/student-queries";
+import { createBooking } from "@/lib/student.functions";
+import { useStudentFavorites } from "@/hooks/use-student-favorites";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/caravane/$id")({
-  loader: ({ params }) => {
-    const caravane = getCaravane(params.id);
+  loader: async ({ context, params }) => {
+    const caravane = await context.queryClient.ensureQueryData(caravanQuery(params.id));
     if (!caravane) throw notFound();
+    await context.queryClient.ensureQueryData(universitiesQuery);
     return { caravane };
   },
   head: ({ loaderData }) => {
@@ -46,9 +50,21 @@ export const Route = createFileRoute("/caravane/$id")({
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
       ],
     };
   },
+  errorComponent: () => (
+    <div className="grid min-h-screen place-items-center px-6 text-center">
+      <p className="text-sm text-muted-foreground">Cette caravane n'a pas pu être chargée.</p>
+    </div>
+  ),
+  notFoundComponent: () => (
+    <div className="grid min-h-screen place-items-center px-6 text-center">
+      <p className="text-sm text-muted-foreground">Caravane introuvable ou déjà terminée.</p>
+    </div>
+  ),
   component: CaravaneDetail,
 });
 
@@ -65,38 +81,52 @@ const methods = [
   { id: "free", label: "Free Money", hint: "USSD" },
 ] as const;
 
-function CaravaneDetail() {
-  const { caravane } = Route.useLoaderData();
-  const navigate = useNavigate();
-  const { favorites, toggle } = useFavorites();
-  const { add } = useBookings();
-  const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState<string>("wave");
-  const [seats, setSeats] = useState(1);
-  const [pending, setPending] = useState(false);
+type Method = (typeof methods)[number]["id"];
 
+function CaravaneDetail() {
+  const { id } = Route.useParams();
+  const { data } = useSuspenseQuery(caravanQuery(id));
+  const { data: universities } = useSuspenseQuery(universitiesQuery);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { favorites, toggle } = useStudentFavorites();
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState<Method>("wave");
+  const [seats, setSeats] = useState(1);
+
+  const caravane = data!;
   const favorite = favorites.includes(caravane.id);
   const tone = seatTone(caravane.seatsLeft);
   const total = caravane.price * seats;
   const university = universities.find((u) => u.id === caravane.universityId);
 
-  const pay = () => {
-    setPending(true);
-    const reference = `CE-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    window.setTimeout(() => {
-      add({
-        id: reference,
-        caravaneId: caravane.id,
-        reference,
-        seats,
-        method: methods.find((m) => m.id === method)?.label ?? "Wave",
-        createdAt: new Date().toISOString(),
-      });
-      setPending(false);
+  const booking = useMutation({
+    mutationFn: () =>
+      createBooking({ data: { caravanId: caravane.id, seats, method } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      await queryClient.invalidateQueries({ queryKey: ["caravans"] });
+      await queryClient.invalidateQueries({ queryKey: ["caravan", caravane.id] });
       setOpen(false);
-      toast.success("Paiement confirmé", { description: `Billet ${reference} généré.` });
+      toast.success("Paiement confirmé", {
+        description: `Billet ${result.reference} généré.`,
+      });
       navigate({ to: "/billets" });
-    }, 1200);
+    },
+    onError: (error) =>
+      toast.error("Paiement impossible", {
+        description: error instanceof Error ? error.message : "Réessayez plus tard.",
+      }),
+  });
+
+  const openPayment = () => {
+    if (!user) {
+      toast.info("Connectez-vous pour réserver votre place");
+      navigate({ to: "/auth" });
+      return;
+    }
+    setOpen(true);
   };
 
   return (
@@ -210,32 +240,39 @@ function CaravaneDetail() {
             <p className="truncate text-sm font-bold">{caravane.organizer}</p>
           </div>
           <span className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
-            {caravane.rating}
+            {caravane.rating.toFixed(1)}
             <Star className="size-3 fill-current" />
           </span>
         </section>
 
+        {caravane.about && (
+          <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
+            <h2 className="text-sm font-bold tracking-tight">À propos de cette caravane</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {caravane.about}
+            </p>
 
-        <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
-          <h2 className="text-sm font-bold tracking-tight">À propos de cette caravane</h2>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{caravane.about}</p>
-
-          <h3 className="mt-5 text-sm font-bold tracking-tight">Équipements</h3>
-          <ul className="mt-3 grid grid-cols-4 gap-2">
-            {caravane.amenities.map((a) => {
-              const { icon: Icon, label } = amenityMap[a];
-              return (
-                <li
-                  key={a}
-                  className="flex flex-col items-center gap-2 rounded-2xl bg-muted/60 p-3 text-center"
-                >
-                  <Icon className="size-5 text-primary-accent" />
-                  <span className="text-[11px] font-medium leading-tight">{label}</span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+            {caravane.amenities.length > 0 && (
+              <>
+                <h3 className="mt-5 text-sm font-bold tracking-tight">Équipements</h3>
+                <ul className="mt-3 grid grid-cols-4 gap-2">
+                  {caravane.amenities.map((a) => {
+                    const { icon: Icon, label } = amenityMap[a];
+                    return (
+                      <li
+                        key={a}
+                        className="flex flex-col items-center gap-2 rounded-2xl bg-muted/60 p-3 text-center"
+                      >
+                        <Icon className="size-5 text-primary-accent" />
+                        <span className="text-[11px] font-medium leading-tight">{label}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+          </section>
+        )}
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-surface-blur px-5 py-4 backdrop-blur-xl">
@@ -250,10 +287,11 @@ function CaravaneDetail() {
           </div>
           <button
             type="button"
-            onClick={() => setOpen(true)}
-            className="shrink-0 rounded-2xl bg-gradient-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98]"
+            onClick={openPayment}
+            disabled={caravane.seatsLeft === 0}
+            className="shrink-0 rounded-2xl bg-gradient-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-60"
           >
-            Réserver une place
+            {caravane.seatsLeft === 0 ? "Complet" : "Réserver une place"}
           </button>
         </div>
       </div>
@@ -263,7 +301,7 @@ function CaravaneDetail() {
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">Paiement PayTech</DialogTitle>
             <DialogDescription>
-              {student.name} • {student.studentId}
+              {caravane.from} → {caravane.to} • {caravane.date}
             </DialogDescription>
           </DialogHeader>
 
@@ -283,7 +321,9 @@ function CaravaneDetail() {
                 <button
                   type="button"
                   aria-label="Ajouter une place"
-                  onClick={() => setSeats((s) => Math.min(caravane.seatsLeft, s + 1))}
+                  onClick={() =>
+                    setSeats((s) => Math.min(Math.min(caravane.seatsLeft, 6), s + 1))
+                  }
                   className="grid size-8 place-items-center rounded-full border border-border bg-card font-bold"
                 >
                   +
@@ -327,7 +367,6 @@ function CaravaneDetail() {
                   </button>
                 </li>
               ))}
-
             </ul>
 
             <div className="flex items-center justify-between border-t border-border pt-3">
@@ -339,11 +378,11 @@ function CaravaneDetail() {
 
             <button
               type="button"
-              disabled={pending}
-              onClick={pay}
+              disabled={booking.isPending}
+              onClick={() => booking.mutate()}
               className="w-full rounded-2xl bg-gradient-primary py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-70"
             >
-              {pending ? "Paiement en cours…" : "Confirmer le paiement"}
+              {booking.isPending ? "Paiement en cours…" : "Confirmer le paiement"}
             </button>
             <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
               <ShieldCheck className="size-3.5" /> Transaction chiffrée via PayTech
