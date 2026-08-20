@@ -15,6 +15,7 @@ import { Route as BilletsRouteImport } from './routes/billets'
 import { Route as FavorisRouteImport } from './routes/favoris'
 import { Route as OrganizerRouteImport } from './routes/organizer'
 import { Route as ProfilRouteImport } from './routes/profil'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as CaravaneIdRouteImport } from './routes/caravane.$id'
 import { Route as OrganizerIndexRouteImport } from './routes/organizer.index'
 import { Route as OrganizerAnalyticsRouteImport } from './routes/organizer.analytics'
@@ -61,6 +62,11 @@ const ProfilRoute = ProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const CaravaneIdRoute = CaravaneIdRouteImport.update({
   id: '/caravane/$id',
@@ -145,7 +151,7 @@ const OrganizerTeamRoute = OrganizerTeamRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/billets': typeof BilletsRoute
   '/favoris': typeof FavorisRoute
   '/organizer': typeof OrganizerRouteWithChildren
@@ -165,11 +171,11 @@ export interface FileRoutesByFullPath {
   '/organizer/settings': typeof OrganizerSettingsRoute
   '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
+  '/admin/': typeof AdminIndexRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/billets': typeof BilletsRoute
   '/favoris': typeof FavorisRoute
   '/profil': typeof ProfilRoute
@@ -188,12 +194,13 @@ export interface FileRoutesByTo {
   '/organizer/settings': typeof OrganizerSettingsRoute
   '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
+  '/admin': typeof AdminIndexRoute
   '/organizer': typeof OrganizerIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/billets': typeof BilletsRoute
   '/favoris': typeof FavorisRoute
   '/organizer': typeof OrganizerRouteWithChildren
@@ -213,6 +220,7 @@ export interface FileRoutesById {
   '/organizer/settings': typeof OrganizerSettingsRoute
   '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
+  '/admin/': typeof AdminIndexRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRouteTypes {
@@ -239,11 +247,11 @@ export interface FileRouteTypes {
     | '/organizer/settings'
     | '/organizer/subscription'
     | '/organizer/team'
+    | '/admin/'
     | '/organizer/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/billets'
     | '/favoris'
     | '/profil'
@@ -262,6 +270,7 @@ export interface FileRouteTypes {
     | '/organizer/settings'
     | '/organizer/subscription'
     | '/organizer/team'
+    | '/admin'
     | '/organizer'
   id:
     | '__root__'
@@ -286,12 +295,13 @@ export interface FileRouteTypes {
     | '/organizer/settings'
     | '/organizer/subscription'
     | '/organizer/team'
+    | '/admin/'
     | '/organizer/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   BilletsRoute: typeof BilletsRoute
   FavorisRoute: typeof FavorisRoute
   OrganizerRoute: typeof OrganizerRouteWithChildren
@@ -342,6 +352,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/profil'
       preLoaderRoute: typeof ProfilRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/caravane/$id': {
       id: '/caravane/$id'
@@ -458,6 +475,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface OrganizerRouteChildren {
   OrganizerAnalyticsRoute: typeof OrganizerAnalyticsRoute
   OrganizerBookingsRoute: typeof OrganizerBookingsRoute
@@ -500,7 +527,7 @@ const OrganizerRouteWithChildren = OrganizerRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   BilletsRoute: BilletsRoute,
   FavorisRoute: FavorisRoute,
   OrganizerRoute: OrganizerRouteWithChildren,
