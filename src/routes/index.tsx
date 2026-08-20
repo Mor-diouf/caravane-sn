@@ -45,18 +45,22 @@ function Index() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      <header className="relative overflow-hidden bg-gradient-primary px-5 pb-16 pt-6 text-primary-foreground">
-        <div className="mx-auto max-w-5xl">
+      <header className="relative overflow-hidden bg-gradient-primary px-5 pb-12 pt-5 text-primary-foreground">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-primary-foreground/10 blur-2xl"
+        />
+        <div className="relative mx-auto max-w-5xl">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15 text-lg font-black backdrop-blur">
+              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15 text-base font-black backdrop-blur">
                 CÉ
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[13px] font-medium text-primary-foreground/70">
+                <p className="truncate text-[12px] font-medium leading-tight text-primary-foreground/70">
                   Bonjour, {student.name.split(" ")[0]}
                 </p>
-                <h1 className="truncate text-lg font-extrabold tracking-tight">
+                <h1 className="truncate text-[15px] font-extrabold leading-tight tracking-tight">
                   Caravane Étudiants
                 </h1>
               </div>
@@ -64,18 +68,19 @@ function Index() {
             <Link
               to="/billets"
               aria-label="Notifications"
-              className="relative grid size-11 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15 backdrop-blur transition-colors hover:bg-primary-foreground/25"
+              className="relative grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15 backdrop-blur transition-colors hover:bg-primary-foreground/25"
             >
               <Bell className="size-5" />
               <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-secondary-accent" />
             </Link>
           </div>
 
-          <p className="mt-8 max-w-md text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-            Trouvez votre prochaine caravane, payez en deux clics.
+          <p className="mt-6 max-w-lg text-[22px] font-bold leading-[1.35] tracking-tight sm:text-[28px] sm:leading-[1.3]">
+            Trouvez votre prochaine caravane,
+            <br className="hidden sm:block" /> payez en deux clics.
           </p>
 
-          <div className="mt-6 flex items-center gap-2 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/12 p-2 backdrop-blur-xl">
+          <div className="mt-5 flex items-center gap-2 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/12 p-2 backdrop-blur-xl">
             <Search className="ml-2 size-4 shrink-0 text-primary-foreground/70" />
             <input
               value={query}
@@ -95,7 +100,7 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto -mt-10 max-w-5xl space-y-8 px-5">
+      <main className="mx-auto -mt-8 max-w-5xl space-y-8 px-5">
         <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold tracking-tight">Universités</h2>
@@ -117,30 +122,25 @@ function Index() {
                   <button
                     type="button"
                     onClick={() => setActiveUniversity(active ? null : u.id)}
+                    title={u.name}
                     className={cn(
-                      "flex w-20 flex-col items-center gap-2 rounded-2xl border p-2 transition-all",
+                      "flex w-[76px] flex-col items-center gap-1.5 rounded-2xl border p-2 transition-all",
                       active
                         ? "border-primary-accent bg-accent shadow-ambient"
                         : "border-border/70 hover:border-primary-accent/50",
                     )}
                   >
-                    <span
-                      className={cn(
-                        "grid size-11 place-items-center rounded-full text-[11px] font-black",
-                        active
-                          ? "bg-gradient-primary text-primary-foreground"
-                          : "bg-muted text-primary",
-                      )}
-                    >
-                      {u.abbr.slice(0, 2)}
+                    <UniversityMark abbr={u.abbr} active={active} />
+                    <span className="w-full truncate text-center text-[11px] font-semibold leading-tight">
+                      {u.abbr}
                     </span>
-                    <span className="text-[11px] font-semibold">{u.abbr}</span>
                   </button>
                 </li>
               );
             })}
           </ul>
         </section>
+
 
         <section>
           <div className="flex items-baseline justify-between">
