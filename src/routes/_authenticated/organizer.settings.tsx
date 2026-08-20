@@ -48,7 +48,7 @@ function SettingsPage() {
   }, [settings]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name?: string; description?: string; phone?: string; whatsapp?: string; university_id?: string }) => updateFn({ data }),
+    mutationFn: (data: { name?: string | undefined; description?: string | undefined; phone?: string | undefined; whatsapp?: string | undefined; university_id?: string  | undefined}) => updateFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
       toast.success("Paramètres enregistrés");
