@@ -24,37 +24,39 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
             height={800}
             className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/45 via-transparent to-transparent" />
           <span
             className={cn(
-              "absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-tight text-primary-foreground backdrop-blur",
-              tone === "critical" && "bg-danger/90",
-              tone === "warning" && "bg-secondary-accent/90 text-text-strong",
-              tone === "ok" && "bg-success/90",
+              "absolute left-3 top-3 rounded-full border border-white/25 px-2.5 py-1 text-[11px] font-semibold leading-none tracking-tight text-primary-foreground shadow-ambient backdrop-blur-md",
+              tone === "critical" && "bg-danger/75",
+              tone === "warning" && "bg-secondary-accent/80 text-text-strong",
+              tone === "ok" && "bg-success/75",
             )}
           >
             {caravane.seatsLeft} places
           </span>
         </div>
 
-        <div className="space-y-2.5 p-4">
-          <h3 className="truncate text-base font-bold tracking-tight">
+        <div className="space-y-2 p-4 pr-12">
+          <h3 className="truncate text-[15px] font-bold leading-snug tracking-tight">
             {caravane.from} <span className="text-muted-foreground">→</span> {caravane.to}
           </h3>
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-[12px] leading-relaxed text-muted-foreground">
             <Clock className="size-3.5 shrink-0" />
             <span className="truncate">
               {caravane.date} • {caravane.time}
             </span>
           </p>
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MapPin className="size-3.5 shrink-0" />
-            <span className="truncate">{caravane.pickup}</span>
+          <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-muted-foreground">
+            <MapPin className="mt-0.5 size-3.5 shrink-0" />
+            <span className="line-clamp-2">{caravane.pickup}</span>
           </p>
-          <p className="pt-1 text-lg font-extrabold text-primary-accent">
+          <p className="pt-1 text-[17px] font-extrabold leading-none text-primary-accent">
             {formatPrice(caravane.price)}
             <span className="ml-1 text-[11px] font-semibold text-muted-foreground">FCFA</span>
           </p>
         </div>
+
       </Link>
 
       <button

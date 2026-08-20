@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Wallet } from "lucide-react";
+import { CheckCircle2, Download, Share2, Wallet } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { QrCode } from "@/components/QrCode";
 import { formatPrice, getCaravane, student } from "@/lib/caravanes";
@@ -101,12 +101,32 @@ function Billets() {
                         </dd>
                       </div>
                     </dl>
-                    <button
-                      type="button"
-                      className="mt-3 flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-xs font-bold transition-colors hover:bg-accent"
-                    >
-                      <Wallet className="size-4" /> Ajouter au Wallet
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-ambient transition-transform active:scale-[0.98]"
+                      >
+                        <Download className="size-4" /> Télécharger en PDF
+                      </button>
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(
+                          `Mon billet Caravane Étudiants ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`,
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-xs font-bold transition-colors hover:bg-accent"
+                      >
+                        <Share2 className="size-4" /> Partager sur WhatsApp
+                      </a>
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-xs font-bold transition-colors hover:bg-accent"
+                      >
+                        <Wallet className="size-4" /> Wallet
+                      </button>
+                    </div>
+
                   </div>
                 </div>
               </article>
