@@ -27,6 +27,7 @@ import { Route as OrganizerPromotionsRouteImport } from './routes/organizer.prom
 import { Route as OrganizerReportsRouteImport } from './routes/organizer.reports'
 import { Route as OrganizerReputationRouteImport } from './routes/organizer.reputation'
 import { Route as OrganizerScannerRouteImport } from './routes/organizer.scanner'
+import { Route as OrganizerSettingsRouteImport } from './routes/organizer.settings'
 import { Route as OrganizerSubscriptionRouteImport } from './routes/organizer.subscription'
 import { Route as OrganizerTeamRouteImport } from './routes/organizer.team'
 
@@ -120,6 +121,11 @@ const OrganizerScannerRoute = OrganizerScannerRouteImport.update({
   path: '/scanner',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerSettingsRoute = OrganizerSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 const OrganizerSubscriptionRoute = OrganizerSubscriptionRouteImport.update({
   id: '/subscription',
   path: '/subscription',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/settings': typeof OrganizerSettingsRoute
   '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
   '/organizer/': typeof OrganizerIndexRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/settings': typeof OrganizerSettingsRoute
   '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
   '/organizer': typeof OrganizerIndexRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/settings': typeof OrganizerSettingsRoute
   '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
   '/organizer/': typeof OrganizerIndexRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/settings'
     | '/organizer/subscription'
     | '/organizer/team'
     | '/organizer/'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/settings'
     | '/organizer/subscription'
     | '/organizer/team'
     | '/organizer'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/settings'
     | '/organizer/subscription'
     | '/organizer/team'
     | '/organizer/'
@@ -402,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerScannerRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/settings': {
+      id: '/organizer/settings'
+      path: '/settings'
+      fullPath: '/organizer/settings'
+      preLoaderRoute: typeof OrganizerSettingsRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
     '/organizer/subscription': {
       id: '/organizer/subscription'
       path: '/subscription'
@@ -431,6 +450,7 @@ interface OrganizerRouteChildren {
   OrganizerReportsRoute: typeof OrganizerReportsRoute
   OrganizerReputationRoute: typeof OrganizerReputationRoute
   OrganizerScannerRoute: typeof OrganizerScannerRoute
+  OrganizerSettingsRoute: typeof OrganizerSettingsRoute
   OrganizerSubscriptionRoute: typeof OrganizerSubscriptionRoute
   OrganizerTeamRoute: typeof OrganizerTeamRoute
   OrganizerIndexRoute: typeof OrganizerIndexRoute
@@ -448,6 +468,7 @@ const OrganizerRouteChildren: OrganizerRouteChildren = {
   OrganizerReportsRoute: OrganizerReportsRoute,
   OrganizerReputationRoute: OrganizerReputationRoute,
   OrganizerScannerRoute: OrganizerScannerRoute,
+  OrganizerSettingsRoute: OrganizerSettingsRoute,
   OrganizerSubscriptionRoute: OrganizerSubscriptionRoute,
   OrganizerTeamRoute: OrganizerTeamRoute,
   OrganizerIndexRoute: OrganizerIndexRoute,
