@@ -173,6 +173,21 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
 }
 
 function NotificationBell() {
+  const { data } = useQuery({
+    queryKey: ["organizer", "notifications"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, title, body, kind, read_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+  const items = data ?? [];
+  const unread = items.filter((n) => !n.read_at).length;
+
   return (
     <Popover>
       <PopoverTrigger
@@ -180,30 +195,39 @@ function NotificationBell() {
         className="relative grid size-9 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
       >
         <Bell className="size-4" />
-        <span className="absolute right-2 top-2 size-1.5 rounded-full bg-danger" />
+        {unread > 0 && <span className="absolute right-2 top-2 size-1.5 rounded-full bg-danger" />}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <p className="border-b border-border px-4 py-3 text-sm font-bold">Notifications</p>
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto">
-          {notifications.map((n) => (
-            <li key={n.id} className="flex gap-3 px-4 py-3">
-              <span
-                className={cn(
-                  "mt-1.5 size-2 shrink-0 rounded-full",
-                  n.tone === "success" && "bg-success",
-                  n.tone === "warning" && "bg-warning",
-                  n.tone === "info" && "bg-info",
-                  n.tone === "danger" && "bg-danger",
-                )}
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-tight">{n.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">{n.detail}</span>
-                <span className="block text-[11px] text-muted-foreground/70">{n.time}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        {items.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+            Aucune notification pour le moment.
+          </p>
+        ) : (
+          <ul className="max-h-80 divide-y divide-border overflow-y-auto">
+            {items.map((n) => (
+              <li key={n.id} className="flex gap-3 px-4 py-3">
+                <span
+                  className={cn(
+                    "mt-1.5 size-2 shrink-0 rounded-full",
+                    n.kind === "payment" && "bg-success",
+                    n.kind === "departure" && "bg-warning",
+                    n.kind === "review" && "bg-info",
+                    n.kind === "dispute" && "bg-danger",
+                    !["payment", "departure", "review", "dispute"].includes(n.kind) && "bg-info",
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">{n.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{n.body}</span>
+                  <span className="block text-[11px] text-muted-foreground/70">
+                    {dateTimeFr(n.created_at)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </PopoverContent>
     </Popover>
   );
