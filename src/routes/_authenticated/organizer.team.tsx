@@ -48,7 +48,7 @@ function TeamPage() {
   const [role, setRole] = useState<"manager" | "finance" | "scanner" | "support">("manager");
 
   const addMutation = useMutation({
-    mutationFn: (data: Parameters<typeof organizerAddMember>[0]["data"]) => addFn({ data }),
+    mutationFn: (data: Extract<Parameters<typeof organizerAddMember>[0], { data: unknown }>["data"]) => addFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
       toast.success("Invitation envoyée");
@@ -58,7 +58,7 @@ function TeamPage() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (data: Parameters<typeof organizerRemoveMember>[0]["data"]) => removeFn({ data }),
+    mutationFn: (data: Extract<Parameters<typeof organizerRemoveMember>[0], { data: unknown }>["data"]) => removeFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
       toast.success("Membre retiré");

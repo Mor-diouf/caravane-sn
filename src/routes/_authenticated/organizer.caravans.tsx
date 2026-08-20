@@ -91,7 +91,7 @@ function CaravansPage() {
   const [form, setForm] = useState(emptyForm);
 
   const saveMutation = useMutation({
-    mutationFn: (data: Parameters<typeof organizerSaveCaravan>[0]["data"]) =>
+    mutationFn: (data: Extract<Parameters<typeof organizerSaveCaravan>[0], { data: unknown }>["data"]) =>
       saveCaravanFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
@@ -102,7 +102,7 @@ function CaravansPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (data: Parameters<typeof organizerSetCaravanStatus>[0]["data"]) =>
+    mutationFn: (data: Extract<Parameters<typeof organizerSetCaravanStatus>[0], { data: unknown }>["data"]) =>
       setStatusFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
