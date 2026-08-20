@@ -18,6 +18,7 @@ import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCaravansRouteImport } from './routes/admin.caravans'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminDisputesRouteImport } from './routes/admin.disputes'
 import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
 import { Route as AdminOrganizersRouteImport } from './routes/admin.organizers'
@@ -82,6 +83,11 @@ const AdminCaravansRoute = AdminCaravansRouteImport.update({
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDisputesRoute = AdminDisputesRouteImport.update({
+  id: '/disputes',
+  path: '/disputes',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFinanceRoute = AdminFinanceRouteImport.update({
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/profil': typeof ProfilRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/disputes': typeof AdminDisputesRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/moderation': typeof AdminModerationRoute
   '/admin/organizers': typeof AdminOrganizersRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/profil': typeof ProfilRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/disputes': typeof AdminDisputesRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/moderation': typeof AdminModerationRoute
   '/admin/organizers': typeof AdminOrganizersRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/profil': typeof ProfilRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/disputes': typeof AdminDisputesRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/moderation': typeof AdminModerationRoute
   '/admin/organizers': typeof AdminOrganizersRoute
@@ -288,6 +297,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/admin/caravans'
     | '/admin/dashboard'
+    | '/admin/disputes'
     | '/admin/finance'
     | '/admin/moderation'
     | '/admin/organizers'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/admin/caravans'
     | '/admin/dashboard'
+    | '/admin/disputes'
     | '/admin/finance'
     | '/admin/moderation'
     | '/admin/organizers'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/admin/caravans'
     | '/admin/dashboard'
+    | '/admin/disputes'
     | '/admin/finance'
     | '/admin/moderation'
     | '/admin/organizers'
@@ -444,6 +456,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/disputes': {
+      id: '/admin/disputes'
+      path: '/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AdminDisputesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/finance': {
@@ -592,6 +611,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminCaravansRoute: typeof AdminCaravansRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDisputesRoute: typeof AdminDisputesRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminModerationRoute: typeof AdminModerationRoute
   AdminOrganizersRoute: typeof AdminOrganizersRoute
@@ -602,6 +622,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCaravansRoute: AdminCaravansRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDisputesRoute: AdminDisputesRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminModerationRoute: AdminModerationRoute,
   AdminOrganizersRoute: AdminOrganizersRoute,
