@@ -7,7 +7,7 @@ import { AdminButton, Tabs, TonePill } from "@/components/admin/ui";
 import { platformUsers, userRoleLabels, type PlatformUser } from "@/lib/admin";
 import { fcfa, fmt } from "@/lib/organizer";
 
-export const Route = createFileRoute("/admin/users")({
+export const Route = createFileRoute("/_authenticated/admin/users")({
   head: () => ({
     meta: [
       { title: "Utilisateurs — CaravaneHub Admin" },

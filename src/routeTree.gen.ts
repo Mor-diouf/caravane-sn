@@ -11,38 +11,38 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as OrganizerRouteImport } from './routes/organizer'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBilletsRouteImport } from './routes/_authenticated/billets'
 import { Route as AuthenticatedFavorisRouteImport } from './routes/_authenticated/favoris'
+import { Route as AuthenticatedOrganizerRouteImport } from './routes/_authenticated/organizer'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
-import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
-import { Route as AdminCaravansRouteImport } from './routes/admin.caravans'
-import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
-import { Route as AdminDisputesRouteImport } from './routes/admin.disputes'
-import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
-import { Route as AdminModerationRouteImport } from './routes/admin.moderation'
-import { Route as AdminOrganizersRouteImport } from './routes/admin.organizers'
-import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as CaravaneIdRouteImport } from './routes/caravane.$id'
-import { Route as OrganizerIndexRouteImport } from './routes/organizer.index'
-import { Route as OrganizerAnalyticsRouteImport } from './routes/organizer.analytics'
-import { Route as OrganizerBookingsRouteImport } from './routes/organizer.bookings'
-import { Route as OrganizerCaravansRouteImport } from './routes/organizer.caravans'
-import { Route as OrganizerDashboardRouteImport } from './routes/organizer.dashboard'
-import { Route as OrganizerHistoryRouteImport } from './routes/organizer.history'
-import { Route as OrganizerPassengersRouteImport } from './routes/organizer.passengers'
-import { Route as OrganizerPaymentsRouteImport } from './routes/organizer.payments'
-import { Route as OrganizerPromotionsRouteImport } from './routes/organizer.promotions'
-import { Route as OrganizerReportsRouteImport } from './routes/organizer.reports'
-import { Route as OrganizerReputationRouteImport } from './routes/organizer.reputation'
-import { Route as OrganizerScannerRouteImport } from './routes/organizer.scanner'
-import { Route as OrganizerSettingsRouteImport } from './routes/organizer.settings'
-import { Route as OrganizerSubscriptionRouteImport } from './routes/organizer.subscription'
-import { Route as OrganizerTeamRouteImport } from './routes/organizer.team'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
+import { Route as AuthenticatedAdminCaravansRouteImport } from './routes/_authenticated/admin.caravans'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
+import { Route as AuthenticatedAdminDisputesRouteImport } from './routes/_authenticated/admin.disputes'
+import { Route as AuthenticatedAdminFinanceRouteImport } from './routes/_authenticated/admin.finance'
+import { Route as AuthenticatedAdminModerationRouteImport } from './routes/_authenticated/admin.moderation'
+import { Route as AuthenticatedAdminOrganizersRouteImport } from './routes/_authenticated/admin.organizers'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
+import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedOrganizerIndexRouteImport } from './routes/_authenticated/organizer.index'
+import { Route as AuthenticatedOrganizerAnalyticsRouteImport } from './routes/_authenticated/organizer.analytics'
+import { Route as AuthenticatedOrganizerBookingsRouteImport } from './routes/_authenticated/organizer.bookings'
+import { Route as AuthenticatedOrganizerCaravansRouteImport } from './routes/_authenticated/organizer.caravans'
+import { Route as AuthenticatedOrganizerDashboardRouteImport } from './routes/_authenticated/organizer.dashboard'
+import { Route as AuthenticatedOrganizerHistoryRouteImport } from './routes/_authenticated/organizer.history'
+import { Route as AuthenticatedOrganizerPassengersRouteImport } from './routes/_authenticated/organizer.passengers'
+import { Route as AuthenticatedOrganizerPaymentsRouteImport } from './routes/_authenticated/organizer.payments'
+import { Route as AuthenticatedOrganizerPromotionsRouteImport } from './routes/_authenticated/organizer.promotions'
+import { Route as AuthenticatedOrganizerReportsRouteImport } from './routes/_authenticated/organizer.reports'
+import { Route as AuthenticatedOrganizerReputationRouteImport } from './routes/_authenticated/organizer.reputation'
+import { Route as AuthenticatedOrganizerScannerRouteImport } from './routes/_authenticated/organizer.scanner'
+import { Route as AuthenticatedOrganizerSettingsRouteImport } from './routes/_authenticated/organizer.settings'
+import { Route as AuthenticatedOrganizerSubscriptionRouteImport } from './routes/_authenticated/organizer.subscription'
+import { Route as AuthenticatedOrganizerTeamRouteImport } from './routes/_authenticated/organizer.team'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -53,20 +53,15 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrganizerRoute = OrganizerRouteImport.update({
-  id: '/organizer',
-  path: '/organizer',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBilletsRoute = AuthenticatedBilletsRouteImport.update({
   id: '/billets',
@@ -78,176 +73,204 @@ const AuthenticatedFavorisRoute = AuthenticatedFavorisRouteImport.update({
   path: '/favoris',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedOrganizerRoute = AuthenticatedOrganizerRouteImport.update({
+  id: '/organizer',
+  path: '/organizer',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
   getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCaravansRoute = AdminCaravansRouteImport.update({
-  id: '/caravans',
-  path: '/caravans',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDisputesRoute = AdminDisputesRouteImport.update({
-  id: '/disputes',
-  path: '/disputes',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminFinanceRoute = AdminFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminModerationRoute = AdminModerationRouteImport.update({
-  id: '/moderation',
-  path: '/moderation',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOrganizersRoute = AdminOrganizersRouteImport.update({
-  id: '/organizers',
-  path: '/organizers',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRoute,
 } as any)
 const CaravaneIdRoute = CaravaneIdRouteImport.update({
   id: '/caravane/$id',
   path: '/caravane/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrganizerIndexRoute = OrganizerIndexRouteImport.update({
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => OrganizerRoute,
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const OrganizerAnalyticsRoute = OrganizerAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => OrganizerRoute,
+const AuthenticatedAdminAnalyticsRoute =
+  AuthenticatedAdminAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminCaravansRoute =
+  AuthenticatedAdminCaravansRouteImport.update({
+    id: '/caravans',
+    path: '/caravans',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminDisputesRoute =
+  AuthenticatedAdminDisputesRouteImport.update({
+    id: '/disputes',
+    path: '/disputes',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFinanceRoute =
+  AuthenticatedAdminFinanceRouteImport.update({
+    id: '/finance',
+    path: '/finance',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminModerationRoute =
+  AuthenticatedAdminModerationRouteImport.update({
+    id: '/moderation',
+    path: '/moderation',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrganizersRoute =
+  AuthenticatedAdminOrganizersRouteImport.update({
+    id: '/organizers',
+    path: '/organizers',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
-const OrganizerBookingsRoute = OrganizerBookingsRouteImport.update({
-  id: '/bookings',
-  path: '/bookings',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerCaravansRoute = OrganizerCaravansRouteImport.update({
-  id: '/caravans',
-  path: '/caravans',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerDashboardRoute = OrganizerDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerHistoryRoute = OrganizerHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerPassengersRoute = OrganizerPassengersRouteImport.update({
-  id: '/passengers',
-  path: '/passengers',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerPaymentsRoute = OrganizerPaymentsRouteImport.update({
-  id: '/payments',
-  path: '/payments',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerPromotionsRoute = OrganizerPromotionsRouteImport.update({
-  id: '/promotions',
-  path: '/promotions',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerReportsRoute = OrganizerReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerReputationRoute = OrganizerReputationRouteImport.update({
-  id: '/reputation',
-  path: '/reputation',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerScannerRoute = OrganizerScannerRouteImport.update({
-  id: '/scanner',
-  path: '/scanner',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerSettingsRoute = OrganizerSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerSubscriptionRoute = OrganizerSubscriptionRouteImport.update({
-  id: '/subscription',
-  path: '/subscription',
-  getParentRoute: () => OrganizerRoute,
-} as any)
-const OrganizerTeamRoute = OrganizerTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => OrganizerRoute,
-} as any)
+const AuthenticatedOrganizerIndexRoute =
+  AuthenticatedOrganizerIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerAnalyticsRoute =
+  AuthenticatedOrganizerAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerBookingsRoute =
+  AuthenticatedOrganizerBookingsRouteImport.update({
+    id: '/bookings',
+    path: '/bookings',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerCaravansRoute =
+  AuthenticatedOrganizerCaravansRouteImport.update({
+    id: '/caravans',
+    path: '/caravans',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerDashboardRoute =
+  AuthenticatedOrganizerDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerHistoryRoute =
+  AuthenticatedOrganizerHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerPassengersRoute =
+  AuthenticatedOrganizerPassengersRouteImport.update({
+    id: '/passengers',
+    path: '/passengers',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerPaymentsRoute =
+  AuthenticatedOrganizerPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerPromotionsRoute =
+  AuthenticatedOrganizerPromotionsRouteImport.update({
+    id: '/promotions',
+    path: '/promotions',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerReportsRoute =
+  AuthenticatedOrganizerReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerReputationRoute =
+  AuthenticatedOrganizerReputationRouteImport.update({
+    id: '/reputation',
+    path: '/reputation',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerScannerRoute =
+  AuthenticatedOrganizerScannerRouteImport.update({
+    id: '/scanner',
+    path: '/scanner',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerSettingsRoute =
+  AuthenticatedOrganizerSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerSubscriptionRoute =
+  AuthenticatedOrganizerSubscriptionRouteImport.update({
+    id: '/subscription',
+    path: '/subscription',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
+const AuthenticatedOrganizerTeamRoute =
+  AuthenticatedOrganizerTeamRouteImport.update({
+    id: '/team',
+    path: '/team',
+    getParentRoute: () => AuthenticatedOrganizerRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
-  '/organizer': typeof OrganizerRouteWithChildren
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/billets': typeof AuthenticatedBilletsRoute
   '/favoris': typeof AuthenticatedFavorisRoute
+  '/organizer': typeof AuthenticatedOrganizerRouteWithChildren
   '/profil': typeof AuthenticatedProfilRoute
-  '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/caravans': typeof AdminCaravansRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/disputes': typeof AdminDisputesRoute
-  '/admin/finance': typeof AdminFinanceRoute
-  '/admin/moderation': typeof AdminModerationRoute
-  '/admin/organizers': typeof AdminOrganizersRoute
-  '/admin/settings': typeof AdminSettingsRoute
-  '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
-  '/organizer/analytics': typeof OrganizerAnalyticsRoute
-  '/organizer/bookings': typeof OrganizerBookingsRoute
-  '/organizer/caravans': typeof OrganizerCaravansRoute
-  '/organizer/dashboard': typeof OrganizerDashboardRoute
-  '/organizer/history': typeof OrganizerHistoryRoute
-  '/organizer/passengers': typeof OrganizerPassengersRoute
-  '/organizer/payments': typeof OrganizerPaymentsRoute
-  '/organizer/promotions': typeof OrganizerPromotionsRoute
-  '/organizer/reports': typeof OrganizerReportsRoute
-  '/organizer/reputation': typeof OrganizerReputationRoute
-  '/organizer/scanner': typeof OrganizerScannerRoute
-  '/organizer/settings': typeof OrganizerSettingsRoute
-  '/organizer/subscription': typeof OrganizerSubscriptionRoute
-  '/organizer/team': typeof OrganizerTeamRoute
-  '/admin/': typeof AdminIndexRoute
-  '/organizer/': typeof OrganizerIndexRoute
+  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
+  '/admin/caravans': typeof AuthenticatedAdminCaravansRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
+  '/admin/finance': typeof AuthenticatedAdminFinanceRoute
+  '/admin/moderation': typeof AuthenticatedAdminModerationRoute
+  '/admin/organizers': typeof AuthenticatedAdminOrganizersRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/organizer/analytics': typeof AuthenticatedOrganizerAnalyticsRoute
+  '/organizer/bookings': typeof AuthenticatedOrganizerBookingsRoute
+  '/organizer/caravans': typeof AuthenticatedOrganizerCaravansRoute
+  '/organizer/dashboard': typeof AuthenticatedOrganizerDashboardRoute
+  '/organizer/history': typeof AuthenticatedOrganizerHistoryRoute
+  '/organizer/passengers': typeof AuthenticatedOrganizerPassengersRoute
+  '/organizer/payments': typeof AuthenticatedOrganizerPaymentsRoute
+  '/organizer/promotions': typeof AuthenticatedOrganizerPromotionsRoute
+  '/organizer/reports': typeof AuthenticatedOrganizerReportsRoute
+  '/organizer/reputation': typeof AuthenticatedOrganizerReputationRoute
+  '/organizer/scanner': typeof AuthenticatedOrganizerScannerRoute
+  '/organizer/settings': typeof AuthenticatedOrganizerSettingsRoute
+  '/organizer/subscription': typeof AuthenticatedOrganizerSubscriptionRoute
+  '/organizer/team': typeof AuthenticatedOrganizerTeamRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/organizer/': typeof AuthenticatedOrganizerIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -255,80 +278,81 @@ export interface FileRoutesByTo {
   '/billets': typeof AuthenticatedBilletsRoute
   '/favoris': typeof AuthenticatedFavorisRoute
   '/profil': typeof AuthenticatedProfilRoute
-  '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/caravans': typeof AdminCaravansRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/disputes': typeof AdminDisputesRoute
-  '/admin/finance': typeof AdminFinanceRoute
-  '/admin/moderation': typeof AdminModerationRoute
-  '/admin/organizers': typeof AdminOrganizersRoute
-  '/admin/settings': typeof AdminSettingsRoute
-  '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
-  '/organizer/analytics': typeof OrganizerAnalyticsRoute
-  '/organizer/bookings': typeof OrganizerBookingsRoute
-  '/organizer/caravans': typeof OrganizerCaravansRoute
-  '/organizer/dashboard': typeof OrganizerDashboardRoute
-  '/organizer/history': typeof OrganizerHistoryRoute
-  '/organizer/passengers': typeof OrganizerPassengersRoute
-  '/organizer/payments': typeof OrganizerPaymentsRoute
-  '/organizer/promotions': typeof OrganizerPromotionsRoute
-  '/organizer/reports': typeof OrganizerReportsRoute
-  '/organizer/reputation': typeof OrganizerReputationRoute
-  '/organizer/scanner': typeof OrganizerScannerRoute
-  '/organizer/settings': typeof OrganizerSettingsRoute
-  '/organizer/subscription': typeof OrganizerSubscriptionRoute
-  '/organizer/team': typeof OrganizerTeamRoute
-  '/admin': typeof AdminIndexRoute
-  '/organizer': typeof OrganizerIndexRoute
+  '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
+  '/admin/caravans': typeof AuthenticatedAdminCaravansRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/disputes': typeof AuthenticatedAdminDisputesRoute
+  '/admin/finance': typeof AuthenticatedAdminFinanceRoute
+  '/admin/moderation': typeof AuthenticatedAdminModerationRoute
+  '/admin/organizers': typeof AuthenticatedAdminOrganizersRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/organizer/analytics': typeof AuthenticatedOrganizerAnalyticsRoute
+  '/organizer/bookings': typeof AuthenticatedOrganizerBookingsRoute
+  '/organizer/caravans': typeof AuthenticatedOrganizerCaravansRoute
+  '/organizer/dashboard': typeof AuthenticatedOrganizerDashboardRoute
+  '/organizer/history': typeof AuthenticatedOrganizerHistoryRoute
+  '/organizer/passengers': typeof AuthenticatedOrganizerPassengersRoute
+  '/organizer/payments': typeof AuthenticatedOrganizerPaymentsRoute
+  '/organizer/promotions': typeof AuthenticatedOrganizerPromotionsRoute
+  '/organizer/reports': typeof AuthenticatedOrganizerReportsRoute
+  '/organizer/reputation': typeof AuthenticatedOrganizerReputationRoute
+  '/organizer/scanner': typeof AuthenticatedOrganizerScannerRoute
+  '/organizer/settings': typeof AuthenticatedOrganizerSettingsRoute
+  '/organizer/subscription': typeof AuthenticatedOrganizerSubscriptionRoute
+  '/organizer/team': typeof AuthenticatedOrganizerTeamRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/organizer': typeof AuthenticatedOrganizerIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
-  '/organizer': typeof OrganizerRouteWithChildren
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/billets': typeof AuthenticatedBilletsRoute
   '/_authenticated/favoris': typeof AuthenticatedFavorisRoute
+  '/_authenticated/organizer': typeof AuthenticatedOrganizerRouteWithChildren
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
-  '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/caravans': typeof AdminCaravansRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/disputes': typeof AdminDisputesRoute
-  '/admin/finance': typeof AdminFinanceRoute
-  '/admin/moderation': typeof AdminModerationRoute
-  '/admin/organizers': typeof AdminOrganizersRoute
-  '/admin/settings': typeof AdminSettingsRoute
-  '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
-  '/organizer/analytics': typeof OrganizerAnalyticsRoute
-  '/organizer/bookings': typeof OrganizerBookingsRoute
-  '/organizer/caravans': typeof OrganizerCaravansRoute
-  '/organizer/dashboard': typeof OrganizerDashboardRoute
-  '/organizer/history': typeof OrganizerHistoryRoute
-  '/organizer/passengers': typeof OrganizerPassengersRoute
-  '/organizer/payments': typeof OrganizerPaymentsRoute
-  '/organizer/promotions': typeof OrganizerPromotionsRoute
-  '/organizer/reports': typeof OrganizerReportsRoute
-  '/organizer/reputation': typeof OrganizerReputationRoute
-  '/organizer/scanner': typeof OrganizerScannerRoute
-  '/organizer/settings': typeof OrganizerSettingsRoute
-  '/organizer/subscription': typeof OrganizerSubscriptionRoute
-  '/organizer/team': typeof OrganizerTeamRoute
-  '/admin/': typeof AdminIndexRoute
-  '/organizer/': typeof OrganizerIndexRoute
+  '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
+  '/_authenticated/admin/caravans': typeof AuthenticatedAdminCaravansRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/disputes': typeof AuthenticatedAdminDisputesRoute
+  '/_authenticated/admin/finance': typeof AuthenticatedAdminFinanceRoute
+  '/_authenticated/admin/moderation': typeof AuthenticatedAdminModerationRoute
+  '/_authenticated/admin/organizers': typeof AuthenticatedAdminOrganizersRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/_authenticated/organizer/analytics': typeof AuthenticatedOrganizerAnalyticsRoute
+  '/_authenticated/organizer/bookings': typeof AuthenticatedOrganizerBookingsRoute
+  '/_authenticated/organizer/caravans': typeof AuthenticatedOrganizerCaravansRoute
+  '/_authenticated/organizer/dashboard': typeof AuthenticatedOrganizerDashboardRoute
+  '/_authenticated/organizer/history': typeof AuthenticatedOrganizerHistoryRoute
+  '/_authenticated/organizer/passengers': typeof AuthenticatedOrganizerPassengersRoute
+  '/_authenticated/organizer/payments': typeof AuthenticatedOrganizerPaymentsRoute
+  '/_authenticated/organizer/promotions': typeof AuthenticatedOrganizerPromotionsRoute
+  '/_authenticated/organizer/reports': typeof AuthenticatedOrganizerReportsRoute
+  '/_authenticated/organizer/reputation': typeof AuthenticatedOrganizerReputationRoute
+  '/_authenticated/organizer/scanner': typeof AuthenticatedOrganizerScannerRoute
+  '/_authenticated/organizer/settings': typeof AuthenticatedOrganizerSettingsRoute
+  '/_authenticated/organizer/subscription': typeof AuthenticatedOrganizerSubscriptionRoute
+  '/_authenticated/organizer/team': typeof AuthenticatedOrganizerTeamRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/organizer/': typeof AuthenticatedOrganizerIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/auth'
-    | '/organizer'
+    | '/admin'
     | '/billets'
     | '/favoris'
+    | '/organizer'
     | '/profil'
+    | '/caravane/$id'
     | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
@@ -338,7 +362,6 @@ export interface FileRouteTypes {
     | '/admin/organizers'
     | '/admin/settings'
     | '/admin/users'
-    | '/caravane/$id'
     | '/organizer/analytics'
     | '/organizer/bookings'
     | '/organizer/caravans'
@@ -362,6 +385,7 @@ export interface FileRouteTypes {
     | '/billets'
     | '/favoris'
     | '/profil'
+    | '/caravane/$id'
     | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
@@ -371,7 +395,6 @@ export interface FileRouteTypes {
     | '/admin/organizers'
     | '/admin/settings'
     | '/admin/users'
-    | '/caravane/$id'
     | '/organizer/analytics'
     | '/organizer/bookings'
     | '/organizer/caravans'
@@ -392,46 +415,44 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
-    | '/admin'
     | '/auth'
-    | '/organizer'
+    | '/_authenticated/admin'
     | '/_authenticated/billets'
     | '/_authenticated/favoris'
+    | '/_authenticated/organizer'
     | '/_authenticated/profil'
-    | '/admin/analytics'
-    | '/admin/caravans'
-    | '/admin/dashboard'
-    | '/admin/disputes'
-    | '/admin/finance'
-    | '/admin/moderation'
-    | '/admin/organizers'
-    | '/admin/settings'
-    | '/admin/users'
     | '/caravane/$id'
-    | '/organizer/analytics'
-    | '/organizer/bookings'
-    | '/organizer/caravans'
-    | '/organizer/dashboard'
-    | '/organizer/history'
-    | '/organizer/passengers'
-    | '/organizer/payments'
-    | '/organizer/promotions'
-    | '/organizer/reports'
-    | '/organizer/reputation'
-    | '/organizer/scanner'
-    | '/organizer/settings'
-    | '/organizer/subscription'
-    | '/organizer/team'
-    | '/admin/'
-    | '/organizer/'
+    | '/_authenticated/admin/analytics'
+    | '/_authenticated/admin/caravans'
+    | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/disputes'
+    | '/_authenticated/admin/finance'
+    | '/_authenticated/admin/moderation'
+    | '/_authenticated/admin/organizers'
+    | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/users'
+    | '/_authenticated/organizer/analytics'
+    | '/_authenticated/organizer/bookings'
+    | '/_authenticated/organizer/caravans'
+    | '/_authenticated/organizer/dashboard'
+    | '/_authenticated/organizer/history'
+    | '/_authenticated/organizer/passengers'
+    | '/_authenticated/organizer/payments'
+    | '/_authenticated/organizer/promotions'
+    | '/_authenticated/organizer/reports'
+    | '/_authenticated/organizer/reputation'
+    | '/_authenticated/organizer/scanner'
+    | '/_authenticated/organizer/settings'
+    | '/_authenticated/organizer/subscription'
+    | '/_authenticated/organizer/team'
+    | '/_authenticated/admin/'
+    | '/_authenticated/organizer/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
-  OrganizerRoute: typeof OrganizerRouteWithChildren
   CaravaneIdRoute: typeof CaravaneIdRoute
 }
 
@@ -451,13 +472,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -465,12 +479,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/organizer': {
-      id: '/organizer'
-      path: '/organizer'
-      fullPath: '/organizer'
-      preLoaderRoute: typeof OrganizerRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/billets': {
       id: '/_authenticated/billets'
@@ -486,82 +500,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFavorisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/organizer': {
+      id: '/_authenticated/organizer'
+      path: '/organizer'
+      fullPath: '/organizer'
+      preLoaderRoute: typeof AuthenticatedOrganizerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/profil': {
       id: '/_authenticated/profil'
       path: '/profil'
       fullPath: '/profil'
       preLoaderRoute: typeof AuthenticatedProfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/analytics': {
-      id: '/admin/analytics'
-      path: '/analytics'
-      fullPath: '/admin/analytics'
-      preLoaderRoute: typeof AdminAnalyticsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/caravans': {
-      id: '/admin/caravans'
-      path: '/caravans'
-      fullPath: '/admin/caravans'
-      preLoaderRoute: typeof AdminCaravansRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
-      path: '/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/disputes': {
-      id: '/admin/disputes'
-      path: '/disputes'
-      fullPath: '/admin/disputes'
-      preLoaderRoute: typeof AdminDisputesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/finance': {
-      id: '/admin/finance'
-      path: '/finance'
-      fullPath: '/admin/finance'
-      preLoaderRoute: typeof AdminFinanceRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/moderation': {
-      id: '/admin/moderation'
-      path: '/moderation'
-      fullPath: '/admin/moderation'
-      preLoaderRoute: typeof AdminModerationRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/organizers': {
-      id: '/admin/organizers'
-      path: '/organizers'
-      fullPath: '/admin/organizers'
-      preLoaderRoute: typeof AdminOrganizersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
     }
     '/caravane/$id': {
       id: '/caravane/$id'
@@ -570,203 +521,282 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CaravaneIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/organizer/': {
-      id: '/organizer/'
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/analytics': {
+      id: '/_authenticated/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AuthenticatedAdminAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/caravans': {
+      id: '/_authenticated/admin/caravans'
+      path: '/caravans'
+      fullPath: '/admin/caravans'
+      preLoaderRoute: typeof AuthenticatedAdminCaravansRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/dashboard': {
+      id: '/_authenticated/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/disputes': {
+      id: '/_authenticated/admin/disputes'
+      path: '/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AuthenticatedAdminDisputesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/finance': {
+      id: '/_authenticated/admin/finance'
+      path: '/finance'
+      fullPath: '/admin/finance'
+      preLoaderRoute: typeof AuthenticatedAdminFinanceRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/moderation': {
+      id: '/_authenticated/admin/moderation'
+      path: '/moderation'
+      fullPath: '/admin/moderation'
+      preLoaderRoute: typeof AuthenticatedAdminModerationRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/organizers': {
+      id: '/_authenticated/admin/organizers'
+      path: '/organizers'
+      fullPath: '/admin/organizers'
+      preLoaderRoute: typeof AuthenticatedAdminOrganizersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/organizer/': {
+      id: '/_authenticated/organizer/'
       path: '/'
       fullPath: '/organizer/'
-      preLoaderRoute: typeof OrganizerIndexRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerIndexRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/analytics': {
-      id: '/organizer/analytics'
+    '/_authenticated/organizer/analytics': {
+      id: '/_authenticated/organizer/analytics'
       path: '/analytics'
       fullPath: '/organizer/analytics'
-      preLoaderRoute: typeof OrganizerAnalyticsRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/bookings': {
-      id: '/organizer/bookings'
+    '/_authenticated/organizer/bookings': {
+      id: '/_authenticated/organizer/bookings'
       path: '/bookings'
       fullPath: '/organizer/bookings'
-      preLoaderRoute: typeof OrganizerBookingsRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerBookingsRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/caravans': {
-      id: '/organizer/caravans'
+    '/_authenticated/organizer/caravans': {
+      id: '/_authenticated/organizer/caravans'
       path: '/caravans'
       fullPath: '/organizer/caravans'
-      preLoaderRoute: typeof OrganizerCaravansRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerCaravansRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/dashboard': {
-      id: '/organizer/dashboard'
+    '/_authenticated/organizer/dashboard': {
+      id: '/_authenticated/organizer/dashboard'
       path: '/dashboard'
       fullPath: '/organizer/dashboard'
-      preLoaderRoute: typeof OrganizerDashboardRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerDashboardRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/history': {
-      id: '/organizer/history'
+    '/_authenticated/organizer/history': {
+      id: '/_authenticated/organizer/history'
       path: '/history'
       fullPath: '/organizer/history'
-      preLoaderRoute: typeof OrganizerHistoryRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerHistoryRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/passengers': {
-      id: '/organizer/passengers'
+    '/_authenticated/organizer/passengers': {
+      id: '/_authenticated/organizer/passengers'
       path: '/passengers'
       fullPath: '/organizer/passengers'
-      preLoaderRoute: typeof OrganizerPassengersRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerPassengersRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/payments': {
-      id: '/organizer/payments'
+    '/_authenticated/organizer/payments': {
+      id: '/_authenticated/organizer/payments'
       path: '/payments'
       fullPath: '/organizer/payments'
-      preLoaderRoute: typeof OrganizerPaymentsRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerPaymentsRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/promotions': {
-      id: '/organizer/promotions'
+    '/_authenticated/organizer/promotions': {
+      id: '/_authenticated/organizer/promotions'
       path: '/promotions'
       fullPath: '/organizer/promotions'
-      preLoaderRoute: typeof OrganizerPromotionsRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerPromotionsRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/reports': {
-      id: '/organizer/reports'
+    '/_authenticated/organizer/reports': {
+      id: '/_authenticated/organizer/reports'
       path: '/reports'
       fullPath: '/organizer/reports'
-      preLoaderRoute: typeof OrganizerReportsRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerReportsRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/reputation': {
-      id: '/organizer/reputation'
+    '/_authenticated/organizer/reputation': {
+      id: '/_authenticated/organizer/reputation'
       path: '/reputation'
       fullPath: '/organizer/reputation'
-      preLoaderRoute: typeof OrganizerReputationRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerReputationRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/scanner': {
-      id: '/organizer/scanner'
+    '/_authenticated/organizer/scanner': {
+      id: '/_authenticated/organizer/scanner'
       path: '/scanner'
       fullPath: '/organizer/scanner'
-      preLoaderRoute: typeof OrganizerScannerRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerScannerRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/settings': {
-      id: '/organizer/settings'
+    '/_authenticated/organizer/settings': {
+      id: '/_authenticated/organizer/settings'
       path: '/settings'
       fullPath: '/organizer/settings'
-      preLoaderRoute: typeof OrganizerSettingsRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerSettingsRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/subscription': {
-      id: '/organizer/subscription'
+    '/_authenticated/organizer/subscription': {
+      id: '/_authenticated/organizer/subscription'
       path: '/subscription'
       fullPath: '/organizer/subscription'
-      preLoaderRoute: typeof OrganizerSubscriptionRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerSubscriptionRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
-    '/organizer/team': {
-      id: '/organizer/team'
+    '/_authenticated/organizer/team': {
+      id: '/_authenticated/organizer/team'
       path: '/team'
       fullPath: '/organizer/team'
-      preLoaderRoute: typeof OrganizerTeamRouteImport
-      parentRoute: typeof OrganizerRoute
+      preLoaderRoute: typeof AuthenticatedOrganizerTeamRouteImport
+      parentRoute: typeof AuthenticatedOrganizerRoute
     }
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAnalyticsRoute: typeof AuthenticatedAdminAnalyticsRoute
+  AuthenticatedAdminCaravansRoute: typeof AuthenticatedAdminCaravansRoute
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminDisputesRoute: typeof AuthenticatedAdminDisputesRoute
+  AuthenticatedAdminFinanceRoute: typeof AuthenticatedAdminFinanceRoute
+  AuthenticatedAdminModerationRoute: typeof AuthenticatedAdminModerationRoute
+  AuthenticatedAdminOrganizersRoute: typeof AuthenticatedAdminOrganizersRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAnalyticsRoute: AuthenticatedAdminAnalyticsRoute,
+  AuthenticatedAdminCaravansRoute: AuthenticatedAdminCaravansRoute,
+  AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminDisputesRoute: AuthenticatedAdminDisputesRoute,
+  AuthenticatedAdminFinanceRoute: AuthenticatedAdminFinanceRoute,
+  AuthenticatedAdminModerationRoute: AuthenticatedAdminModerationRoute,
+  AuthenticatedAdminOrganizersRoute: AuthenticatedAdminOrganizersRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
+interface AuthenticatedOrganizerRouteChildren {
+  AuthenticatedOrganizerAnalyticsRoute: typeof AuthenticatedOrganizerAnalyticsRoute
+  AuthenticatedOrganizerBookingsRoute: typeof AuthenticatedOrganizerBookingsRoute
+  AuthenticatedOrganizerCaravansRoute: typeof AuthenticatedOrganizerCaravansRoute
+  AuthenticatedOrganizerDashboardRoute: typeof AuthenticatedOrganizerDashboardRoute
+  AuthenticatedOrganizerHistoryRoute: typeof AuthenticatedOrganizerHistoryRoute
+  AuthenticatedOrganizerPassengersRoute: typeof AuthenticatedOrganizerPassengersRoute
+  AuthenticatedOrganizerPaymentsRoute: typeof AuthenticatedOrganizerPaymentsRoute
+  AuthenticatedOrganizerPromotionsRoute: typeof AuthenticatedOrganizerPromotionsRoute
+  AuthenticatedOrganizerReportsRoute: typeof AuthenticatedOrganizerReportsRoute
+  AuthenticatedOrganizerReputationRoute: typeof AuthenticatedOrganizerReputationRoute
+  AuthenticatedOrganizerScannerRoute: typeof AuthenticatedOrganizerScannerRoute
+  AuthenticatedOrganizerSettingsRoute: typeof AuthenticatedOrganizerSettingsRoute
+  AuthenticatedOrganizerSubscriptionRoute: typeof AuthenticatedOrganizerSubscriptionRoute
+  AuthenticatedOrganizerTeamRoute: typeof AuthenticatedOrganizerTeamRoute
+  AuthenticatedOrganizerIndexRoute: typeof AuthenticatedOrganizerIndexRoute
+}
+
+const AuthenticatedOrganizerRouteChildren: AuthenticatedOrganizerRouteChildren =
+  {
+    AuthenticatedOrganizerAnalyticsRoute: AuthenticatedOrganizerAnalyticsRoute,
+    AuthenticatedOrganizerBookingsRoute: AuthenticatedOrganizerBookingsRoute,
+    AuthenticatedOrganizerCaravansRoute: AuthenticatedOrganizerCaravansRoute,
+    AuthenticatedOrganizerDashboardRoute: AuthenticatedOrganizerDashboardRoute,
+    AuthenticatedOrganizerHistoryRoute: AuthenticatedOrganizerHistoryRoute,
+    AuthenticatedOrganizerPassengersRoute:
+      AuthenticatedOrganizerPassengersRoute,
+    AuthenticatedOrganizerPaymentsRoute: AuthenticatedOrganizerPaymentsRoute,
+    AuthenticatedOrganizerPromotionsRoute:
+      AuthenticatedOrganizerPromotionsRoute,
+    AuthenticatedOrganizerReportsRoute: AuthenticatedOrganizerReportsRoute,
+    AuthenticatedOrganizerReputationRoute:
+      AuthenticatedOrganizerReputationRoute,
+    AuthenticatedOrganizerScannerRoute: AuthenticatedOrganizerScannerRoute,
+    AuthenticatedOrganizerSettingsRoute: AuthenticatedOrganizerSettingsRoute,
+    AuthenticatedOrganizerSubscriptionRoute:
+      AuthenticatedOrganizerSubscriptionRoute,
+    AuthenticatedOrganizerTeamRoute: AuthenticatedOrganizerTeamRoute,
+    AuthenticatedOrganizerIndexRoute: AuthenticatedOrganizerIndexRoute,
+  }
+
+const AuthenticatedOrganizerRouteWithChildren =
+  AuthenticatedOrganizerRoute._addFileChildren(
+    AuthenticatedOrganizerRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedBilletsRoute: typeof AuthenticatedBilletsRoute
   AuthenticatedFavorisRoute: typeof AuthenticatedFavorisRoute
+  AuthenticatedOrganizerRoute: typeof AuthenticatedOrganizerRouteWithChildren
   AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedBilletsRoute: AuthenticatedBilletsRoute,
   AuthenticatedFavorisRoute: AuthenticatedFavorisRoute,
+  AuthenticatedOrganizerRoute: AuthenticatedOrganizerRouteWithChildren,
   AuthenticatedProfilRoute: AuthenticatedProfilRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface AdminRouteChildren {
-  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
-  AdminCaravansRoute: typeof AdminCaravansRoute
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminDisputesRoute: typeof AdminDisputesRoute
-  AdminFinanceRoute: typeof AdminFinanceRoute
-  AdminModerationRoute: typeof AdminModerationRoute
-  AdminOrganizersRoute: typeof AdminOrganizersRoute
-  AdminSettingsRoute: typeof AdminSettingsRoute
-  AdminUsersRoute: typeof AdminUsersRoute
-  AdminIndexRoute: typeof AdminIndexRoute
-}
-
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminAnalyticsRoute: AdminAnalyticsRoute,
-  AdminCaravansRoute: AdminCaravansRoute,
-  AdminDashboardRoute: AdminDashboardRoute,
-  AdminDisputesRoute: AdminDisputesRoute,
-  AdminFinanceRoute: AdminFinanceRoute,
-  AdminModerationRoute: AdminModerationRoute,
-  AdminOrganizersRoute: AdminOrganizersRoute,
-  AdminSettingsRoute: AdminSettingsRoute,
-  AdminUsersRoute: AdminUsersRoute,
-  AdminIndexRoute: AdminIndexRoute,
-}
-
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
-
-interface OrganizerRouteChildren {
-  OrganizerAnalyticsRoute: typeof OrganizerAnalyticsRoute
-  OrganizerBookingsRoute: typeof OrganizerBookingsRoute
-  OrganizerCaravansRoute: typeof OrganizerCaravansRoute
-  OrganizerDashboardRoute: typeof OrganizerDashboardRoute
-  OrganizerHistoryRoute: typeof OrganizerHistoryRoute
-  OrganizerPassengersRoute: typeof OrganizerPassengersRoute
-  OrganizerPaymentsRoute: typeof OrganizerPaymentsRoute
-  OrganizerPromotionsRoute: typeof OrganizerPromotionsRoute
-  OrganizerReportsRoute: typeof OrganizerReportsRoute
-  OrganizerReputationRoute: typeof OrganizerReputationRoute
-  OrganizerScannerRoute: typeof OrganizerScannerRoute
-  OrganizerSettingsRoute: typeof OrganizerSettingsRoute
-  OrganizerSubscriptionRoute: typeof OrganizerSubscriptionRoute
-  OrganizerTeamRoute: typeof OrganizerTeamRoute
-  OrganizerIndexRoute: typeof OrganizerIndexRoute
-}
-
-const OrganizerRouteChildren: OrganizerRouteChildren = {
-  OrganizerAnalyticsRoute: OrganizerAnalyticsRoute,
-  OrganizerBookingsRoute: OrganizerBookingsRoute,
-  OrganizerCaravansRoute: OrganizerCaravansRoute,
-  OrganizerDashboardRoute: OrganizerDashboardRoute,
-  OrganizerHistoryRoute: OrganizerHistoryRoute,
-  OrganizerPassengersRoute: OrganizerPassengersRoute,
-  OrganizerPaymentsRoute: OrganizerPaymentsRoute,
-  OrganizerPromotionsRoute: OrganizerPromotionsRoute,
-  OrganizerReportsRoute: OrganizerReportsRoute,
-  OrganizerReputationRoute: OrganizerReputationRoute,
-  OrganizerScannerRoute: OrganizerScannerRoute,
-  OrganizerSettingsRoute: OrganizerSettingsRoute,
-  OrganizerSubscriptionRoute: OrganizerSubscriptionRoute,
-  OrganizerTeamRoute: OrganizerTeamRoute,
-  OrganizerIndexRoute: OrganizerIndexRoute,
-}
-
-const OrganizerRouteWithChildren = OrganizerRoute._addFileChildren(
-  OrganizerRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
-  OrganizerRoute: OrganizerRouteWithChildren,
   CaravaneIdRoute: CaravaneIdRoute,
 }
 export const routeTree = rootRouteImport

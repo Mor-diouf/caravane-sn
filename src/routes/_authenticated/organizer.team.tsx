@@ -1,11 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Mail, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, KpiCard, PageHeader, Panel, ProBadge } from "@/components/organizer/ui";
-import { roleLabels, team } from "@/lib/organizer";
+import { orgTeamQuery } from "@/lib/dash-queries";
+import { organizerAddMember, organizerRemoveMember } from "@/lib/organizer.functions";
+import { initialsOf } from "@/lib/dash-shared";
+import { roleLabels } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/team")({
+export const Route = createFileRoute("/_authenticated/organizer/team")({
   head: () => ({
     meta: [
       { title: "Équipe — CaravaneHub Organisateur" },
@@ -34,8 +39,34 @@ const permissions = [
 ];
 
 function TeamPage() {
+  const queryClient = useQueryClient();
+  const { data: team, isLoading } = useQuery(orgTeamQuery());
+  const addFn = useServerFn(organizerAddMember);
+  const removeFn = useServerFn(organizerRemoveMember);
+
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("manager");
+  const [role, setRole] = useState<"manager" | "finance" | "scanner" | "support">("manager");
+
+  const addMutation = useMutation({
+    mutationFn: (data: { email: string; role: "manager" | "finance" | "scanner" | "support" }) => addFn({ data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Invitation envoyée");
+      setEmail("");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (data: { memberId: string }) => removeFn({ data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Membre retiré");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const members = team ?? [];
 
   return (
     <>
@@ -49,36 +80,40 @@ function TeamPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard title="Membres actifs" value={String(team.length)} icon={UsersRound} />
+        <KpiCard title="Membres actifs" value={String(members.length)} icon={UsersRound} />
         <KpiCard title="Rôles disponibles" value={String(Object.keys(roleLabels).length)} icon={ShieldCheck} accent="info" />
-        <KpiCard title="Invitations en attente" value="1" icon={Mail} accent="warning" />
+        <KpiCard title="Invitations" value="—" icon={Mail} accent="warning" />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Panel className="lg:col-span-2" title="Membres" bodyClassName="p-0">
-          <ul className="divide-y divide-border">
-            {team.map((m) => (
-              <li key={m.id} className="flex items-center gap-4 px-5 py-4">
-                <Avatar initials={m.initials} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{m.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{m.email}</p>
-                </div>
-                <span className="rounded-full bg-brand-soft px-3 py-1 text-[11px] font-bold text-primary">
-                  {roleLabels[m.role]}
-                </span>
-                {m.role !== "owner" && (
-                  <button
-                    type="button"
-                    onClick={() => toast.success(`Accès de ${m.name} révoqué`)}
-                    className="text-xs font-bold text-danger hover:underline"
-                  >
-                    Retirer
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          {isLoading ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">Chargement de l'équipe…</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {members.map((m) => (
+                <li key={m.id} className="flex items-center gap-4 px-5 py-4">
+                  <Avatar initials={initialsOf(m.name)} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{m.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                  </div>
+                  <span className="rounded-full bg-brand-soft px-3 py-1 text-[11px] font-bold text-primary">
+                    {roleLabels[m.role] ?? m.role}
+                  </span>
+                  {m.id !== "owner" && (
+                    <button
+                      type="button"
+                      onClick={() => removeMutation.mutate({ memberId: m.id })}
+                      className="text-xs font-bold text-danger hover:underline"
+                    >
+                      Retirer
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
 
         <Panel title="Inviter un collaborateur">
@@ -87,10 +122,7 @@ function TeamPage() {
             onSubmit={(e) => {
               e.preventDefault();
               if (!email.trim()) return;
-              toast.success("Invitation envoyée", {
-                description: `${email} rejoindra en tant que ${roleLabels[role]?.toLowerCase()}.`,
-              });
-              setEmail("");
+              addMutation.mutate({ email, role });
             }}
           >
             <label className="block">
@@ -110,7 +142,7 @@ function TeamPage() {
               <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Rôle</span>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => setRole(e.target.value as typeof role)}
                 className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
               >
                 {Object.entries(roleLabels)
@@ -124,9 +156,10 @@ function TeamPage() {
             </label>
             <button
               type="submit"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
+              disabled={addMutation.isPending}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
             >
-              <UserPlus className="size-4" /> Envoyer l'invitation
+              <UserPlus className="size-4" /> {addMutation.isPending ? "Envoi…" : "Envoyer l'invitation"}
             </button>
           </form>
           <ul className="mt-5 space-y-2 border-t border-border pt-4 text-xs text-muted-foreground">

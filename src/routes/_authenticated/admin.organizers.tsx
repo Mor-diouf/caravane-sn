@@ -13,7 +13,7 @@ import {
 } from "@/lib/admin";
 import { fcfa } from "@/lib/organizer";
 
-export const Route = createFileRoute("/admin/organizers")({
+export const Route = createFileRoute("/_authenticated/admin/organizers")({
   head: () => ({
     meta: [
       { title: "Organisateurs — CaravaneHub Admin" },

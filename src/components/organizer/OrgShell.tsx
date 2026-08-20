@@ -22,8 +22,11 @@ import {
   X,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { notifications, organization } from "@/lib/organizer";
+import { supabase } from "@/integrations/supabase/client";
+import { accessQuery } from "@/lib/dash-queries";
+import { dateTimeFr, initialsOf } from "@/lib/dash-shared";
 import {
   Popover,
   PopoverContent,
@@ -134,22 +137,28 @@ function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
 }
 
 function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+  const access = useQuery(accessQuery());
   return (
     <div className="flex h-full flex-col bg-brand text-brand-foreground">
       <div className="flex items-center gap-3 px-5 py-5">
         <OrgLogo />
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold tracking-tight">CaravaneHub</p>
-          <p className="truncate text-[11px] text-brand-foreground/55">{organization.name}</p>
+          <p className="truncate text-[11px] text-brand-foreground/55">
+            {access.data?.organizerName ?? "Mon amicale"}
+          </p>
         </div>
       </div>
       <NavList onNavigate={onNavigate} />
       <div className="m-3 rounded-2xl bg-brand-foreground/8 p-4 ring-1 ring-brand-foreground/10">
         <p className="flex items-center gap-1.5 text-xs font-bold">
-          <Crown className="size-3.5 text-mint" /> Plan Pro actif
+          <Crown className="size-3.5 text-mint" />{" "}
+          {access.data?.organizerIsPro ? "Plan Pro actif" : "Plan Standard"}
         </p>
         <p className="mt-1 text-[11px] leading-snug text-brand-foreground/60">
-          Analytics, exports et assistant intelligent inclus.
+          {access.data?.organizerIsPro
+            ? "Analytics, exports et assistant intelligent inclus."
+            : "Passez au Pro pour les analytics avancées et les exports."}
         </p>
         <Link
           to="/organizer/subscription"
@@ -164,6 +173,21 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
 }
 
 function NotificationBell() {
+  const { data } = useQuery({
+    queryKey: ["organizer", "notifications"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, title, body, kind, read_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+  const items = data ?? [];
+  const unread = items.filter((n) => !n.read_at).length;
+
   return (
     <Popover>
       <PopoverTrigger
@@ -171,30 +195,39 @@ function NotificationBell() {
         className="relative grid size-9 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
       >
         <Bell className="size-4" />
-        <span className="absolute right-2 top-2 size-1.5 rounded-full bg-danger" />
+        {unread > 0 && <span className="absolute right-2 top-2 size-1.5 rounded-full bg-danger" />}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <p className="border-b border-border px-4 py-3 text-sm font-bold">Notifications</p>
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto">
-          {notifications.map((n) => (
-            <li key={n.id} className="flex gap-3 px-4 py-3">
-              <span
-                className={cn(
-                  "mt-1.5 size-2 shrink-0 rounded-full",
-                  n.tone === "success" && "bg-success",
-                  n.tone === "warning" && "bg-warning",
-                  n.tone === "info" && "bg-info",
-                  n.tone === "danger" && "bg-danger",
-                )}
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-tight">{n.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">{n.detail}</span>
-                <span className="block text-[11px] text-muted-foreground/70">{n.time}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        {items.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+            Aucune notification pour le moment.
+          </p>
+        ) : (
+          <ul className="max-h-80 divide-y divide-border overflow-y-auto">
+            {items.map((n) => (
+              <li key={n.id} className="flex gap-3 px-4 py-3">
+                <span
+                  className={cn(
+                    "mt-1.5 size-2 shrink-0 rounded-full",
+                    n.kind === "payment" && "bg-success",
+                    n.kind === "departure" && "bg-warning",
+                    n.kind === "review" && "bg-info",
+                    n.kind === "dispute" && "bg-danger",
+                    !["payment", "departure", "review", "dispute"].includes(n.kind) && "bg-info",
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">{n.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{n.body}</span>
+                  <span className="block text-[11px] text-muted-foreground/70">
+                    {dateTimeFr(n.created_at)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -202,6 +235,9 @@ function NotificationBell() {
 
 export function OrgShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const access = useQuery(accessQuery());
+  const ownerName = access.data?.fullName || "Organisateur";
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -264,17 +300,19 @@ export function OrgShell({ children }: { children: ReactNode }) {
               <NotificationBell />
               <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5">
                 <span className="grid size-7 place-items-center rounded-lg bg-brand text-[10px] font-black text-brand-foreground">
-                  {organization.owner.initials}
+                  {initialsOf(ownerName)}
                 </span>
                 <span className="hidden min-w-0 leading-tight sm:block">
-                  <span className="block truncate text-xs font-bold">{organization.owner.name}</span>
+                  <span className="block truncate text-xs font-bold">{ownerName}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
-                    {organization.name}
+                    {access.data?.organizerName ?? "Mon amicale"}
                   </span>
                 </span>
-                <span className="ml-1 rounded-md bg-mint/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-mint">
-                  Pro
-                </span>
+                {access.data?.organizerIsPro && (
+                  <span className="ml-1 rounded-md bg-mint/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-mint">
+                    Pro
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Avatar, EmptyState, KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
 import { fcfa, passengers } from "@/lib/organizer";
 
-export const Route = createFileRoute("/organizer/passengers")({
+export const Route = createFileRoute("/_authenticated/organizer/passengers")({
   head: () => ({
     meta: [
       { title: "Passagers — CaravaneHub Organisateur" },
