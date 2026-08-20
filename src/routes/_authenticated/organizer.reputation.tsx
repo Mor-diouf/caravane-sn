@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Award, MessageSquareQuote, Star, ThumbsUp } from "lucide-react";
-import { toast } from "sonner";
-import { Avatar, KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
-import { badges, organization, reviewCriteria, reviews } from "@/lib/organizer";
+import { useQuery } from "@tanstack/react-query";
+import { Award, MessageSquareQuote, Star } from "lucide-react";
+import { Avatar, EmptyState, KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
+import { orgReputationQuery } from "@/lib/dash-queries";
+import { dateFr, initialsOf } from "@/lib/dash-shared";
 
 export const Route = createFileRoute("/_authenticated/organizer/reputation")({
   head: () => ({
@@ -26,102 +27,86 @@ export const Route = createFileRoute("/_authenticated/organizer/reputation")({
 });
 
 function ReputationPage() {
+  const { data, isLoading } = useQuery(orgReputationQuery());
+  const distribution = data?.distribution ?? [];
+  const reviews = data?.reviews ?? [];
+
   return (
     <>
       <PageHeader
         title="Avis & réputation"
-        subtitle="Ce que les étudiants pensent de vos caravanes, critère par critère."
+        subtitle="Ce que les étudiants pensent de vos caravanes."
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard title="Note globale" value={`${organization.rating}/5`} secondary={`${organization.reviews} avis vérifiés`} trend="+0.2" icon={Star} accent="warning" />
-        <KpiCard title="Taux de recommandation" value="96%" secondary="Étudiants prêts à revoyager" icon={ThumbsUp} accent="mint" />
-        <KpiCard title="Badges obtenus" value={String(badges.length)} secondary="Sur 6 disponibles" icon={Award} accent="info" />
-      </div>
+      {isLoading ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">Chargement des avis…</p>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <KpiCard title="Note globale" value={`${data?.average ?? 0}/5`} secondary={`${data?.total ?? 0} avis vérifiés`} icon={Star} accent="warning" />
+            <KpiCard title="Avis publiés" value={String(data?.total ?? 0)} icon={MessageSquareQuote} accent="mint" />
+            <KpiCard title="Avis 5 étoiles" value={String(distribution.find((d) => d.score === 5)?.count ?? 0)} icon={Award} accent="info" />
+          </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Panel title="Notes par critère">
-          <ul className="space-y-4">
-            {reviewCriteria.map((c) => (
-              <li key={c.label}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="font-semibold">{c.label}</span>
-                  <span className="font-bold">{c.score}</span>
-                </div>
-                <ProgressBar value={(c.score / 5) * 100} tone="mint" />
-              </li>
-            ))}
-          </ul>
-        </Panel>
+          <div className="mt-4 grid gap-4 lg:grid-cols-3">
+            <Panel title="Répartition des notes">
+              <ul className="space-y-4">
+                {distribution.map((d) => (
+                  <li key={d.score}>
+                    <div className="mb-1.5 flex items-center justify-between text-sm">
+                      <span className="font-semibold">{d.score} étoiles</span>
+                      <span className="font-bold">{d.count}</span>
+                    </div>
+                    <ProgressBar value={data?.total ? (d.count / data.total) * 100 : 0} tone="mint" />
+                  </li>
+                ))}
+              </ul>
+            </Panel>
 
-        <Panel
-          className="lg:col-span-2"
-          title="Avis vérifiés"
-          description="Chaque avis provient d'un billet réellement scanné"
-          actions={
-            <button
-              type="button"
-              onClick={() => toast.success("Demande d'avis envoyée à 24 passagers")}
-              className="rounded-xl border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted"
-            >
-              Demander des avis
-            </button>
-          }
-        >
-          <ul className="space-y-3">
-            {reviews.map((r) => (
-              <li key={r.id} className="rounded-2xl border border-border p-4">
-                <div className="flex items-center gap-3">
-                  <Avatar initials={r.initials} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{r.author}</p>
-                    <p className="text-xs text-muted-foreground">{r.trip}</p>
-                  </div>
-                  <span className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={
-                          i < r.score
-                            ? "size-3.5 fill-warning text-warning"
-                            : "size-3.5 text-muted-foreground/30"
-                        }
-                      />
-                    ))}
-                  </span>
-                </div>
-                <p className="mt-3 flex gap-2 text-sm text-muted-foreground">
-                  <MessageSquareQuote className="mt-0.5 size-4 shrink-0" />
-                  {r.text}
-                </p>
-                <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                  <span className="text-[11px] text-muted-foreground">{r.date}</span>
-                  <button
-                    type="button"
-                    onClick={() => toast.success("Réponse publiée sous l'avis")}
-                    className="text-xs font-bold text-primary-accent hover:underline"
-                  >
-                    Répondre
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
-
-      <Panel className="mt-4" title="Badges de confiance">
-        <div className="flex flex-wrap gap-2">
-          {badges.map((b) => (
-            <span
-              key={b}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-brand-soft px-3.5 py-2 text-xs font-bold text-primary"
-            >
-              <Award className="size-3.5" /> {b}
-            </span>
-          ))}
-        </div>
-      </Panel>
+            <Panel className="lg:col-span-2" title="Avis vérifiés" description="Chaque avis provient d'un billet réellement scanné">
+              {reviews.length === 0 ? (
+                <EmptyState icon={MessageSquareQuote} message="Aucun avis pour l'instant." />
+              ) : (
+                <ul className="space-y-3">
+                  {reviews.map((r) => (
+                    <li key={r.id} className="rounded-2xl border border-border p-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar initials={initialsOf(r.author)} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-semibold">{r.author}</p>
+                          <p className="text-xs text-muted-foreground">{r.trip}</p>
+                        </div>
+                        <span className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className={
+                                i < r.rating
+                                  ? "size-3.5 fill-warning text-warning"
+                                  : "size-3.5 text-muted-foreground/30"
+                              }
+                            />
+                          ))}
+                        </span>
+                      </div>
+                      {r.comment && (
+                        <p className="mt-3 flex gap-2 text-sm text-muted-foreground">
+                          <MessageSquareQuote className="mt-0.5 size-4 shrink-0" />
+                          {r.comment}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                        <span className="text-[11px] text-muted-foreground">{dateFr(r.createdAt)}</span>
+                        <span className="text-[11px] font-semibold text-muted-foreground">{r.status}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </div>
+        </>
+      )}
     </>
   );
 }

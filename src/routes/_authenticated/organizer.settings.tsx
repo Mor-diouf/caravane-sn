@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Bell, Building2, CreditCard, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Building2, CreditCard, Save } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, Panel } from "@/components/organizer/ui";
-import { organization } from "@/lib/organizer";
-import { cn } from "@/lib/utils";
+import { orgSettingsQuery } from "@/lib/dash-queries";
+import { organizerUpdateSettings } from "@/lib/organizer.functions";
 
 export const Route = createFileRoute("/_authenticated/organizer/settings")({
   head: () => ({
@@ -28,128 +30,118 @@ export const Route = createFileRoute("/_authenticated/organizer/settings")({
 });
 
 function SettingsPage() {
-  const [notifs, setNotifs] = useState({
-    booking: true,
-    payment: true,
-    review: true,
-    weekly: false,
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading } = useQuery(orgSettingsQuery());
+  const updateFn = useServerFn(organizerUpdateSettings);
+
+  const [form, setForm] = useState({ name: "", description: "", phone: "", whatsapp: "" });
+
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        name: settings.name ?? "",
+        description: settings.description ?? "",
+        phone: settings.phone ?? "",
+        whatsapp: settings.whatsapp ?? "",
+      });
+    }
+  }, [settings]);
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Parameters<typeof organizerUpdateSettings>[0]["data"]) => updateFn({ data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Paramètres enregistrés");
+    },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   return (
     <>
       <PageHeader title="Paramètres" subtitle="Votre organisation, vos paiements et vos alertes." />
 
-      <form
-        className="grid gap-4 lg:grid-cols-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          toast.success("Paramètres enregistrés");
-        }}
-      >
-        <Panel title="Profil de l'organisation" description="Visible par les étudiants dans l'application">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground">
-              <Building2 className="size-5" />
-            </span>
-            <div>
-              <p className="font-bold">{organization.name}</p>
-              <p className="text-xs text-muted-foreground">{organization.university}</p>
+      {isLoading ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">Chargement des paramètres…</p>
+      ) : (
+        <form
+          className="grid gap-4 lg:grid-cols-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            updateMutation.mutate(form);
+          }}
+        >
+          <Panel title="Profil de l'organisation" description="Visible par les étudiants dans l'application">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="grid size-12 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground">
+                <Building2 className="size-5" />
+              </span>
+              <div>
+                <p className="font-bold">{form.name || "Mon amicale"}</p>
+                <p className="text-xs text-muted-foreground">{settings?.status ?? "—"}</p>
+              </div>
             </div>
-          </div>
-          <div className="space-y-3">
-            {[
-              { label: "Nom de l'amicale", value: organization.name },
-              { label: "Université", value: organization.university },
-              { label: "Responsable", value: organization.owner.name },
-              { label: "Téléphone", value: organization.owner.phone },
-              { label: "E-mail", value: organization.owner.email },
-            ].map((f) => (
-              <label key={f.label} className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
-                  {f.label}
-                </span>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Nom de l'amicale</span>
                 <input
-                  defaultValue={f.value}
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   maxLength={120}
                   className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </label>
-            ))}
-          </div>
-        </Panel>
-
-        <div className="space-y-4">
-          <Panel title="Compte de paiement" description="Où sont versés vos revenus">
-            <div className="space-y-3">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
-                  Opérateur
-                </span>
-                <select className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40">
-                  <option>Wave</option>
-                  <option>Orange Money</option>
-                  <option>Free Money</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
-                  Numéro à créditer
-                </span>
-                <input
-                  defaultValue={organization.owner.phone}
-                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span>
+                <textarea
+                  rows={3}
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  maxLength={1000}
+                  className="w-full rounded-xl border border-border bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </label>
-              <p className="flex items-center gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
-                <CreditCard className="size-4 shrink-0" /> Commission plateforme : 3% par billet
-                vendu, prélevée automatiquement.
-              </p>
             </div>
           </Panel>
 
-          <Panel title="Notifications" description="Ce dont vous voulez être averti">
-            <ul className="space-y-1">
-              {[
-                { key: "booking" as const, label: "Nouvelle réservation" },
-                { key: "payment" as const, label: "Paiement reçu" },
-                { key: "review" as const, label: "Nouvel avis étudiant" },
-                { key: "weekly" as const, label: "Résumé hebdomadaire par e-mail" },
-              ].map((n) => (
-                <li key={n.key} className="flex items-center justify-between py-2">
-                  <span className="flex items-center gap-2 text-sm">
-                    <Bell className="size-4 text-muted-foreground" /> {n.label}
-                  </span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={notifs[n.key]}
-                    aria-label={n.label}
-                    onClick={() => setNotifs((s) => ({ ...s, [n.key]: !s[n.key] }))}
-                    className={cn(
-                      "relative h-6 w-11 rounded-full transition-colors",
-                      notifs[n.key] ? "bg-primary-accent" : "bg-muted",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 size-5 rounded-full bg-card shadow transition-all",
-                        notifs[n.key] ? "left-[22px]" : "left-0.5",
-                      )}
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </Panel>
+          <div className="space-y-4">
+            <Panel title="Contact" description="Coordonnées visibles pour vos passagers">
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Téléphone</span>
+                  <input
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                    maxLength={40}
+                    className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">WhatsApp</span>
+                  <input
+                    value={form.whatsapp}
+                    onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                    maxLength={40}
+                    className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                </label>
+                <p className="flex items-center gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
+                  <CreditCard className="size-4 shrink-0" /> Commission plateforme :{" "}
+                  {Math.round((settings?.commission_rate ?? 0.08) * 100)}% par billet vendu, prélevée
+                  automatiquement.
+                </p>
+              </div>
+            </Panel>
 
-          <button
-            type="submit"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-ambient"
-          >
-            <Save className="size-4" /> Enregistrer les modifications
-          </button>
-        </div>
-      </form>
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-ambient disabled:opacity-60"
+            >
+              <Save className="size-4" /> {updateMutation.isPending ? "Enregistrement…" : "Enregistrer les modifications"}
+            </button>
+          </div>
+        </form>
+      )}
     </>
   );
 }
