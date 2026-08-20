@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Wallet } from "lucide-react";
+import { CheckCircle2, Download, Share2, Wallet } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { QrCode } from "@/components/QrCode";
 import { formatPrice, getCaravane, student } from "@/lib/caravanes";
