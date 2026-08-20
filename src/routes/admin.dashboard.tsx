@@ -22,9 +22,6 @@ import { KpiCard, PageHeader, Panel, ProgressBar, Avatar } from "@/components/or
 import { AdminButton, TonePill } from "@/components/admin/ui";
 import {
   adminActivity,
-  fmtAdmin as _unusedFmt,
-} from "@/lib/admin-format";
-import {
   disputes,
   disputeStatusLabels,
   organizerAccounts,
@@ -62,10 +59,6 @@ export const Route = createFileRoute("/admin/dashboard")({
 });
 
 const ranges = ["30 jours", "90 jours", "12 mois"] as const;
-
-export default function noop() {
-  return null;
-}
 
 function AdminDashboard() {
   const [range, setRange] = useState<(typeof ranges)[number]>("90 jours");
