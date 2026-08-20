@@ -18,6 +18,7 @@ import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCaravansRouteImport } from './routes/admin.caravans'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminFinanceRouteImport } from './routes/admin.finance'
 import { Route as AdminOrganizersRouteImport } from './routes/admin.organizers'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as CaravaneIdRouteImport } from './routes/caravane.$id'
@@ -80,6 +81,11 @@ const AdminCaravansRoute = AdminCaravansRouteImport.update({
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFinanceRoute = AdminFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrganizersRoute = AdminOrganizersRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/profil': typeof ProfilRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/finance': typeof AdminFinanceRoute
   '/admin/organizers': typeof AdminOrganizersRoute
   '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/profil': typeof ProfilRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/finance': typeof AdminFinanceRoute
   '/admin/organizers': typeof AdminOrganizersRoute
   '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/profil': typeof ProfilRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/finance': typeof AdminFinanceRoute
   '/admin/organizers': typeof AdminOrganizersRoute
   '/admin/users': typeof AdminUsersRoute
   '/caravane/$id': typeof CaravaneIdRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/admin/caravans'
     | '/admin/dashboard'
+    | '/admin/finance'
     | '/admin/organizers'
     | '/admin/users'
     | '/caravane/$id'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/admin/caravans'
     | '/admin/dashboard'
+    | '/admin/finance'
     | '/admin/organizers'
     | '/admin/users'
     | '/caravane/$id'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/profil'
     | '/admin/caravans'
     | '/admin/dashboard'
+    | '/admin/finance'
     | '/admin/organizers'
     | '/admin/users'
     | '/caravane/$id'
@@ -420,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/finance': {
+      id: '/admin/finance'
+      path: '/finance'
+      fullPath: '/admin/finance'
+      preLoaderRoute: typeof AdminFinanceRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/organizers': {
@@ -554,6 +573,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminCaravansRoute: typeof AdminCaravansRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminFinanceRoute: typeof AdminFinanceRoute
   AdminOrganizersRoute: typeof AdminOrganizersRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -562,6 +582,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCaravansRoute: AdminCaravansRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminFinanceRoute: AdminFinanceRoute,
   AdminOrganizersRoute: AdminOrganizersRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
