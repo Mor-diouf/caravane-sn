@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Clock, Heart, MapPin } from "lucide-react";
-import { formatPrice, seatTone, type Caravane } from "@/lib/caravanes";
+import { formatPrice, seatTone, type CaravanView } from "@/lib/student-shared";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  caravane: Caravane;
+  caravane: CaravanView;
   favorite?: boolean;
   onToggleFavorite?: (id: string) => void;
 };
@@ -56,7 +56,6 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
             <span className="ml-1 text-[11px] font-semibold text-muted-foreground">FCFA</span>
           </p>
         </div>
-
       </Link>
 
       <button
