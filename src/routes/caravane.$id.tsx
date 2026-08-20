@@ -261,17 +261,36 @@ function CaravaneDetail() {
                     type="button"
                     onClick={() => setMethod(m.id)}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-2xl border p-3 text-left transition-colors",
+                      "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors",
                       method === m.id
                         ? "border-primary-accent bg-accent"
                         : "border-border/70 hover:border-primary-accent/50",
                     )}
                   >
-                    <span className="text-sm font-bold">{m.label}</span>
-                    <span className="text-[11px] font-medium text-muted-foreground">{m.hint}</span>
+                    <PaymentMark method={m.id} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold leading-tight">
+                        {m.label}
+                      </span>
+                      <span className="block text-[11px] font-medium leading-tight text-muted-foreground">
+                        {m.hint}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "grid size-5 shrink-0 place-items-center rounded-full border",
+                        method === m.id
+                          ? "border-primary-accent bg-primary-accent text-primary-foreground"
+                          : "border-border",
+                      )}
+                    >
+                      {method === m.id && <Check className="size-3" />}
+                    </span>
                   </button>
                 </li>
               ))}
+
             </ul>
 
             <div className="flex items-center justify-between border-t border-border pt-3">
