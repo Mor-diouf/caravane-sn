@@ -106,13 +106,17 @@ function CaravaneDetail() {
           alt={`Bus de la caravane ${caravane.from} vers ${caravane.to}`}
           width={1280}
           height={800}
-          className="h-72 w-full object-cover sm:h-96"
+          className="h-52 w-full object-cover sm:h-72"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-background"
         />
         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
           <Link
             to="/"
             aria-label="Retour"
-            className="grid size-11 place-items-center rounded-full border border-border/40 bg-surface-blur text-foreground backdrop-blur-xl"
+            className="grid size-10 place-items-center rounded-full border border-white/30 bg-black/25 text-white backdrop-blur-xl"
           >
             <ArrowLeft className="size-5" />
           </Link>
@@ -121,14 +125,17 @@ function CaravaneDetail() {
             aria-label="Favori"
             aria-pressed={favorite}
             onClick={() => toggle(caravane.id)}
-            className="grid size-11 place-items-center rounded-full border border-border/40 bg-surface-blur text-muted-foreground backdrop-blur-xl aria-pressed:text-danger"
+            className={cn(
+              "grid size-10 place-items-center rounded-full border border-white/30 bg-black/25 backdrop-blur-xl",
+              favorite ? "text-danger" : "text-white",
+            )}
           >
             <Heart className={cn("size-5", favorite && "fill-current")} />
           </button>
         </div>
         <span
           className={cn(
-            "absolute bottom-4 left-4 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground backdrop-blur",
+            "absolute bottom-3 left-4 rounded-full border border-white/25 px-3 py-1.5 text-[11px] font-semibold text-primary-foreground backdrop-blur",
             tone === "critical" && "bg-danger/90",
             tone === "warning" && "bg-secondary-accent/90 text-text-strong",
             tone === "ok" && "bg-success/90",
@@ -138,42 +145,65 @@ function CaravaneDetail() {
         </span>
       </div>
 
-      <main className="mx-auto -mt-8 max-w-3xl space-y-6 px-5">
+      <main className="mx-auto -mt-4 max-w-3xl space-y-4 px-5">
         <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-            <h1 className="text-2xl font-extrabold tracking-tight">
-              {caravane.from} <span className="text-muted-foreground">→</span> {caravane.to}
-            </h1>
-            <p className="shrink-0 text-right text-xl font-extrabold text-primary-accent">
+          <div className="flex items-start gap-4">
+            <UniversityMark abbr={caravane.from} active className="size-14 shrink-0" />
+            <div className="min-w-0 flex-1">
+              {university && (
+                <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {university.name}
+                </p>
+              )}
+              <h1 className="mt-1 text-xl font-extrabold leading-tight tracking-tight sm:text-2xl">
+                {caravane.from} <span className="text-muted-foreground">→</span> {caravane.to}
+              </h1>
+            </div>
+            <p className="shrink-0 text-right text-lg font-extrabold leading-tight text-primary-accent sm:text-xl">
               {formatPrice(caravane.price)}
-              <span className="ml-1 text-[11px] font-semibold text-muted-foreground">FCFA</span>
+              <span className="ml-1 block text-[10px] font-semibold text-muted-foreground">
+                FCFA / place
+              </span>
             </p>
           </div>
 
-          <ul className="mt-4 space-y-3 text-sm">
-            <li className="flex items-center gap-3">
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <span className="flex items-center gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-xs font-semibold">
               <CalendarDays className="size-4 shrink-0 text-primary-accent" />
-              {caravane.date}
-            </li>
-            <li className="flex items-center gap-3">
+              <span className="min-w-0 truncate">{caravane.date}</span>
+            </span>
+            <span className="flex items-center gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-xs font-semibold">
               <Clock className="size-4 shrink-0 text-primary-accent" />
               {caravane.time}
+            </span>
+          </div>
+
+          <ol className="mt-4 space-y-4 border-l border-dashed border-border pl-5 text-sm">
+            <li className="relative">
+              <span
+                aria-hidden
+                className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-primary-accent ring-4 ring-card"
+              />
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Départ
+              </p>
+              <p className="font-semibold leading-snug">{caravane.pickup}</p>
             </li>
-            <li className="flex items-center gap-3">
-              <MapPin className="size-4 shrink-0 text-primary-accent" />
-              <span className="min-w-0 truncate">{caravane.pickup}</span>
+            <li className="relative">
+              <span
+                aria-hidden
+                className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-muted-foreground/50 ring-4 ring-card"
+              />
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Arrivée
+              </p>
+              <p className="font-semibold leading-snug">{caravane.dropoff}</p>
             </li>
-            <li className="flex items-center gap-3">
-              <MapPin className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 truncate">{caravane.dropoff}</span>
-            </li>
-          </ul>
+          </ol>
         </section>
 
         <section className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent text-xs font-black text-primary">
-            {caravane.from.slice(0, 2)}
-          </span>
+          <UniversityMark abbr={caravane.from} showAbbr={false} className="size-11 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-muted-foreground">Organisé par</p>
             <p className="truncate text-sm font-bold">{caravane.organizer}</p>
@@ -183,6 +213,7 @@ function CaravaneDetail() {
             <Star className="size-3 fill-current" />
           </span>
         </section>
+
 
         <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
           <h2 className="text-sm font-bold tracking-tight">À propos de cette caravane</h2>
