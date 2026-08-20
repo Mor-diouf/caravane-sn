@@ -20,6 +20,7 @@ import { Route as OrganizerBookingsRouteImport } from './routes/organizer.bookin
 import { Route as OrganizerCaravansRouteImport } from './routes/organizer.caravans'
 import { Route as OrganizerDashboardRouteImport } from './routes/organizer.dashboard'
 import { Route as OrganizerPassengersRouteImport } from './routes/organizer.passengers'
+import { Route as OrganizerPaymentsRouteImport } from './routes/organizer.payments'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const OrganizerPassengersRoute = OrganizerPassengersRouteImport.update({
   path: '/passengers',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerPaymentsRoute = OrganizerPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/organizer/caravans': typeof OrganizerCaravansRoute
   '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/passengers': typeof OrganizerPassengersRoute
+  '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRoutesByTo {
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/organizer/caravans': typeof OrganizerCaravansRoute
   '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/passengers': typeof OrganizerPassengersRoute
+  '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer': typeof OrganizerIndexRoute
 }
 export interface FileRoutesById {
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/organizer/caravans': typeof OrganizerCaravansRoute
   '/organizer/dashboard': typeof OrganizerDashboardRoute
   '/organizer/passengers': typeof OrganizerPassengersRoute
+  '/organizer/payments': typeof OrganizerPaymentsRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
 export interface FileRouteTypes {
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/organizer/caravans'
     | '/organizer/dashboard'
     | '/organizer/passengers'
+    | '/organizer/payments'
     | '/organizer/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/organizer/caravans'
     | '/organizer/dashboard'
     | '/organizer/passengers'
+    | '/organizer/payments'
     | '/organizer'
   id:
     | '__root__'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/organizer/caravans'
     | '/organizer/dashboard'
     | '/organizer/passengers'
+    | '/organizer/payments'
     | '/organizer/'
   fileRoutesById: FileRoutesById
 }
@@ -245,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerPassengersRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/payments': {
+      id: '/organizer/payments'
+      path: '/payments'
+      fullPath: '/organizer/payments'
+      preLoaderRoute: typeof OrganizerPaymentsRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
   }
 }
 
@@ -253,6 +272,7 @@ interface OrganizerRouteChildren {
   OrganizerCaravansRoute: typeof OrganizerCaravansRoute
   OrganizerDashboardRoute: typeof OrganizerDashboardRoute
   OrganizerPassengersRoute: typeof OrganizerPassengersRoute
+  OrganizerPaymentsRoute: typeof OrganizerPaymentsRoute
   OrganizerIndexRoute: typeof OrganizerIndexRoute
 }
 
@@ -261,6 +281,7 @@ const OrganizerRouteChildren: OrganizerRouteChildren = {
   OrganizerCaravansRoute: OrganizerCaravansRoute,
   OrganizerDashboardRoute: OrganizerDashboardRoute,
   OrganizerPassengersRoute: OrganizerPassengersRoute,
+  OrganizerPaymentsRoute: OrganizerPaymentsRoute,
   OrganizerIndexRoute: OrganizerIndexRoute,
 }
 
