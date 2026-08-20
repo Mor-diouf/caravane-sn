@@ -27,6 +27,7 @@ import { Route as OrganizerPromotionsRouteImport } from './routes/organizer.prom
 import { Route as OrganizerReportsRouteImport } from './routes/organizer.reports'
 import { Route as OrganizerReputationRouteImport } from './routes/organizer.reputation'
 import { Route as OrganizerScannerRouteImport } from './routes/organizer.scanner'
+import { Route as OrganizerSubscriptionRouteImport } from './routes/organizer.subscription'
 import { Route as OrganizerTeamRouteImport } from './routes/organizer.team'
 
 const IndexRoute = IndexRouteImport.update({
@@ -119,6 +120,11 @@ const OrganizerScannerRoute = OrganizerScannerRouteImport.update({
   path: '/scanner',
   getParentRoute: () => OrganizerRoute,
 } as any)
+const OrganizerSubscriptionRoute = OrganizerSubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => OrganizerRoute,
+} as any)
 const OrganizerTeamRoute = OrganizerTeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
   '/organizer': typeof OrganizerIndexRoute
 }
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/organizer/reports': typeof OrganizerReportsRoute
   '/organizer/reputation': typeof OrganizerReputationRoute
   '/organizer/scanner': typeof OrganizerScannerRoute
+  '/organizer/subscription': typeof OrganizerSubscriptionRoute
   '/organizer/team': typeof OrganizerTeamRoute
   '/organizer/': typeof OrganizerIndexRoute
 }
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/subscription'
     | '/organizer/team'
     | '/organizer/'
   fileRoutesByTo: FileRoutesByTo
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/subscription'
     | '/organizer/team'
     | '/organizer'
   id:
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/organizer/reports'
     | '/organizer/reputation'
     | '/organizer/scanner'
+    | '/organizer/subscription'
     | '/organizer/team'
     | '/organizer/'
   fileRoutesById: FileRoutesById
@@ -390,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerScannerRouteImport
       parentRoute: typeof OrganizerRoute
     }
+    '/organizer/subscription': {
+      id: '/organizer/subscription'
+      path: '/subscription'
+      fullPath: '/organizer/subscription'
+      preLoaderRoute: typeof OrganizerSubscriptionRouteImport
+      parentRoute: typeof OrganizerRoute
+    }
     '/organizer/team': {
       id: '/organizer/team'
       path: '/team'
@@ -412,6 +431,7 @@ interface OrganizerRouteChildren {
   OrganizerReportsRoute: typeof OrganizerReportsRoute
   OrganizerReputationRoute: typeof OrganizerReputationRoute
   OrganizerScannerRoute: typeof OrganizerScannerRoute
+  OrganizerSubscriptionRoute: typeof OrganizerSubscriptionRoute
   OrganizerTeamRoute: typeof OrganizerTeamRoute
   OrganizerIndexRoute: typeof OrganizerIndexRoute
 }
@@ -428,6 +448,7 @@ const OrganizerRouteChildren: OrganizerRouteChildren = {
   OrganizerReportsRoute: OrganizerReportsRoute,
   OrganizerReputationRoute: OrganizerReputationRoute,
   OrganizerScannerRoute: OrganizerScannerRoute,
+  OrganizerSubscriptionRoute: OrganizerSubscriptionRoute,
   OrganizerTeamRoute: OrganizerTeamRoute,
   OrganizerIndexRoute: OrganizerIndexRoute,
 }
