@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { BadgePercent, Megaphone, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { KpiCard, PageHeader, Panel, ProBadge, StatusPill } from "@/components/organizer/ui";
-import { fcfa } from "@/lib/organizer";
+import { EmptyState, KpiCard, PageHeader, Panel, ProBadge } from "@/components/organizer/ui";
+import { orgOverviewQuery } from "@/lib/dash-queries";
+import { dateFr } from "@/lib/dash-shared";
+import { fcfa, pct } from "@/lib/organizer";
 
 export const Route = createFileRoute("/_authenticated/organizer/promotions")({
   head: () => ({
@@ -26,15 +29,22 @@ export const Route = createFileRoute("/_authenticated/organizer/promotions")({
   component: PromotionsPage,
 });
 
-const promos = [
-  { code: "RENTREE10", detail: "-10% sur Dakar", used: 24, limit: 50, status: "paid" as const },
-  { code: "GROUPE4", detail: "4 places = 1 offerte", used: 8, limit: 20, status: "paid" as const },
-  { code: "KOLDA5", detail: "-5% sur Kolda", used: 20, limit: 20, status: "cancelled" as const },
-];
+const soonToast = () =>
+  toast.info("Bientôt disponible", { description: "Cette fonctionnalité arrive prochainement." });
 
 function PromotionsPage() {
+  const { data: overview, isLoading } = useQuery(orgOverviewQuery());
   const [message, setMessage] = useState(
-    "Salut ! Il reste des places pour la caravane Ziguinchor → Dakar du 20 octobre. Réserve vite sur CaravaneHub.",
+    "Salut ! Il reste des places pour ta prochaine caravane. Réserve vite sur CaravaneHub.",
+  );
+
+  const caravans = overview?.caravans ?? [];
+  const upcoming = caravans.filter(
+    (c) => c.status === "published" && new Date(c.departureAt) > new Date(),
+  );
+  const seatsAvailable = upcoming.reduce((a, c) => a + Math.max(0, c.capacity - c.booked), 0);
+  const toFill = [...upcoming].sort(
+    (a, b) => pct(a.booked, a.capacity || 1) - pct(b.booked, b.capacity || 1),
   );
 
   return (
@@ -49,7 +59,7 @@ function PromotionsPage() {
         actions={
           <button
             type="button"
-            onClick={() => toast.success("Caravane mise en avant pendant 48 h")}
+            onClick={soonToast}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-ambient"
           >
             <Sparkles className="size-4" /> Mettre en avant
@@ -57,65 +67,74 @@ function PromotionsPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard title="Codes actifs" value="2" icon={BadgePercent} accent="info" />
-        <KpiCard title="Réductions accordées" value={fcfa(42500)} icon={BadgePercent} accent="warning" />
-        <KpiCard title="Places vendues via promo" value="52" icon={Megaphone} accent="mint" />
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Panel title="Codes promotionnels" bodyClassName="p-0">
-          <ul className="divide-y divide-border">
-            {promos.map((p) => (
-              <li key={p.code} className="flex items-center gap-4 px-5 py-4">
-                <span className="rounded-xl bg-muted px-3 py-1.5 font-mono text-xs font-bold">
-                  {p.code}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{p.detail}</span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {p.used}/{p.limit} utilisations
-                  </span>
-                </span>
-                <StatusPill status={p.status} />
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-border p-4">
-            <button
-              type="button"
-              onClick={() => toast.success("Nouveau code promo créé")}
-              className="w-full rounded-xl border border-dashed border-border py-2.5 text-sm font-bold text-muted-foreground hover:bg-muted"
-            >
-              + Créer un code promo
-            </button>
+      {isLoading ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">Chargement des données…</p>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <KpiCard title="Caravanes à venir" value={String(upcoming.length)} icon={Megaphone} accent="info" />
+            <KpiCard title="Places disponibles" value={String(seatsAvailable)} icon={BadgePercent} accent="warning" />
+            <KpiCard title="Codes promo actifs" value="Bientôt disponible" icon={BadgePercent} accent="mint" />
           </div>
-        </Panel>
 
-        <Panel title="Campagne WhatsApp" description="Envoyée aux étudiants ayant déjà voyagé avec vous">
-          <textarea
-            rows={5}
-            value={message}
-            maxLength={500}
-            onChange={(e) => setMessage(e.target.value)}
-            className="w-full rounded-xl border border-border bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-          />
-          <p className="mt-1 text-right text-[11px] text-muted-foreground">
-            {message.length}/500 caractères
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              message.trim()
-                ? toast.success("Campagne programmée", { description: "128 étudiants ciblés." })
-                : toast.error("Le message ne peut pas être vide")
-            }
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
-          >
-            <Send className="size-4" /> Programmer l'envoi
-          </button>
-        </Panel>
-      </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <Panel title="Caravanes à mettre en avant" description="Trajets à venir triés par remplissage" bodyClassName="p-0">
+              {toFill.length === 0 ? (
+                <EmptyState icon={Megaphone} message="Aucune caravane à venir pour l'instant." />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {toFill.slice(0, 5).map((c) => (
+                    <li key={c.id} className="flex items-center gap-4 px-5 py-4">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{c.route}</span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {dateFr(c.departureAt)} · {c.booked}/{c.capacity} places ({pct(c.booked, c.capacity || 1)}%)
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={soonToast}
+                        className="shrink-0 rounded-xl border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted"
+                      >
+                        Mettre en avant
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="border-t border-border p-4">
+                <button
+                  type="button"
+                  onClick={soonToast}
+                  className="w-full rounded-xl border border-dashed border-border py-2.5 text-sm font-bold text-muted-foreground hover:bg-muted"
+                >
+                  + Créer un code promo (bientôt disponible)
+                </button>
+              </div>
+            </Panel>
+
+            <Panel title="Campagne WhatsApp" description="Fonctionnalité bientôt disponible">
+              <textarea
+                rows={5}
+                value={message}
+                maxLength={500}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full rounded-xl border border-border bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+              />
+              <p className="mt-1 text-right text-[11px] text-muted-foreground">
+                {message.length}/500 caractères
+              </p>
+              <button
+                type="button"
+                onClick={soonToast}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-2.5 text-sm font-bold text-primary-foreground"
+              >
+                <Send className="size-4" /> Programmer l'envoi
+              </button>
+            </Panel>
+          </div>
+        </>
+      )}
     </>
   );
 }

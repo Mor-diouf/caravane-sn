@@ -12,6 +12,7 @@ import {
   adminOverview,
 } from "@/lib/admin.functions";
 import {
+  organizerHistory,
   organizerListBookings,
   organizerListCaravans,
   organizerOverview,
@@ -53,6 +54,8 @@ export const orgPaymentsQuery = () =>
   queryOptions({ queryKey: ["organizer", "payments"], queryFn: () => organizerPayments() });
 export const orgReputationQuery = () =>
   queryOptions({ queryKey: ["organizer", "reputation"], queryFn: () => organizerReputation() });
+export const orgHistoryQuery = () =>
+  queryOptions({ queryKey: ["organizer", "history"], queryFn: () => organizerHistory() });
 export const orgTeamQuery = () =>
   queryOptions({ queryKey: ["organizer", "team"], queryFn: () => organizerTeam() });
 export const orgSettingsQuery = () =>

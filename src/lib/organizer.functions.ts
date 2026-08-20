@@ -442,6 +442,67 @@ export const organizerRequestPayout = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const organizerHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { requireOrganizerId } = await import("@/lib/dash.server");
+    const supabase = context.supabase;
+    const organizerId = await requireOrganizerId(supabase, context.userId);
+
+    const [caravans, reviews] = await Promise.all([
+      supabase
+        .from("caravans")
+        .select(
+          `id, from_label, to_label, departure_at, total_seats, seats_left, status,
+           bookings(amount_fcfa, status)`,
+        )
+        .eq("organizer_id", organizerId)
+        .in("status", ["completed", "cancelled"])
+        .order("departure_at", { ascending: false }),
+      supabase
+        .from("reviews")
+        .select("caravan_id, rating, status")
+        .eq("organizer_id", organizerId)
+        .eq("status", "published"),
+    ]);
+    for (const r of [caravans, reviews]) if (r.error) throw new Error(r.error.message);
+
+    const publishedReviews = reviews.data ?? [];
+    const rows = (caravans.data ?? []).map((c) => {
+      const revenue = (c.bookings ?? [])
+        .filter((b) => b.status === "confirmed" || b.status === "pending")
+        .reduce((a, b) => a + b.amount_fcfa, 0);
+      const forCaravan = publishedReviews.filter((r) => r.caravan_id === c.id);
+      const rating = forCaravan.length
+        ? Math.round((forCaravan.reduce((a, r) => a + r.rating, 0) / forCaravan.length) * 10) / 10
+        : 0;
+      return {
+        id: c.id,
+        route: `${c.from_label} → ${c.to_label}`,
+        departureAt: c.departure_at,
+        capacity: c.total_seats,
+        booked: c.total_seats - c.seats_left,
+        revenue,
+        status: c.status as "completed" | "cancelled",
+        rating,
+        reviewCount: forCaravan.length,
+      };
+    });
+
+    return {
+      caravans: rows,
+      totals: {
+        count: rows.length,
+        revenue: rows.reduce((a, r) => a + r.revenue, 0),
+        avgRating: publishedReviews.length
+          ? Math.round(
+              (publishedReviews.reduce((a, r) => a + r.rating, 0) / publishedReviews.length) * 10,
+            ) / 10
+          : 0,
+      },
+    };
+  });
+
 export const organizerReputation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
