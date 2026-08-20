@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   Clock,
   Heart,
   MapPin,
@@ -21,6 +22,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PaymentMark } from "@/components/PaymentMark";
+
 import { formatPrice, getCaravane, seatTone, student } from "@/lib/caravanes";
 import { useBookings, useFavorites } from "@/hooks/use-local-store";
 import { cn } from "@/lib/utils";
