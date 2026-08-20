@@ -58,7 +58,7 @@ function AnalyticsPage() {
       </div>
 
       <div className="mt-4">
-        <InsightBanner message={insights[4]} />
+        <InsightBanner message={insights[4]!} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

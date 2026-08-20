@@ -140,7 +140,7 @@ function DashboardPage() {
       </div>
 
       <div className="mt-4">
-        <InsightBanner message={insights[2]} />
+        <InsightBanner message={insights[2]!} />
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
