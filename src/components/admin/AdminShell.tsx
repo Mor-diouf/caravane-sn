@@ -17,8 +17,10 @@ import {
   X,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { adminActivity, organizerAccounts, platform } from "@/lib/admin";
+import { accessQuery, adminOverviewQuery } from "@/lib/dash-queries";
+import { dateFr, initialsOf } from "@/lib/dash-shared";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type NavItem = {
@@ -28,7 +30,6 @@ type NavItem = {
   badge?: number;
 };
 
-const pendingCount = organizerAccounts.filter((o) => o.status === "pending").length;
 
 const navGroups: Array<{ title: string; items: NavItem[] }> = [
   {
@@ -41,7 +42,7 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "Gouvernance",
     items: [
-      { label: "Organisateurs", icon: BadgeCheck, to: "/admin/organizers", badge: pendingCount },
+      { label: "Organisateurs", icon: BadgeCheck, to: "/admin/organizers" },
       { label: "Utilisateurs", icon: Users, to: "/admin/users" },
       { label: "Caravanes", icon: Bus, to: "/admin/caravans" },
     ],
@@ -70,6 +71,9 @@ const mobileNav: NavItem[] = [
 
 function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const overview = useQuery(adminOverviewQuery());
+  const pendingCount = overview.data?.kpis.pendingOrganizers ?? 0;
+
 
   return (
     <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
@@ -95,9 +99,9 @@ function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
                   >
                     <item.icon className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                    {!!item.badge && (
+                    {(item.to === "/admin/organizers" ? pendingCount : (item.badge ?? 0)) > 0 && (
                       <span className="shrink-0 rounded-md bg-warning/25 px-1.5 py-0.5 text-[10px] font-black text-warning">
-                        {item.badge}
+                        {item.to === "/admin/organizers" ? pendingCount : item.badge}
                       </span>
                     )}
                   </Link>
@@ -120,7 +124,7 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold tracking-tight">CaravaneHub Admin</p>
-          <p className="truncate text-[11px] text-brand-foreground/55">{platform.name}</p>
+          <p className="truncate text-[11px] text-brand-foreground/55">Caravane Étudiants</p>
         </div>
       </div>
       <NavList onNavigate={onNavigate} />
@@ -142,6 +146,24 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
 }
 
 function AdminBell() {
+  const overview = useQuery(adminOverviewQuery());
+  const alerts = [
+    ...(overview.data?.pending ?? []).map((o) => ({
+      id: `org-${o.id}`,
+      tone: "warning" as const,
+      title: "Dossier organisateur à valider",
+      detail: o.name,
+      time: dateFr(o.createdAt),
+    })),
+    ...(overview.data?.recentDisputes ?? []).map((d) => ({
+      id: `dis-${d.id}`,
+      tone: d.status === "resolved" ? ("success" as const) : ("danger" as const),
+      title: "Litige",
+      detail: d.subject,
+      time: dateFr(d.created_at),
+    })),
+  ];
+
   return (
     <Popover>
       <PopoverTrigger
@@ -149,30 +171,37 @@ function AdminBell() {
         className="relative grid size-9 place-items-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
       >
         <Bell className="size-4" />
-        <span className="absolute right-2 top-2 size-1.5 rounded-full bg-danger" />
+        {alerts.length > 0 && (
+          <span className="absolute right-2 top-2 size-1.5 rounded-full bg-danger" />
+        )}
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-0">
         <p className="border-b border-border px-4 py-3 text-sm font-bold">Alertes plateforme</p>
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto">
-          {adminActivity.map((n) => (
-            <li key={n.id} className="flex gap-3 px-4 py-3">
-              <span
-                className={cn(
-                  "mt-1.5 size-2 shrink-0 rounded-full",
-                  n.tone === "success" && "bg-success",
-                  n.tone === "warning" && "bg-warning",
-                  n.tone === "info" && "bg-info",
-                  n.tone === "danger" && "bg-danger",
-                )}
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold leading-tight">{n.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">{n.detail}</span>
-                <span className="block text-[11px] text-muted-foreground/70">{n.time}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
+        {alerts.length === 0 ? (
+          <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+            Aucune alerte en cours.
+          </p>
+        ) : (
+          <ul className="max-h-80 divide-y divide-border overflow-y-auto">
+            {alerts.map((n) => (
+              <li key={n.id} className="flex gap-3 px-4 py-3">
+                <span
+                  className={cn(
+                    "mt-1.5 size-2 shrink-0 rounded-full",
+                    n.tone === "success" && "bg-success",
+                    n.tone === "warning" && "bg-warning",
+                    n.tone === "danger" && "bg-danger",
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold leading-tight">{n.title}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{n.detail}</span>
+                  <span className="block text-[11px] text-muted-foreground/70">{n.time}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -181,6 +210,8 @@ function AdminBell() {
 export function AdminShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const access = useQuery(accessQuery());
+  const adminName = access.data?.fullName || "Administrateur";
 
   return (
     <div className="min-h-screen bg-background">
@@ -239,12 +270,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <AdminBell />
               <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5">
                 <span className="grid size-7 place-items-center rounded-lg bg-brand text-[10px] font-black text-brand-foreground">
-                  {platform.admin.initials}
+                  {initialsOf(adminName)}
                 </span>
                 <span className="hidden min-w-0 leading-tight sm:block">
-                  <span className="block truncate text-xs font-bold">{platform.admin.name}</span>
+                  <span className="block truncate text-xs font-bold">{adminName}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
-                    {platform.admin.role}
+                    Super-admin
                   </span>
                 </span>
               </div>

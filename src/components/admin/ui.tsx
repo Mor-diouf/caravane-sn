@@ -26,18 +26,23 @@ export function AdminButton({
   onClick,
   variant = "primary",
   className,
+  disabled,
+  type = "button",
 }: {
   children: ReactNode;
   onClick?: () => void;
   variant?: "primary" | "ghost" | "danger" | "success";
   className?: string;
+  disabled?: boolean;
+  type?: "button" | "submit";
 }) {
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors",
+        "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:pointer-events-none disabled:opacity-60",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90",
         variant === "ghost" && "border border-border bg-card text-foreground hover:bg-accent",
         variant === "danger" && "bg-danger/10 text-danger hover:bg-danger/15",

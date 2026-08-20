@@ -22,8 +22,11 @@ import {
   X,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { notifications, organization } from "@/lib/organizer";
+import { supabase } from "@/integrations/supabase/client";
+import { accessQuery } from "@/lib/dash-queries";
+import { dateTimeFr, initialsOf } from "@/lib/dash-shared";
 import {
   Popover,
   PopoverContent,
@@ -134,13 +137,16 @@ function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
 }
 
 function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+  const access = useQuery(accessQuery());
   return (
     <div className="flex h-full flex-col bg-brand text-brand-foreground">
       <div className="flex items-center gap-3 px-5 py-5">
         <OrgLogo />
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold tracking-tight">CaravaneHub</p>
-          <p className="truncate text-[11px] text-brand-foreground/55">{organization.name}</p>
+          <p className="truncate text-[11px] text-brand-foreground/55">
+            {access.data?.organizerName ?? "Mon amicale"}
+          </p>
         </div>
       </div>
       <NavList onNavigate={onNavigate} />
