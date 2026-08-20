@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BadgeCheck,
   Bell,
@@ -8,6 +9,7 @@ import {
   CreditCard,
   Heart,
   HelpCircle,
+  Loader2,
   LogOut,
   Mail,
   Megaphone,
@@ -21,14 +23,22 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
 import { PaymentMark } from "@/components/PaymentMark";
 import { UniversityMark } from "@/components/UniversityMark";
-import { formatPrice, getCaravane, student, universities } from "@/lib/caravanes";
-import { useBookings, useFavorites, useLocalStore } from "@/hooks/use-local-store";
+import { formatPrice, type ProfileUpdate } from "@/lib/student-shared";
+import {
+  favoritesQuery,
+  profileQuery,
+  ticketsQuery,
+  universitiesQuery,
+} from "@/lib/student-queries";
+import { updateMyProfile } from "@/lib/student.functions";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/profil")({
+export const Route = createFileRoute("/_authenticated/profil")({
   head: () => ({
     meta: [
       { title: "Mon profil étudiant — Caravane Étudiants" },
@@ -43,46 +53,20 @@ export const Route = createFileRoute("/profil")({
         content:
           "Carte étudiant numérique, historique de trajets, moyens de paiement Wave / Orange Money et préférences de voyage.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Profil,
 });
-
-type Profile = {
-  name: string;
-  universityAbbr: string;
-  studentId: string;
-  phone: string;
-  email: string;
-};
-
-type Prefs = {
-  method: "wave" | "orange" | "free";
-  departures: boolean;
-  promos: boolean;
-  whatsapp: boolean;
-};
-
-const defaultProfile: Profile = {
-  name: student.name,
-  universityAbbr: "UASZ",
-  studentId: student.studentId,
-  phone: student.phone,
-  email: "mamadou.diop@univ-zig.sn",
-};
-
-const defaultPrefs: Prefs = {
-  method: "wave",
-  departures: true,
-  promos: true,
-  whatsapp: false,
-};
 
 const methods = [
   { id: "wave", label: "Wave" },
   { id: "orange", label: "Orange Money" },
   { id: "free", label: "Free Money" },
 ] as const;
+
+type Method = (typeof methods)[number]["id"];
 
 const links = [
   { icon: TicketCheck, label: "Historique des trajets", to: "/billets" as const },
@@ -97,48 +81,91 @@ const actions = [
 ];
 
 function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "É"
+  );
 }
 
-function Profil() {
-  const { bookings } = useBookings();
-  const { favorites } = useFavorites();
-  const [profile, setProfile] = useLocalStore<Profile>("caravane:profile", defaultProfile);
-  const [prefs, setPrefs] = useLocalStore<Prefs>("caravane:prefs", defaultPrefs);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<Profile>(profile);
+type Draft = {
+  full_name: string;
+  student_id: string;
+  phone: string;
+  email: string;
+  university_id: string | null;
+};
 
-  const university = universities.find((u) => u.abbr === profile.universityAbbr);
+function Profil() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { signOut } = useAuth();
+  const { data: profile, isLoading } = useQuery(profileQuery);
+  const { data: bookings = [] } = useQuery(ticketsQuery);
+  const { data: favorites = [] } = useQuery(favoritesQuery);
+  const { data: universities = [] } = useQuery(universitiesQuery);
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Draft>({
+    full_name: "",
+    student_id: "",
+    phone: "",
+    email: "",
+    university_id: null,
+  });
+
+  useEffect(() => {
+    if (!profile) return;
+    setDraft({
+      full_name: profile.full_name ?? "",
+      student_id: profile.student_id ?? "",
+      phone: profile.phone ?? "",
+      email: profile.email ?? "",
+      university_id: profile.university_id ?? null,
+    });
+  }, [profile]);
+
+  const save = useMutation({
+    mutationFn: (input: ProfileUpdate) => updateMyProfile({ data: input }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setEditing(false);
+      toast.success("Profil mis à jour");
+    },
+    onError: (error) =>
+      toast.error("Mise à jour impossible", {
+        description: error instanceof Error ? error.message : undefined,
+      }),
+  });
+
+  const university = universities.find((u) => u.id === profile?.university_id);
 
   const { seats, spent, destinations } = useMemo(() => {
     let seats = 0;
     let spent = 0;
     const dest = new Set<string>();
     for (const b of bookings) {
-      const c = getCaravane(b.caravaneId);
       seats += b.seats;
-      if (c) {
-        spent += c.price * b.seats;
-        dest.add(c.to);
-      }
+      spent += b.amount;
+      if (b.caravan) dest.add(b.caravan.to);
     }
     return { seats, spent, destinations: dest.size };
   }, [bookings]);
 
-  const openEdit = () => {
-    setDraft(profile);
-    setEditing(true);
-  };
+  const prefMethod = (profile?.preferred_payment ?? "wave") as Method;
 
-  const save = () => {
-    setProfile(draft);
-    setEditing(false);
-  };
+  if (isLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background">
+        <Loader2 className="size-5 animate-spin text-primary-accent" />
+      </div>
+    );
+  }
+
+  const abbr = university?.abbr ?? "CÉ";
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -154,7 +181,7 @@ function Profil() {
             </p>
             <button
               type="button"
-              onClick={openEdit}
+              onClick={() => setEditing(true)}
               className="inline-flex items-center gap-1.5 rounded-2xl bg-primary-foreground/15 px-3 py-1.5 text-[12px] font-semibold backdrop-blur transition-colors hover:bg-primary-foreground/25"
             >
               <Pencil className="size-3.5" />
@@ -164,18 +191,18 @@ function Profil() {
 
           <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
             <span className="grid size-16 shrink-0 place-items-center rounded-3xl bg-primary-foreground/15 text-xl font-black backdrop-blur">
-              {initials(profile.name)}
+              {initials(profile?.full_name ?? "")}
             </span>
             <div className="min-w-0">
               <h1 className="flex items-center gap-2 text-[19px] font-extrabold leading-tight tracking-tight">
-                <span className="truncate">{profile.name}</span>
+                <span className="truncate">{profile?.full_name || "Étudiant"}</span>
                 <BadgeCheck className="size-4 shrink-0 text-secondary-accent" />
               </h1>
               <p className="truncate text-[13px] font-medium leading-relaxed text-primary-foreground/75">
-                {university?.name ?? profile.universityAbbr}
+                {university?.name ?? "Université non renseignée"}
               </p>
               <p className="truncate text-[11px] leading-relaxed text-primary-foreground/60">
-                {profile.studentId}
+                {profile?.student_id || "Numéro étudiant à compléter"}
               </p>
             </div>
           </div>
@@ -185,12 +212,14 @@ function Profil() {
       <main className="mx-auto -mt-14 max-w-3xl space-y-5 px-5">
         <section className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-lifted">
           <div className="flex items-center gap-3 border-b border-border/70 p-4">
-            <UniversityMark abbr={profile.universityAbbr} showAbbr={false} />
+            <UniversityMark abbr={abbr} showAbbr={false} />
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 Carte étudiant numérique
               </p>
-              <p className="truncate text-sm font-bold">{profile.studentId}</p>
+              <p className="truncate text-sm font-bold">
+                {profile?.student_id || "—"}
+              </p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-primary-accent">
               <Check className="size-3" /> Vérifié
@@ -198,8 +227,8 @@ function Profil() {
           </div>
           <dl className="divide-y divide-border">
             {[
-              { icon: Phone, label: "Téléphone", value: profile.phone },
-              { icon: Mail, label: "Email", value: profile.email },
+              { icon: Phone, label: "Téléphone", value: profile?.phone || "—" },
+              { icon: Mail, label: "Email", value: profile?.email || "—" },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-3 px-4 py-3">
                 <Icon className="size-4 shrink-0 text-primary-accent" />
@@ -254,12 +283,12 @@ function Profil() {
           </div>
           <ul className="mt-3 space-y-2">
             {methods.map((m) => {
-              const active = prefs.method === m.id;
+              const active = prefMethod === m.id;
               return (
                 <li key={m.id}>
                   <button
                     type="button"
-                    onClick={() => setPrefs({ ...prefs, method: m.id })}
+                    onClick={() => save.mutate({ preferred_payment: m.id })}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all",
                       active
@@ -294,36 +323,51 @@ function Profil() {
           <ul className="mt-2 divide-y divide-border">
             {(
               [
-                { key: "departures", label: "Rappels de départ", hint: "2h avant le trajet" },
-                { key: "promos", label: "Bons plans et promos", hint: "Réductions étudiantes" },
-                { key: "whatsapp", label: "Alertes WhatsApp", hint: "Billet et changements" },
+                {
+                  key: "notify_departures",
+                  label: "Rappels de départ",
+                  hint: "2h avant le trajet",
+                },
+                {
+                  key: "notify_promos",
+                  label: "Bons plans et promos",
+                  hint: "Réductions étudiantes",
+                },
+                {
+                  key: "notify_whatsapp",
+                  label: "Alertes WhatsApp",
+                  hint: "Billet et changements",
+                },
               ] as const
-            ).map(({ key, label, hint }) => (
-              <li key={key} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{label}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{hint}</p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={prefs[key]}
-                  aria-label={label}
-                  onClick={() => setPrefs({ ...prefs, [key]: !prefs[key] })}
-                  className={cn(
-                    "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                    prefs[key] ? "bg-primary-accent" : "bg-muted",
-                  )}
-                >
-                  <span
+            ).map(({ key, label, hint }) => {
+              const checked = Boolean(profile?.[key]);
+              return (
+                <li key={key} className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{label}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{hint}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={checked}
+                    aria-label={label}
+                    onClick={() => save.mutate({ [key]: !checked })}
                     className={cn(
-                      "absolute top-0.5 size-5 rounded-full bg-card shadow-ambient transition-all",
-                      prefs[key] ? "left-[22px]" : "left-0.5",
+                      "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                      checked ? "bg-primary-accent" : "bg-muted",
                     )}
-                  />
-                </button>
-              </li>
-            ))}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 size-5 rounded-full bg-card shadow-ambient transition-all",
+                        checked ? "left-[22px]" : "left-0.5",
+                      )}
+                    />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
 
@@ -361,6 +405,11 @@ function Profil() {
             <li>
               <button
                 type="button"
+                onClick={async () => {
+                  await signOut();
+                  queryClient.clear();
+                  navigate({ to: "/" });
+                }}
                 className="flex w-full items-center gap-3 px-5 py-4 text-left text-sm font-semibold text-danger transition-colors hover:bg-accent"
               >
                 <LogOut className="size-4 shrink-0" />
@@ -393,8 +442,8 @@ function Profil() {
             <div className="mt-4 space-y-3">
               {(
                 [
-                  { key: "name", label: "Nom complet", type: "text" },
-                  { key: "studentId", label: "Numéro étudiant", type: "text" },
+                  { key: "full_name", label: "Nom complet", type: "text" },
+                  { key: "student_id", label: "Numéro étudiant", type: "text" },
                   { key: "phone", label: "Téléphone", type: "tel" },
                   { key: "email", label: "Email", type: "email" },
                 ] as const
@@ -418,13 +467,13 @@ function Profil() {
                 </span>
                 <ul className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
                   {universities.map((u) => {
-                    const active = draft.universityAbbr === u.abbr;
+                    const active = draft.university_id === u.id;
                     return (
                       <li key={u.id}>
                         <button
                           type="button"
                           title={u.name}
-                          onClick={() => setDraft({ ...draft, universityAbbr: u.abbr })}
+                          onClick={() => setDraft({ ...draft, university_id: u.id })}
                           className={cn(
                             "flex w-[70px] flex-col items-center gap-1 rounded-2xl border p-2 transition-all",
                             active
@@ -446,10 +495,19 @@ function Profil() {
 
             <button
               type="button"
-              onClick={save}
-              className="mt-5 w-full rounded-2xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-lifted"
+              disabled={save.isPending}
+              onClick={() =>
+                save.mutate({
+                  full_name: draft.full_name,
+                  student_id: draft.student_id || null,
+                  phone: draft.phone || null,
+                  email: draft.email || null,
+                  university_id: draft.university_id,
+                })
+              }
+              className="mt-5 w-full rounded-2xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-lifted disabled:opacity-70"
             >
-              Enregistrer
+              {save.isPending ? "Enregistrement…" : "Enregistrer"}
             </button>
           </div>
         </div>

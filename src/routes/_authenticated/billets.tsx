@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CheckCircle2, Download, Share2, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { CheckCircle2, Download, Loader2, Share2, Wallet } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { QrCode } from "@/components/QrCode";
-import { formatPrice, getCaravane, student } from "@/lib/caravanes";
-import { useBookings } from "@/hooks/use-local-store";
+import { formatPrice, paymentLabels } from "@/lib/student-shared";
+import { ticketsQuery, profileQuery } from "@/lib/student-queries";
 
-export const Route = createFileRoute("/billets")({
+export const Route = createFileRoute("/_authenticated/billets")({
   head: () => ({
     meta: [
       { title: "Mes billets électroniques — Caravane Étudiants" },
@@ -19,13 +20,16 @@ export const Route = createFileRoute("/billets")({
         property: "og:description",
         content: "Vos billets QR de caravanes universitaires, prêts pour l'embarquement.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Billets,
 });
 
 function Billets() {
-  const { bookings } = useBookings();
+  const { data: bookings, isLoading, isError } = useQuery(ticketsQuery);
+  const { data: profile } = useQuery(profileQuery);
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -39,11 +43,17 @@ function Billets() {
       </header>
 
       <main className="mx-auto -mt-6 max-w-3xl space-y-5 px-5">
-        {bookings.length === 0 ? (
+        {isLoading ? (
+          <div className="grid place-items-center rounded-3xl border border-border/70 bg-card p-12 shadow-ambient">
+            <Loader2 className="size-5 animate-spin text-primary-accent" />
+          </div>
+        ) : isError ? (
+          <p className="rounded-3xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+            Vos billets n'ont pas pu être chargés.
+          </p>
+        ) : !bookings || bookings.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center shadow-ambient">
-            <p className="text-sm text-muted-foreground">
-              Vous n'avez pas encore de billet.
-            </p>
+            <p className="text-sm text-muted-foreground">Vous n'avez pas encore de billet.</p>
             <Link
               to="/"
               className="mt-4 inline-block rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lifted"
@@ -53,8 +63,9 @@ function Billets() {
           </div>
         ) : (
           bookings.map((b) => {
-            const c = getCaravane(b.caravaneId);
+            const c = b.caravan;
             if (!c) return null;
+            const used = b.ticket?.status === "used";
             return (
               <article
                 key={b.id}
@@ -62,7 +73,8 @@ function Billets() {
               >
                 <div className="flex items-center justify-between gap-3 bg-accent px-5 py-3">
                   <span className="flex items-center gap-2 text-sm font-bold text-primary">
-                    <CheckCircle2 className="size-4 text-success" /> Billet confirmé
+                    <CheckCircle2 className="size-4 text-success" />
+                    {used ? "Billet utilisé" : "Billet confirmé"}
                   </span>
                   <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
                     {b.reference}
@@ -71,7 +83,7 @@ function Billets() {
 
                 <div className="grid gap-5 p-5 sm:grid-cols-[auto_minmax(0,1fr)]">
                   <div className="mx-auto rounded-2xl border border-border/70 bg-background p-3 text-primary">
-                    <QrCode value={b.reference} size={168} />
+                    <QrCode value={b.ticket?.qr_code ?? b.reference} size={168} />
                   </div>
                   <div className="space-y-2 text-sm">
                     <h2 className="text-lg font-extrabold tracking-tight">
@@ -84,7 +96,7 @@ function Billets() {
                     <dl className="grid grid-cols-2 gap-2 pt-2 text-xs">
                       <div>
                         <dt className="text-muted-foreground">Passager</dt>
-                        <dd className="font-bold">{student.name}</dd>
+                        <dd className="font-bold">{profile?.full_name ?? "Étudiant"}</dd>
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Places</dt>
@@ -92,12 +104,14 @@ function Billets() {
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Payé via</dt>
-                        <dd className="font-bold">{b.method}</dd>
+                        <dd className="font-bold">
+                          {b.payment ? (paymentLabels[b.payment.method] ?? b.payment.method) : "—"}
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Montant</dt>
                         <dd className="font-bold text-primary-accent">
-                          {formatPrice(c.price * b.seats)} FCFA
+                          {formatPrice(b.amount)} FCFA
                         </dd>
                       </div>
                     </dl>
@@ -126,7 +140,6 @@ function Billets() {
                         <Wallet className="size-4" /> Wallet
                       </button>
                     </div>
-
                   </div>
                 </div>
               </article>

@@ -10,11 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as BilletsRouteImport } from './routes/billets'
-import { Route as FavorisRouteImport } from './routes/favoris'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as OrganizerRouteImport } from './routes/organizer'
-import { Route as ProfilRouteImport } from './routes/profil'
+import { Route as AuthenticatedBilletsRouteImport } from './routes/_authenticated/billets'
+import { Route as AuthenticatedFavorisRouteImport } from './routes/_authenticated/favoris'
+import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
 import { Route as AdminCaravansRouteImport } from './routes/admin.caravans'
@@ -47,19 +49,18 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BilletsRoute = BilletsRouteImport.update({
-  id: '/billets',
-  path: '/billets',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FavorisRoute = FavorisRouteImport.update({
-  id: '/favoris',
-  path: '/favoris',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrganizerRoute = OrganizerRouteImport.update({
@@ -67,10 +68,20 @@ const OrganizerRoute = OrganizerRouteImport.update({
   path: '/organizer',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfilRoute = ProfilRouteImport.update({
+const AuthenticatedBilletsRoute = AuthenticatedBilletsRouteImport.update({
+  id: '/billets',
+  path: '/billets',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFavorisRoute = AuthenticatedFavorisRouteImport.update({
+  id: '/favoris',
+  path: '/favoris',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
   id: '/profil',
   path: '/profil',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -206,10 +217,11 @@ const OrganizerTeamRoute = OrganizerTeamRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/billets': typeof BilletsRoute
-  '/favoris': typeof FavorisRoute
+  '/auth': typeof AuthRoute
   '/organizer': typeof OrganizerRouteWithChildren
-  '/profil': typeof ProfilRoute
+  '/billets': typeof AuthenticatedBilletsRoute
+  '/favoris': typeof AuthenticatedFavorisRoute
+  '/profil': typeof AuthenticatedProfilRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -239,9 +251,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/billets': typeof BilletsRoute
-  '/favoris': typeof FavorisRoute
-  '/profil': typeof ProfilRoute
+  '/auth': typeof AuthRoute
+  '/billets': typeof AuthenticatedBilletsRoute
+  '/favoris': typeof AuthenticatedFavorisRoute
+  '/profil': typeof AuthenticatedProfilRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -272,11 +285,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
-  '/billets': typeof BilletsRoute
-  '/favoris': typeof FavorisRoute
+  '/auth': typeof AuthRoute
   '/organizer': typeof OrganizerRouteWithChildren
-  '/profil': typeof ProfilRoute
+  '/_authenticated/billets': typeof AuthenticatedBilletsRoute
+  '/_authenticated/favoris': typeof AuthenticatedFavorisRoute
+  '/_authenticated/profil': typeof AuthenticatedProfilRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/caravans': typeof AdminCaravansRoute
   '/admin/dashboard': typeof AdminDashboardRoute
@@ -309,9 +324,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/auth'
+    | '/organizer'
     | '/billets'
     | '/favoris'
-    | '/organizer'
     | '/profil'
     | '/admin/analytics'
     | '/admin/caravans'
@@ -342,6 +358,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/billets'
     | '/favoris'
     | '/profil'
@@ -374,11 +391,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/admin'
-    | '/billets'
-    | '/favoris'
+    | '/auth'
     | '/organizer'
-    | '/profil'
+    | '/_authenticated/billets'
+    | '/_authenticated/favoris'
+    | '/_authenticated/profil'
     | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
@@ -409,11 +428,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
-  BilletsRoute: typeof BilletsRoute
-  FavorisRoute: typeof FavorisRoute
+  AuthRoute: typeof AuthRoute
   OrganizerRoute: typeof OrganizerRouteWithChildren
-  ProfilRoute: typeof ProfilRoute
   CaravaneIdRoute: typeof CaravaneIdRoute
 }
 
@@ -426,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -433,18 +458,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/billets': {
-      id: '/billets'
-      path: '/billets'
-      fullPath: '/billets'
-      preLoaderRoute: typeof BilletsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/favoris': {
-      id: '/favoris'
-      path: '/favoris'
-      fullPath: '/favoris'
-      preLoaderRoute: typeof FavorisRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/organizer': {
@@ -454,12 +472,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/profil': {
-      id: '/profil'
+    '/_authenticated/billets': {
+      id: '/_authenticated/billets'
+      path: '/billets'
+      fullPath: '/billets'
+      preLoaderRoute: typeof AuthenticatedBilletsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/favoris': {
+      id: '/_authenticated/favoris'
+      path: '/favoris'
+      fullPath: '/favoris'
+      preLoaderRoute: typeof AuthenticatedFavorisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profil': {
+      id: '/_authenticated/profil'
       path: '/profil'
       fullPath: '/profil'
-      preLoaderRoute: typeof ProfilRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedProfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -646,6 +678,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBilletsRoute: typeof AuthenticatedBilletsRoute
+  AuthenticatedFavorisRoute: typeof AuthenticatedFavorisRoute
+  AuthenticatedProfilRoute: typeof AuthenticatedProfilRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBilletsRoute: AuthenticatedBilletsRoute,
+  AuthenticatedFavorisRoute: AuthenticatedFavorisRoute,
+  AuthenticatedProfilRoute: AuthenticatedProfilRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminCaravansRoute: typeof AdminCaravansRoute
@@ -716,11 +763,10 @@ const OrganizerRouteWithChildren = OrganizerRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
-  BilletsRoute: BilletsRoute,
-  FavorisRoute: FavorisRoute,
+  AuthRoute: AuthRoute,
   OrganizerRoute: OrganizerRouteWithChildren,
-  ProfilRoute: ProfilRoute,
   CaravaneIdRoute: CaravaneIdRoute,
 }
 export const routeTree = rootRouteImport
