@@ -48,6 +48,12 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-mint: var(--mint);
   --color-text-strong: var(--text-strong);
   --color-surface-blur: var(--surface-blur);
   --color-border: var(--border);
@@ -94,6 +100,12 @@
   --destructive-foreground: oklch(0.985 0.005 250);
   --success: oklch(0.68 0.15 162);
   --danger: oklch(0.62 0.21 25);
+  --info: oklch(0.53 0.22 262);
+  --warning: oklch(0.77 0.16 70);
+  --brand: oklch(0.24 0.06 260);
+  --brand-foreground: oklch(0.985 0.005 250);
+  --brand-soft: oklch(0.96 0.015 258);
+  --mint: oklch(0.74 0.16 155);
   --text-strong: oklch(0.21 0.04 264);
   --surface-blur: oklch(1 0 0 / 0.78);
   --border: oklch(0.92 0.012 255);
@@ -131,6 +143,12 @@
   --secondary-accent: oklch(0.8 0.15 78);
   --success: oklch(0.72 0.15 162);
   --danger: oklch(0.68 0.2 25);
+  --info: oklch(0.63 0.2 262);
+  --warning: oklch(0.8 0.15 70);
+  --brand: oklch(0.22 0.05 260);
+  --brand-foreground: oklch(0.985 0.005 250);
+  --brand-soft: oklch(0.28 0.04 260);
+  --mint: oklch(0.76 0.16 155);
   --text-strong: oklch(0.984 0.003 247.858);
   --surface-blur: oklch(0.208 0.042 265.755 / 0.8);
   --gradient-primary: linear-gradient(135deg, oklch(0.42 0.15 265), oklch(0.6 0.19 262));
