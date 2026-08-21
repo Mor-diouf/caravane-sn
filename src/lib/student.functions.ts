@@ -213,3 +213,73 @@ export const createBooking = createServerFn({ method: "POST" })
 
     return { bookingId: booking.id, reference: booking.reference };
   });
+
+export const requestOrganizerAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data) =>
+    z
+      .object({
+        name: z.string().min(2),
+        phone: z.string().min(9),
+        studentCardBase64: z.string(),
+        idCardBase64: z.string(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    // 1. Check if they already have an organizer account (even pending)
+    const { data: existing, error: findError } = await context.supabase
+      .from("organizers")
+      .select("id, status")
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+
+    if (findError) throw new Error(findError.message);
+    if (existing) {
+      if (existing.status === "pending") {
+        throw new Error("Vous avez déjà une demande en attente.");
+      }
+      if (existing.status === "approved") {
+        throw new Error("Vous êtes déjà organisateur !");
+      }
+    }
+
+    // 2. Fetch the user's university to associate it
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("university_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+
+    // 3. Insert the organizer request
+    const { data: newOrg, error: insertError } = await context.supabase
+      .from("organizers")
+      .insert({
+        owner_id: context.userId,
+        name: data.name,
+        phone: data.phone,
+        status: "pending",
+        commission_rate: 0.05, // default
+        university_id: profile?.university_id || null,
+        documents: {
+          student_card: data.studentCardBase64,
+          id_card: data.idCardBase64,
+          submitted_at: new Date().toISOString(),
+        },
+      })
+      .select("id")
+      .single();
+
+    if (insertError) throw new Error(insertError.message);
+
+    // 4. Log the action so it appears on the Admin Dashboard activity feed
+    await context.supabase.from("audit_log").insert({
+      action: "organizer_requested",
+      actor_id: context.userId,
+      entity: "organizers",
+      entity_id: newOrg.id,
+      meta: { name: data.name },
+    });
+
+    return { success: true, organizerId: newOrg.id };
+  });

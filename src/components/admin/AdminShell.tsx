@@ -160,7 +160,7 @@ function AdminBell() {
       tone: d.status === "resolved" ? ("success" as const) : ("danger" as const),
       title: "Litige",
       detail: d.subject,
-      time: dateFr(d.created_at),
+      time: dateFr(d.createdAt),
     })),
   ];
 

@@ -353,7 +353,7 @@ function AdminDashboard() {
                             d.status === "open" ? "danger" : d.status === "review" ? "warning" : "success"
                           }
                         >
-                          {disputeStatusLabels[d.status] ?? d.status}
+                          {(disputeStatusLabels as Record<string, string>)[d.status] ?? d.status}
                         </TonePill>
                       </td>
                     </tr>

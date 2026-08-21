@@ -79,7 +79,7 @@ export const adminOverview = createServerFn({ method: "GET" })
     const activity = (auditLogs.data ?? []).map((log) => {
       const label = actionLabels[log.action] ?? { title: log.action, tone: "info" as const };
       const meta = (log.meta as Record<string, string | number> | null) ?? {};
-      const detail = meta.name ?? meta.reference ?? meta.subject ?? log.entity_id ?? "";
+      const detail = (meta["name"] ?? meta["reference"] ?? meta["subject"] ?? log.entity_id ?? "") as string;
       return {
         id: log.id,
         title: label.title,

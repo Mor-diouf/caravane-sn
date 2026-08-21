@@ -22,6 +22,7 @@ import {
   TicketCheck,
   Wallet,
   X,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
@@ -34,7 +35,7 @@ import {
   ticketsQuery,
   universitiesQuery,
 } from "@/lib/student-queries";
-import { updateMyProfile } from "@/lib/student.functions";
+import { updateMyProfile, requestOrganizerAccount } from "@/lib/student.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +118,9 @@ function Profil() {
     university_id: null,
   });
 
+  const [orgModalOpen, setOrgModalOpen] = useState(false);
+  const [orgForm, setOrgForm] = useState({ name: "", phone: "", studentCard: "", idCard: "" });
+
   useEffect(() => {
     if (!profile) return;
     setDraft({
@@ -126,6 +130,11 @@ function Profil() {
       email: profile.email ?? "",
       university_id: profile.university_id ?? null,
     });
+    setOrgForm((f) => ({
+      ...f,
+      name: profile.full_name ?? "",
+      phone: profile.phone ?? "",
+    }));
   }, [profile]);
 
   const save = useMutation({
@@ -140,6 +149,38 @@ function Profil() {
         description: error instanceof Error ? error.message : undefined,
       }),
   });
+
+  const orgMutation = useMutation({
+    mutationFn: () =>
+      requestOrganizerAccount({
+        data: {
+          name: orgForm.name,
+          phone: orgForm.phone,
+          studentCardBase64: orgForm.studentCard,
+          idCardBase64: orgForm.idCard,
+        },
+      }),
+    onSuccess: () => {
+      setOrgModalOpen(false);
+      toast.success("Demande envoyée !", {
+        description: "Votre demande d'organisateur est en attente de validation.",
+      });
+    },
+    onError: (error) =>
+      toast.error("Erreur", {
+        description: error instanceof Error ? error.message : undefined,
+      }),
+  });
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>, key: "studentCard" | "idCard") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setOrgForm((f) => ({ ...f, [key]: ev.target?.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const university = universities.find((u) => u.id === profile?.university_id);
 
@@ -389,6 +430,9 @@ function Profil() {
               <li key={label}>
                 <button
                   type="button"
+                  onClick={() => {
+                    if (label === "Devenir organisateur") setOrgModalOpen(true);
+                  }}
                   className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-accent"
                 >
                   <Icon className="size-4 shrink-0 text-primary-accent" />
@@ -508,6 +552,99 @@ function Profil() {
               className="mt-5 w-full rounded-2xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-lifted disabled:opacity-70"
             >
               {save.isPending ? "Enregistrement…" : "Enregistrer"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {orgModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-5 shadow-lifted sm:rounded-3xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-extrabold tracking-tight">Devenir Organisateur</h2>
+              <button
+                type="button"
+                onClick={() => setOrgModalOpen(false)}
+                aria-label="Fermer"
+                className="grid size-9 place-items-center rounded-xl border border-border/70 transition-colors hover:bg-accent"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            
+            <p className="mt-2 text-sm text-muted-foreground">
+              Renseignez vos informations pour que l'administration valide votre profil d'organisateur.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Nom et Prénom</span>
+                <input
+                  type="text"
+                  value={orgForm.name}
+                  onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
+                  placeholder="Ex: Amicale des Étudiants"
+                  className="mt-1 w-full rounded-2xl border border-border/70 bg-background px-3 py-2.5 text-sm font-medium focus:border-primary-accent focus:outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Numéro de téléphone</span>
+                <input
+                  type="tel"
+                  value={orgForm.phone}
+                  onChange={(e) => setOrgForm({ ...orgForm, phone: e.target.value })}
+                  placeholder="Ex: 77 123 45 67"
+                  className="mt-1 w-full rounded-2xl border border-border/70 bg-background px-3 py-2.5 text-sm font-medium focus:border-primary-accent focus:outline-none"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+                  Carte Étudiant <Upload className="size-3" />
+                </span>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => handleFile(e, "studentCard")}
+                  className="mt-1 block w-full text-sm text-muted-foreground
+                    file:mr-4 file:rounded-xl file:border-0
+                    file:bg-accent file:px-4 file:py-2
+                    file:text-sm file:font-semibold file:text-primary-accent
+                    hover:file:bg-accent/80"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1">
+                  Carte d'Identité Nationale (CIN) <Upload className="size-3" />
+                </span>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => handleFile(e, "idCard")}
+                  className="mt-1 block w-full text-sm text-muted-foreground
+                    file:mr-4 file:rounded-xl file:border-0
+                    file:bg-accent file:px-4 file:py-2
+                    file:text-sm file:font-semibold file:text-primary-accent
+                    hover:file:bg-accent/80"
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              disabled={
+                orgMutation.isPending ||
+                !orgForm.name ||
+                !orgForm.phone ||
+                !orgForm.studentCard ||
+                !orgForm.idCard
+              }
+              onClick={() => orgMutation.mutate()}
+              className="mt-5 w-full rounded-2xl bg-brand py-3 text-sm font-bold text-brand-foreground shadow-lifted disabled:opacity-50"
+            >
+              {orgMutation.isPending ? "Envoi en cours..." : "Soumettre la demande"}
             </button>
           </div>
         </div>
