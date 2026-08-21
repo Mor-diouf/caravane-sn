@@ -1,11 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Bus, EyeOff, Search, Eye } from "lucide-react";
+import { Bus, EyeOff, Eye, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { EmptyState, KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
-import { AdminButton, Tabs, TonePill } from "@/components/admin/ui";
-import { caravans, caravanStatusLabels, fcfa, fmt, pct } from "@/lib/organizer";
-import { organizerAccounts, platformKpis } from "@/lib/admin";
+import { AdminButton, Tabs, TonePill, type Tone } from "@/components/admin/ui";
+import { adminCaravansQuery } from "@/lib/dash-queries";
+import { adminSetCaravanHidden } from "@/lib/admin.functions";
+import { dateTimeFr } from "@/lib/dash-shared";
+import { fcfa, fmt, pct } from "@/lib/organizer";
 
 export const Route = createFileRoute("/_authenticated/admin/caravans")({
   head: () => ({
@@ -28,30 +32,55 @@ export const Route = createFileRoute("/_authenticated/admin/caravans")({
   component: AdminCaravans,
 });
 
-type Filter = "all" | "active" | "upcoming" | "completed" | "cancelled";
+type CaravanStatus = "draft" | "published" | "full" | "completed" | "cancelled";
+type Filter = "all" | CaravanStatus | "hidden";
 
-const owners = organizerAccounts.filter((o) => o.status === "approved");
+const statusLabels: Record<CaravanStatus, string> = {
+  draft: "Brouillon",
+  published: "Publiée",
+  full: "Complète",
+  completed: "Terminée",
+  cancelled: "Annulée",
+};
+
+const statusTone: Record<CaravanStatus, Tone> = {
+  draft: "neutral",
+  published: "success",
+  full: "info",
+  completed: "neutral",
+  cancelled: "danger",
+};
 
 function AdminCaravans() {
+  const { data, isLoading } = useQuery(adminCaravansQuery());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [hidden, setHidden] = useState<string[]>([]);
 
-  const rows = caravans
-    .map((c, i) => ({ ...c, owner: owners[i % owners.length]?.name ?? "Amicale UASZ" }))
-    .filter((c) => {
-      const matchFilter = filter === "all" || c.status === filter;
-      const q = query.trim().toLowerCase();
-      const matchQuery =
-        !q || c.route.toLowerCase().includes(q) || c.owner.toLowerCase().includes(q);
-      return matchFilter && matchQuery;
-    });
+  const queryClient = useQueryClient();
+  const setHiddenFn = useServerFn(adminSetCaravanHidden);
+  const mutation = useMutation({
+    mutationFn: (payload: { caravanId: string; hidden: boolean }) => setHiddenFn({ data: payload }),
+    onSuccess: (_r, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success(vars.hidden ? "Caravane masquée du catalogue." : "Caravane republiée.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
-  function toggleHidden(id: string, route: string) {
-    const isHidden = hidden.includes(id);
-    setHidden((prev) => (isHidden ? prev.filter((x) => x !== id) : [...prev, id]));
-    toast.success(isHidden ? `${route} republiée.` : `${route} masquée du catalogue.`);
-  }
+  const all = data ?? [];
+  const rows = all.filter((c) => {
+    const matchFilter =
+      filter === "all" ? true : filter === "hidden" ? c.hidden : c.status === filter;
+    const q = query.trim().toLowerCase();
+    const matchQuery =
+      !q || c.route.toLowerCase().includes(q) || c.organizer.toLowerCase().includes(q);
+    return matchFilter && matchQuery;
+  });
+
+  const published = all.filter((c) => c.status === "published" && !c.hidden).length;
+  const hiddenCount = all.filter((c) => c.hidden).length;
+  const seats = all.reduce((a, c) => a + c.capacity, 0);
+  const booked = all.reduce((a, c) => a + c.booked, 0);
 
   return (
     <>
@@ -74,21 +103,21 @@ function AdminCaravans() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
-          title="Caravanes publiées"
-          value={fmt(platformKpis.caravans)}
-          secondary={`${platformKpis.activeCaravans} en cours`}
+          title="Caravanes"
+          value={fmt(all.length)}
+          secondary={`${published} en ligne`}
           icon={Bus}
         />
         <KpiCard
           title="Remplissage moyen"
-          value={`${platformKpis.fillRate} %`}
+          value={`${pct(booked, seats)} %`}
           secondary="Toutes universités confondues"
           icon={Bus}
           accent="mint"
         />
         <KpiCard
           title="Annonces masquées"
-          value={fmt(hidden.length)}
+          value={fmt(hiddenCount)}
           secondary="Retirées du catalogue étudiant"
           icon={EyeOff}
           accent="warning"
@@ -101,16 +130,20 @@ function AdminCaravans() {
           onChange={setFilter}
           options={[
             { value: "all", label: "Toutes" },
-            { value: "active", label: "En cours" },
-            { value: "upcoming", label: "À venir" },
+            { value: "published", label: "Publiées" },
+            { value: "full", label: "Complètes" },
             { value: "completed", label: "Terminées" },
-            { value: "cancelled", label: "Annulées" },
+            { value: "hidden", label: "Masquées" },
           ]}
         />
       </div>
 
       <Panel bodyClassName="p-0">
-        {rows.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-5 py-12 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Chargement des caravanes…
+          </div>
+        ) : rows.length === 0 ? (
           <EmptyState icon={Bus} message="Aucune caravane ne correspond à ces filtres." />
         ) : (
           <div className="overflow-x-auto">
@@ -130,8 +163,8 @@ function AdminCaravans() {
                 {rows.map((c) => (
                   <tr key={c.id}>
                     <td className="px-5 py-3 font-semibold">{c.route}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{c.owner}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{c.date}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{c.organizer}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{dateTimeFr(c.departureAt)}</td>
                     <td className="px-5 py-3">
                       <div className="w-36">
                         <p className="text-xs font-semibold">
@@ -144,29 +177,20 @@ function AdminCaravans() {
                     </td>
                     <td className="px-5 py-3 font-semibold">{fcfa(c.revenue)}</td>
                     <td className="px-5 py-3">
-                      <TonePill
-                        tone={
-                          hidden.includes(c.id)
-                            ? "neutral"
-                            : c.status === "active"
-                              ? "success"
-                              : c.status === "upcoming"
-                                ? "info"
-                                : c.status === "cancelled"
-                                  ? "danger"
-                                  : "neutral"
-                        }
-                      >
-                        {hidden.includes(c.id) ? "Masquée" : caravanStatusLabels[c.status]}
+                      <TonePill tone={c.hidden ? "neutral" : statusTone[c.status]}>
+                        {c.hidden ? "Masquée" : statusLabels[c.status]}
                       </TonePill>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
                         <AdminButton
-                          variant={hidden.includes(c.id) ? "success" : "ghost"}
-                          onClick={() => toggleHidden(c.id, c.route)}
+                          variant={c.hidden ? "success" : "ghost"}
+                          disabled={mutation.isPending}
+                          onClick={() =>
+                            mutation.mutate({ caravanId: c.id, hidden: !c.hidden })
+                          }
                         >
-                          {hidden.includes(c.id) ? (
+                          {c.hidden ? (
                             <>
                               <Eye className="size-3.5" /> Republier
                             </>
