@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { Bell, LogIn, Search, ShieldCheck, SlidersHorizontal, Sparkle } from "lucide-react";
 import { CaravanCard } from "@/components/CaravanCard";
 import { BottomNav } from "@/components/BottomNav";
 import { UniversityMark } from "@/components/UniversityMark";
-import { caravansQuery, universitiesQuery } from "@/lib/student-queries";
+import { caravansQuery, universitiesQuery, profileQuery } from "@/lib/student-queries";
 import { useStudentFavorites } from "@/hooks/use-student-favorites";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -53,10 +53,11 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { data: caravanes } = useSuspenseQuery(caravansQuery);
   const { data: universities } = useSuspenseQuery(universitiesQuery);
+  const { user } = useAuth();
+  const { data: profile } = useQuery(profileQuery);
   const [activeUniversity, setActiveUniversity] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const { favorites, toggle } = useStudentFavorites();
-  const { user } = useAuth();
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -78,12 +79,14 @@ function Index() {
         <div className="relative mx-auto max-w-5xl">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15 text-base font-black backdrop-blur">
-                CÉ
-              </span>
+              <img 
+                src="/univoyage-logo.jpg" 
+                alt="UniVoyage"
+                className="size-11 shrink-0 rounded-2xl object-cover shadow-ambient border border-white/20"
+              />
               <div className="min-w-0">
                 <p className="truncate text-[12px] font-medium leading-tight text-primary-foreground/70">
-                  {user ? `Bonjour, ${user.email?.split("@")[0]}` : "Bienvenue"}
+                  {user ? `Bonjour, ${profile?.full_name || user.email?.split("@")[0]}` : "Bienvenue"}
                 </p>
                 <h1 className="truncate text-[15px] font-extrabold leading-tight tracking-tight">
                   Caravane Étudiants
