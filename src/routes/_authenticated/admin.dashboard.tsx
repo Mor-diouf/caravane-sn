@@ -18,23 +18,15 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { KpiCard, PageHeader, Panel, ProgressBar, Avatar } from "@/components/organizer/ui";
+import { KpiCard, PageHeader, Panel, Avatar } from "@/components/organizer/ui";
 import { AdminButton, TonePill } from "@/components/admin/ui";
 import { useQuery } from "@tanstack/react-query";
 import { adminOverviewQuery } from "@/lib/dash-queries";
 import {
-  adminActivity,
-  disputes,
-  disputeStatusLabels,
-  organizerAccounts,
   organizerStatusLabels,
   organizerStatusTone,
-  payouts,
   payoutStatusLabels,
-  platformGrowth,
-  platformKpis,
-  systemHealth,
-  universitySplit,
+  disputeStatusLabels,
 } from "@/lib/admin";
 import { fcfa, fmt } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
@@ -64,26 +56,24 @@ const ranges = ["30 jours", "90 jours", "12 mois"] as const;
 
 function AdminDashboard() {
   const [range, setRange] = useState<(typeof ranges)[number]>("90 jours");
-  const { data: overview, isLoading } = useQuery(adminOverviewQuery());
+  const { data: overview } = useQuery(adminOverviewQuery());
 
   const kpis = overview?.kpis;
-  const growthChartData = overview?.growth?.length ? overview.growth : platformGrowth;
-  const pendingOrgs = overview?.pending?.length
-    ? overview.pending.map((p) => ({
-        id: p.id,
-        name: p.name,
-        university: "Formulaire en attente",
-        documents: [],
-        verifiedCount: 0,
-        requestedAt: new Date(p.createdAt).toLocaleDateString("fr-FR"),
-        status: "pending" as const,
-        initials: p.name.substring(0, 2).toUpperCase(),
-      }))
-    : organizerAccounts.filter((o) => o.status === "pending");
+  const growthChartData = overview?.growth ?? [];
+  const pendingOrgs = (overview?.pending ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    university: "Formulaire en attente",
+    requestedAt: new Date(p.createdAt).toLocaleDateString("fr-FR"),
+    status: "pending" as const,
+    initials: p.name.substring(0, 2).toUpperCase(),
+  }));
 
-  const openDisputes = disputes.filter((d) => d.status !== "resolved");
-  const pendingPayouts = payouts.filter((p) => p.status !== "paid");
-  const pendingCount = kpis?.pendingOrganizers ?? pendingOrgs.length;
+  const recentDisputes = overview?.recentDisputes ?? [];
+  const recentPayouts = (overview?.recentPayouts ?? []).filter((p) => p.status !== "paid");
+  const activityFeed = overview?.activity ?? [];
+  const pendingCount = kpis?.pendingOrganizers ?? 0;
+  const openDisputeCount = kpis?.disputes ?? 0;
 
   return (
     <>
@@ -122,32 +112,28 @@ function AdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Volume total (GMV)"
-          value={fcfa(kpis?.gmv ?? platformKpis.gmv)}
-          secondary={`${fmt(kpis?.bookings ?? platformKpis.bookings)} réservations`}
-          trend={platformKpis.gmvTrend}
+          value={fcfa(kpis?.gmv ?? 0)}
+          secondary={`${fmt(kpis?.bookings ?? 0)} réservations`}
           icon={Coins}
         />
         <KpiCard
           title="Commissions"
-          value={fcfa(kpis?.commission ?? platformKpis.commission)}
+          value={fcfa(kpis?.commission ?? 0)}
           secondary="Revenus de la plateforme"
-          trend={platformKpis.commissionTrend}
           icon={Wallet}
           accent="mint"
         />
         <KpiCard
           title="Étudiants inscrits"
-          value={fmt(kpis?.students ?? platformKpis.students)}
-          secondary={`${kpis?.organizers ?? platformKpis.organizers} organisateurs actifs`}
-          trend={platformKpis.studentsTrend}
+          value={fmt(kpis?.students ?? 0)}
+          secondary={`${kpis?.organizers ?? 0} organisateurs actifs`}
           icon={Users}
           accent="info"
         />
         <KpiCard
           title="Caravanes publiées"
-          value={fmt(kpis?.caravans ?? platformKpis.caravans)}
-          secondary={`${kpis?.activeCaravans ?? platformKpis.activeCaravans} en cours · ${kpis?.fillRate ?? platformKpis.fillRate} % de remplissage`}
-          trend={platformKpis.organizersTrend}
+          value={fmt(kpis?.caravans ?? 0)}
+          secondary={`${kpis?.activeCaravans ?? 0} en cours · ${kpis?.fillRate ?? 0} % de remplissage`}
           icon={Bus}
           accent="warning"
         />
@@ -160,73 +146,66 @@ function AdminDashboard() {
           description="Volume traité et commissions encaissées"
         >
           <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={growthChartData} margin={{ left: -12, right: 8, top: 8 }}>
-                <defs>
-                  <linearGradient id="gmvGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="comGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-mint)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-mint)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis tickLine={false} axisLine={false} fontSize={11} width={64} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid var(--color-border)",
-                    fontSize: 12,
-                  }}
-                  formatter={(value: number) => fcfa(value)}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="gmv"
-                  name="Volume"
-                  stroke="var(--color-primary)"
-                  strokeWidth={2}
-                  fill="url(#gmvGrad)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="commission"
-                  name="Commissions"
-                  stroke="var(--color-mint)"
-                  strokeWidth={2}
-                  fill="url(#comGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {growthChartData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Aucune donnée de paiement pour le moment.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={growthChartData} margin={{ left: -12, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="gmvGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="comGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-mint)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--color-mint)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={11} />
+                  <YAxis tickLine={false} axisLine={false} fontSize={11} width={64} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid var(--color-border)",
+                      fontSize: 12,
+                    }}
+                    formatter={(value: number) => fcfa(value)}
+                  />
+                  <Area type="monotone" dataKey="gmv" name="Volume" stroke="var(--color-primary)" strokeWidth={2} fill="url(#gmvGrad)" />
+                  <Area type="monotone" dataKey="commission" name="Commissions" stroke="var(--color-mint)" strokeWidth={2} fill="url(#comGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </Panel>
 
         <Panel title="Demandes d'organisateur" description="Vous seul validez ces comptes" bodyClassName="p-0">
-          <ul className="divide-y divide-border">
-            {pendingOrgs.map((o) => (
-              <li key={o.id} className="flex items-start gap-3 px-5 py-4">
-                <Avatar initials={o.initials} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{o.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{o.university}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground/80">
-                    Demande enregistrée le {o.requestedAt}
-                  </p>
-                </div>
-                <TonePill tone={organizerStatusTone[o.status]}>
-                  {organizerStatusLabels[o.status]}
-                </TonePill>
-              </li>
-            ))}
-          </ul>
+          {pendingOrgs.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">Aucune demande en attente.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {pendingOrgs.map((o) => (
+                <li key={o.id} className="flex items-start gap-3 px-5 py-4">
+                  <Avatar initials={o.initials} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">{o.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{o.university}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/80">
+                      Demande enregistrée le {o.requestedAt}
+                    </p>
+                  </div>
+                  <TonePill tone={organizerStatusTone[o.status]}>
+                    {organizerStatusLabels[o.status]}
+                  </TonePill>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="border-t border-border px-5 py-4">
-            <Link
-              to="/admin/organizers"
-              className="text-xs font-bold text-primary hover:underline"
-            >
+            <Link to="/admin/organizers" className="text-xs font-bold text-primary hover:underline">
               Ouvrir la file de validation →
             </Link>
           </div>
@@ -234,41 +213,29 @@ function AdminDashboard() {
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
-        <Panel title="Parts de marché par université">
-          <ul className="space-y-4">
-            {universitySplit.map((u) => (
-              <li key={u.name}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-semibold">{u.name}</span>
-                  <span className="text-muted-foreground">{fcfa(u.revenue)}</span>
-                </div>
-                <div className="mt-1.5">
-                  <ProgressBar value={u.value} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-
         <Panel title="Retraits à traiter" description="Versements demandés par les organisateurs" bodyClassName="p-0">
-          <ul className="divide-y divide-border">
-            {pendingPayouts.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-5 py-4">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-primary">
-                  <Wallet className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{p.organizer}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {fcfa(p.amount)} · {p.method}
-                  </p>
-                </div>
-                <TonePill tone={p.status === "requested" ? "warning" : "info"}>
-                  {payoutStatusLabels[p.status]}
-                </TonePill>
-              </li>
-            ))}
-          </ul>
+          {recentPayouts.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">Aucun retrait en attente.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentPayouts.map((p) => (
+                <li key={p.id} className="flex items-center gap-3 px-5 py-4">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-soft text-primary">
+                    <Wallet className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">{p.organizer}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {fcfa(p.amount)} · {p.method.toUpperCase()}
+                    </p>
+                  </div>
+                  <TonePill tone={p.status === "requested" ? "warning" : "info"}>
+                    {payoutStatusLabels[p.status] ?? p.status}
+                  </TonePill>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="border-t border-border px-5 py-4">
             <Link to="/admin/finance" className="text-xs font-bold text-primary hover:underline">
               Gérer les finances →
@@ -278,27 +245,76 @@ function AdminDashboard() {
 
         <Panel title="Santé du système">
           <ul className="space-y-3">
-            {systemHealth.map((s) => (
-              <li key={s.label} className="flex items-start gap-3">
-                <span
-                  className={cn(
-                    "mt-1.5 size-2 shrink-0 rounded-full",
-                    s.status === "ok" ? "bg-success" : "bg-warning",
-                  )}
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">{s.label}</span>
-                  <span className="block text-xs text-muted-foreground">{s.detail}</span>
+            <li className="flex items-start gap-3">
+              <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", openDisputeCount === 0 ? "bg-success" : "bg-warning")} />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Litiges</span>
+                <span className="block text-xs text-muted-foreground">
+                  {openDisputeCount === 0 ? "Aucun litige ouvert" : `${openDisputeCount} litige(s) en cours`}
                 </span>
-              </li>
-            ))}
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-success" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Base de données</span>
+                <span className="block text-xs text-muted-foreground">Supabase connecté</span>
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-success" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Paiements</span>
+                <span className="block text-xs text-muted-foreground">
+                  {(kpis?.pendingPayouts ?? 0) === 0
+                    ? "Aucun retrait en attente"
+                    : `${kpis?.pendingPayouts} retrait(s) · ${fcfa(kpis?.pendingPayoutAmount ?? 0)}`}
+                </span>
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", (kpis?.blocked ?? 0) > 0 ? "bg-warning" : "bg-success")} />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Utilisateurs bloqués</span>
+                <span className="block text-xs text-muted-foreground">
+                  {(kpis?.blocked ?? 0) === 0 ? "Aucun compte bloqué" : `${kpis?.blocked} compte(s) bloqué(s)`}
+                </span>
+              </span>
+            </li>
           </ul>
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-danger/5 p-3">
             <AlertTriangle className="size-4 shrink-0 text-danger" />
             <p className="text-xs text-muted-foreground">
-              {openDisputes.length} litige(s) ouvert(s) nécessitent votre arbitrage.
+              {openDisputeCount} litige(s) ouvert(s) nécessitent votre arbitrage.
             </p>
           </div>
+        </Panel>
+
+        <Panel title="Activité plateforme" bodyClassName="p-0">
+          {activityFeed.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">Aucune activité récente enregistrée.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {activityFeed.map((a) => (
+                <li key={a.id} className="flex gap-3 px-5 py-3.5">
+                  <span
+                    className={cn(
+                      "mt-1.5 size-2 shrink-0 rounded-full",
+                      a.tone === "success" && "bg-success",
+                      a.tone === "warning" && "bg-warning",
+                      a.tone === "info" && "bg-info",
+                      a.tone === "danger" && "bg-danger",
+                    )}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold leading-tight">{a.title}</span>
+                    <span className="block text-xs text-muted-foreground">{a.detail}</span>
+                    <span className="block text-[11px] text-muted-foreground/70">{a.time}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
       </div>
 
@@ -309,30 +325,40 @@ function AdminDashboard() {
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3 font-bold">Référence</th>
-                  <th className="px-5 py-3 font-bold">Étudiant</th>
-                  <th className="px-5 py-3 font-bold">Organisateur</th>
+                  <th className="px-5 py-3 font-bold">Sujet</th>
                   <th className="px-5 py-3 font-bold">Montant</th>
+                  <th className="px-5 py-3 font-bold">Date</th>
                   <th className="px-5 py-3 font-bold">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {disputes.map((d) => (
-                  <tr key={d.id}>
-                    <td className="px-5 py-3 font-mono text-xs font-bold">{d.id}</td>
-                    <td className="px-5 py-3">{d.student}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{d.organizer}</td>
-                    <td className="px-5 py-3 font-semibold">{fcfa(d.amount)}</td>
-                    <td className="px-5 py-3">
-                      <TonePill
-                        tone={
-                          d.status === "open" ? "danger" : d.status === "review" ? "warning" : "success"
-                        }
-                      >
-                        {disputeStatusLabels[d.status]}
-                      </TonePill>
+                {recentDisputes.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-muted-foreground">
+                      Aucun litige pour le moment.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentDisputes.map((d) => (
+                    <tr key={d.id}>
+                      <td className="px-5 py-3 font-mono text-xs font-bold">{d.id}</td>
+                      <td className="px-5 py-3">{d.subject}</td>
+                      <td className="px-5 py-3 font-semibold">{fcfa(d.amount)}</td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        {new Date(d.createdAt).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="px-5 py-3">
+                        <TonePill
+                          tone={
+                            d.status === "open" ? "danger" : d.status === "review" ? "warning" : "success"
+                          }
+                        >
+                          {disputeStatusLabels[d.status] ?? d.status}
+                        </TonePill>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -343,31 +369,6 @@ function AdminDashboard() {
           </div>
         </Panel>
 
-        <Panel title="Activité plateforme" bodyClassName="p-0">
-          <ul className="divide-y divide-border">
-            {adminActivity.map((a) => (
-              <li key={a.id} className="flex gap-3 px-5 py-3.5">
-                <span
-                  className={cn(
-                    "mt-1.5 size-2 shrink-0 rounded-full",
-                    a.tone === "success" && "bg-success",
-                    a.tone === "warning" && "bg-warning",
-                    a.tone === "info" && "bg-info",
-                    a.tone === "danger" && "bg-danger",
-                  )}
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold leading-tight">{a.title}</span>
-                  <span className="block text-xs text-muted-foreground">{a.detail}</span>
-                  <span className="block text-[11px] text-muted-foreground/70">{a.time}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
-
-      <div className="mt-4">
         <Panel>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -375,16 +376,19 @@ function AdminDashboard() {
                 <TrendingUp className="size-4" />
               </span>
               <div>
-                <p className="text-sm font-bold">Prochaine action recommandée</p>
+                <p className="text-sm font-bold">Synthèse</p>
                 <p className="text-sm text-muted-foreground">
-                  Approuver l'Amicale UGB ouvrirait l'axe Saint-Louis → Dakar, estimé à 240 000 FCFA
-                  de volume mensuel.
+                  {(kpis?.bookings ?? 0) === 0
+                    ? "Aucune réservation encore. Créez des caravanes pour démarrer."
+                    : `${fmt(kpis?.bookings ?? 0)} réservations pour ${fcfa(kpis?.gmv ?? 0)} de volume total.`}
                 </p>
               </div>
             </div>
-            <AdminButton>
-              <BadgeCheck className="size-3.5" /> Voir le dossier
-            </AdminButton>
+            <Link to="/admin/organizers">
+              <AdminButton>
+                <BadgeCheck className="size-3.5" /> Voir les organisateurs
+              </AdminButton>
+            </Link>
           </div>
         </Panel>
       </div>

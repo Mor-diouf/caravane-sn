@@ -9,7 +9,7 @@ export const adminOverview = createServerFn({ method: "GET" })
     const supabase = context.supabase;
     await assertAdmin(supabase, context.userId);
 
-    const [payments, bookings, profiles, organizers, caravans, disputes, payouts] =
+    const [payments, bookings, profiles, organizers, caravans, disputes, payouts, auditLogs] =
       await Promise.all([
         supabase.from("payments").select("amount_fcfa, commission_fcfa, status, paid_at, created_at"),
         supabase.from("bookings").select("id, seats, amount_fcfa, status, created_at"),
@@ -18,11 +18,24 @@ export const adminOverview = createServerFn({ method: "GET" })
         supabase
           .from("caravans")
           .select("id, status, is_hidden, total_seats, seats_left, departure_at, from_label, to_label"),
-        supabase.from("disputes").select("id, subject, status, created_at, amount_refunded_fcfa"),
-        supabase.from("payouts").select("id, amount_fcfa, status, requested_at, organizer_id"),
+        supabase
+          .from("disputes")
+          .select("id, subject, status, created_at, amount_refunded_fcfa, booking_id, resolution")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("payouts")
+          .select("id, amount_fcfa, status, requested_at, organizer_id, method, organizers(name)")
+          .order("requested_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("audit_log")
+          .select("id, action, entity, entity_id, actor_id, created_at, meta")
+          .order("created_at", { ascending: false })
+          .limit(12),
       ]);
 
-    for (const r of [payments, bookings, profiles, organizers, caravans, disputes, payouts]) {
+    for (const r of [payments, bookings, profiles, organizers, caravans, disputes, payouts, auditLogs]) {
       if (r.error) throw new Error(r.error.message);
     }
 
@@ -45,6 +58,38 @@ export const adminOverview = createServerFn({ method: "GET" })
       .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(-6)
       .map(([key, v]) => ({ month: monthLabel(key), gmv: v.gmv, commission: v.commission }));
+
+    const actionLabels: Record<string, { title: string; tone: "success" | "warning" | "info" | "danger" }> = {
+      caravan_created: { title: "Caravane créée", tone: "success" },
+      caravan_published: { title: "Caravane publiée", tone: "success" },
+      caravan_cancelled: { title: "Caravane annulée", tone: "danger" },
+      booking_confirmed: { title: "Réservation confirmée", tone: "success" },
+      booking_cancelled: { title: "Réservation annulée", tone: "warning" },
+      payment_paid: { title: "Paiement encaissé", tone: "success" },
+      payment_refunded: { title: "Remboursement effectué", tone: "warning" },
+      organizer_approved: { title: "Organisateur approuvé", tone: "success" },
+      organizer_rejected: { title: "Organisateur rejeté", tone: "danger" },
+      payout_requested: { title: "Retrait demandé", tone: "info" },
+      payout_paid: { title: "Retrait versé", tone: "success" },
+      ticket_scanned: { title: "Billet scanné", tone: "info" },
+      dispute_opened: { title: "Litige ouvert", tone: "danger" },
+      dispute_resolved: { title: "Litige résolu", tone: "success" },
+    };
+
+    const activity = (auditLogs.data ?? []).map((log) => {
+      const label = actionLabels[log.action] ?? { title: log.action, tone: "info" as const };
+      const meta = (log.meta as Record<string, string | number> | null) ?? {};
+      const detail = meta.name ?? meta.reference ?? meta.subject ?? log.entity_id ?? "";
+      return {
+        id: log.id,
+        title: label.title,
+        detail: String(detail),
+        tone: label.tone,
+        time: new Date(log.created_at).toLocaleString("fr-FR", {
+          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+        }),
+      };
+    });
 
     return {
       kpis: {
@@ -71,11 +116,25 @@ export const adminOverview = createServerFn({ method: "GET" })
       pending: (organizers.data ?? [])
         .filter((o) => o.status === "pending")
         .map((o) => ({ id: o.id, name: o.name, createdAt: o.created_at })),
-      recentDisputes: (disputes.data ?? [])
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .slice(0, 5),
+      recentDisputes: (disputes.data ?? []).map((d) => ({
+        id: d.id.substring(0, 8).toUpperCase(),
+        subject: d.subject ?? "Litige",
+        status: d.status as "open" | "review" | "resolved" | "rejected",
+        amount: d.amount_refunded_fcfa ?? 0,
+        createdAt: d.created_at,
+      })),
+      recentPayouts: (payouts.data ?? []).map((p) => ({
+        id: p.id,
+        organizer: (p.organizers as { name: string } | null)?.name ?? "Organisateur",
+        amount: p.amount_fcfa,
+        method: p.method ?? "wave",
+        status: p.status as "requested" | "processing" | "paid",
+        requestedAt: p.requested_at,
+      })),
+      activity,
     };
   });
+
 
 export const adminListOrganizers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
