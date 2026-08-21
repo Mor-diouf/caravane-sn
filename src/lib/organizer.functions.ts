@@ -119,7 +119,7 @@ export const organizerListCaravans = createServerFn({ method: "GET" })
 
 export const organizerSaveCaravan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         id: z.string().uuid().optional(),
@@ -169,7 +169,7 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
 
 export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         caravanId: z.string().uuid(),
@@ -262,7 +262,7 @@ export const organizerListBookings = createServerFn({ method: "GET" })
 
 export const organizerSetBookingStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         bookingId: z.string().uuid(),
@@ -282,7 +282,7 @@ export const organizerSetBookingStatus = createServerFn({ method: "POST" })
 
 export const organizerScanTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ code: z.string().min(3).max(80) }).parse(d))
+  .validator((d) => z.object({ code: z.string().min(3).max(80) }).parse(d))
   .handler(async ({ context, data }) => {
     const supabase = context.supabase;
     const code = data.code.trim().toUpperCase();
@@ -420,7 +420,7 @@ export const organizerPayments = createServerFn({ method: "GET" })
 
 export const organizerRequestPayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         amount: z.number().int().min(1000),
@@ -596,7 +596,7 @@ export const organizerTeam = createServerFn({ method: "GET" })
 
 export const organizerAddMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         email: z.string().email(),
@@ -628,7 +628,7 @@ export const organizerAddMember = createServerFn({ method: "POST" })
 
 export const organizerRemoveMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ memberId: z.string().uuid() }).parse(d))
+  .validator((d) => z.object({ memberId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { requireOrganizerId } = await import("@/lib/dash.server");
     const supabase = context.supabase;
@@ -659,7 +659,7 @@ export const organizerSettings = createServerFn({ method: "GET" })
 
 export const organizerUpdateSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         name: z.string().min(2).max(120).optional(),
@@ -686,7 +686,7 @@ export const organizerUpdateSettings = createServerFn({ method: "POST" })
 
 export const organizerCreateSpace = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         name: z.string().min(2).max(120),

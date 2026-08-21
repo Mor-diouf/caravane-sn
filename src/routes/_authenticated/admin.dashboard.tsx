@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { KpiCard, PageHeader, Panel, ProgressBar, Avatar } from "@/components/organizer/ui";
 import { AdminButton, TonePill } from "@/components/admin/ui";
+import { useQuery } from "@tanstack/react-query";
+import { adminOverviewQuery } from "@/lib/dash-queries";
 import {
   adminActivity,
   disputes,
@@ -62,9 +64,26 @@ const ranges = ["30 jours", "90 jours", "12 mois"] as const;
 
 function AdminDashboard() {
   const [range, setRange] = useState<(typeof ranges)[number]>("90 jours");
-  const pending = organizerAccounts.filter((o) => o.status === "pending");
+  const { data: overview, isLoading } = useQuery(adminOverviewQuery());
+
+  const kpis = overview?.kpis;
+  const growthChartData = overview?.growth?.length ? overview.growth : platformGrowth;
+  const pendingOrgs = overview?.pending?.length
+    ? overview.pending.map((p) => ({
+        id: p.id,
+        name: p.name,
+        university: "Formulaire en attente",
+        documents: [],
+        verifiedCount: 0,
+        requestedAt: new Date(p.createdAt).toLocaleDateString("fr-FR"),
+        status: "pending" as const,
+        initials: p.name.substring(0, 2).toUpperCase(),
+      }))
+    : organizerAccounts.filter((o) => o.status === "pending");
+
   const openDisputes = disputes.filter((d) => d.status !== "resolved");
   const pendingPayouts = payouts.filter((p) => p.status !== "paid");
+  const pendingCount = kpis?.pendingOrganizers ?? pendingOrgs.length;
 
   return (
     <>
@@ -94,7 +113,7 @@ function AdminDashboard() {
               to="/admin/organizers"
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
             >
-              <BadgeCheck className="size-3.5" /> Traiter les demandes ({pending.length})
+              <BadgeCheck className="size-3.5" /> Traiter les demandes ({pendingCount})
             </Link>
           </div>
         }
@@ -103,14 +122,14 @@ function AdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Volume total (GMV)"
-          value={fcfa(platformKpis.gmv)}
-          secondary={`${fmt(platformKpis.bookings)} réservations`}
+          value={fcfa(kpis?.gmv ?? platformKpis.gmv)}
+          secondary={`${fmt(kpis?.bookings ?? platformKpis.bookings)} réservations`}
           trend={platformKpis.gmvTrend}
           icon={Coins}
         />
         <KpiCard
-          title={`Commissions (${platformKpis.fillRate ? "4 %" : ""})`}
-          value={fcfa(platformKpis.commission)}
+          title="Commissions"
+          value={fcfa(kpis?.commission ?? platformKpis.commission)}
           secondary="Revenus de la plateforme"
           trend={platformKpis.commissionTrend}
           icon={Wallet}
@@ -118,16 +137,16 @@ function AdminDashboard() {
         />
         <KpiCard
           title="Étudiants inscrits"
-          value={fmt(platformKpis.students)}
-          secondary={`${platformKpis.organizers} organisateurs actifs`}
+          value={fmt(kpis?.students ?? platformKpis.students)}
+          secondary={`${kpis?.organizers ?? platformKpis.organizers} organisateurs actifs`}
           trend={platformKpis.studentsTrend}
           icon={Users}
           accent="info"
         />
         <KpiCard
           title="Caravanes publiées"
-          value={fmt(platformKpis.caravans)}
-          secondary={`${platformKpis.activeCaravans} en cours · ${platformKpis.fillRate} % de remplissage`}
+          value={fmt(kpis?.caravans ?? platformKpis.caravans)}
+          secondary={`${kpis?.activeCaravans ?? platformKpis.activeCaravans} en cours · ${kpis?.fillRate ?? platformKpis.fillRate} % de remplissage`}
           trend={platformKpis.organizersTrend}
           icon={Bus}
           accent="warning"
@@ -142,7 +161,7 @@ function AdminDashboard() {
         >
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={platformGrowth} margin={{ left: -12, right: 8, top: 8 }}>
+              <AreaChart data={growthChartData} margin={{ left: -12, right: 8, top: 8 }}>
                 <defs>
                   <linearGradient id="gmvGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
@@ -187,15 +206,14 @@ function AdminDashboard() {
 
         <Panel title="Demandes d'organisateur" description="Vous seul validez ces comptes" bodyClassName="p-0">
           <ul className="divide-y divide-border">
-            {pending.map((o) => (
+            {pendingOrgs.map((o) => (
               <li key={o.id} className="flex items-start gap-3 px-5 py-4">
                 <Avatar initials={o.initials} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold">{o.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{o.university}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground/80">
-                    {o.documents.filter((d) => d.verified).length}/{o.documents.length} documents vérifiés ·{" "}
-                    {o.requestedAt}
+                    Demande enregistrée le {o.requestedAt}
                   </p>
                 </div>
                 <TonePill tone={organizerStatusTone[o.status]}>

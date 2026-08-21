@@ -35,7 +35,7 @@ export const listCaravans = createServerFn({ method: "GET" }).handler(
 );
 
 export const getCaravan = createServerFn({ method: "GET" })
-  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .validator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }): Promise<CaravanView | null> => {
     const { createPublicClient } = await import("@/lib/supabase-public.server");
     const { data: row, error } = await createPublicClient()
@@ -63,7 +63,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
 
 export const updateMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         full_name: z.string().min(1).max(120).optional(),
@@ -102,7 +102,7 @@ export const getMyFavorites = createServerFn({ method: "GET" })
 
 export const toggleFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) =>
+  .validator((data) =>
     z.object({ caravanId: z.string().uuid(), favorite: z.boolean() }).parse(data),
   )
   .handler(async ({ context, data }) => {
@@ -154,7 +154,7 @@ export const getMyTickets = createServerFn({ method: "GET" })
 
 export const createBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data) =>
+  .validator((data) =>
     z
       .object({
         caravanId: z.string().uuid(),

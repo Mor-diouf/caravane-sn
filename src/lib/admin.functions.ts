@@ -133,7 +133,7 @@ export const adminListOrganizers = createServerFn({ method: "GET" })
 
 export const adminSetOrganizerStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         organizerId: z.string().uuid(),
@@ -189,7 +189,7 @@ export const adminSetOrganizerStatus = createServerFn({ method: "POST" })
 
 export const adminSetOrganizerPro = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ organizerId: z.string().uuid(), isPro: z.boolean() }).parse(d))
+  .validator((d) => z.object({ organizerId: z.string().uuid(), isPro: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { assertAdmin } = await import("@/lib/dash.server");
     await assertAdmin(context.supabase, context.userId);
@@ -245,7 +245,7 @@ export const adminListUsers = createServerFn({ method: "GET" })
 
 export const adminSetUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         userId: z.string().uuid(),
@@ -290,7 +290,7 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
 
 export const adminSetUserBlocked = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ userId: z.string().uuid(), blocked: z.boolean() }).parse(d))
+  .validator((d) => z.object({ userId: z.string().uuid(), blocked: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { assertAdmin } = await import("@/lib/dash.server");
     await assertAdmin(context.supabase, context.userId);
@@ -333,7 +333,7 @@ export const adminListCaravans = createServerFn({ method: "GET" })
 
 export const adminSetCaravanHidden = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ caravanId: z.string().uuid(), hidden: z.boolean() }).parse(d))
+  .validator((d) => z.object({ caravanId: z.string().uuid(), hidden: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { assertAdmin } = await import("@/lib/dash.server");
     await assertAdmin(context.supabase, context.userId);
@@ -419,7 +419,7 @@ export const adminFinance = createServerFn({ method: "GET" })
 
 export const adminSetPayoutStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         payoutId: z.string().uuid(),
@@ -472,7 +472,7 @@ export const adminListReviews = createServerFn({ method: "GET" })
 
 export const adminSetReviewStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         reviewId: z.string().uuid(),
@@ -527,7 +527,7 @@ export const adminListDisputes = createServerFn({ method: "GET" })
 
 export const adminResolveDispute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         disputeId: z.string().uuid(),
@@ -571,7 +571,7 @@ export const adminGetSettings = createServerFn({ method: "GET" })
 
 export const adminUpdateSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         commission_rate: z.number().min(0).max(1).optional(),
