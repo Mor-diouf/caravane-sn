@@ -173,7 +173,7 @@ export const adminListOrganizers = createServerFn({ method: "GET" })
         isPro: o.is_pro,
         rating: Number(o.rating ?? 0),
         commissionRate: Number(o.commission_rate ?? 0),
-        documents: (o.documents ?? []) as unknown as { label: string; verified: boolean }[],
+        documents: (o.documents ?? {}) as Record<string, string>,
         createdAt: o.created_at,
         verifiedAt: o.verified_at,
         university: o.universities?.name ?? "—",

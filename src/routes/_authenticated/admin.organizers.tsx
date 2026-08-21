@@ -252,21 +252,36 @@ function OrganizersPage() {
             <p className="mt-5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Documents
             </p>
-            {selected.documents.length === 0 ? (
+            {!selected.documents || Object.keys(selected.documents).length === 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">Aucun document déposé.</p>
             ) : (
               <ul className="mt-2 space-y-2">
-                {selected.documents.map((d) => (
-                  <li
-                    key={d.label}
-                    className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm"
-                  >
-                    <span>{d.label}</span>
-                    <TonePill tone={d.verified ? "success" : "warning"}>
-                      {d.verified ? "Vérifié" : "À vérifier"}
-                    </TonePill>
+                {selected.documents['student_card'] && (
+                  <li className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm">
+                    <span>Carte Étudiant</span>
+                    <a
+                      href={selected.documents['student_card']}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-bold text-xs"
+                    >
+                      Ouvrir
+                    </a>
                   </li>
-                ))}
+                )}
+                {selected.documents['id_card'] && (
+                  <li className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm">
+                    <span>Carte d'Identité (CIN)</span>
+                    <a
+                      href={selected.documents['id_card']}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-bold text-xs"
+                    >
+                      Ouvrir
+                    </a>
+                  </li>
+                )}
               </ul>
             )}
 
