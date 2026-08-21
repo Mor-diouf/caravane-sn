@@ -1,16 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { BadgeCheck, Ban, Check, FileCheck2, RotateCcw, Search, X } from "lucide-react";
+import { BadgeCheck, Ban, Check, FileCheck2, Loader2, RotateCcw, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Avatar, EmptyState, PageHeader, Panel } from "@/components/organizer/ui";
-import { AdminButton, Tabs, TonePill } from "@/components/admin/ui";
-import {
-  organizerAccounts,
-  organizerStatusLabels,
-  organizerStatusTone,
-  type OrganizerAccount,
-  type OrganizerStatus,
-} from "@/lib/admin";
+import { AdminButton, Tabs, TonePill, type Tone } from "@/components/admin/ui";
+import { adminOrganizersQuery } from "@/lib/dash-queries";
+import { adminSetOrganizerStatus } from "@/lib/admin.functions";
+import { dateFr, initialsOf } from "@/lib/dash-shared";
 import { fcfa } from "@/lib/organizer";
 
 export const Route = createFileRoute("/_authenticated/admin/organizers")({
@@ -34,13 +32,43 @@ export const Route = createFileRoute("/_authenticated/admin/organizers")({
   component: OrganizersPage,
 });
 
+type OrganizerStatus = "pending" | "approved" | "suspended" | "rejected";
 type Filter = "all" | OrganizerStatus;
 
+const statusLabels: Record<OrganizerStatus, string> = {
+  pending: "En attente",
+  approved: "Approuvé",
+  suspended: "Suspendu",
+  rejected: "Refusé",
+};
+
+const statusTone: Record<OrganizerStatus, Tone> = {
+  pending: "warning",
+  approved: "success",
+  suspended: "danger",
+  rejected: "neutral",
+};
+
 function OrganizersPage() {
-  const [accounts, setAccounts] = useState<OrganizerAccount[]>(organizerAccounts);
+  const { data, isLoading } = useQuery(adminOrganizersQuery());
   const [filter, setFilter] = useState<Filter>("pending");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<OrganizerAccount | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const queryClient = useQueryClient();
+  const setStatusFn = useServerFn(adminSetOrganizerStatus);
+  const mutation = useMutation({
+    mutationFn: (payload: { organizerId: string; status: OrganizerStatus }) =>
+      setStatusFn({ data: payload }),
+    onSuccess: (_r, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success(`Statut mis à jour : ${statusLabels[vars.status].toLowerCase()}.`);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const accounts = data ?? [];
+  const selected = accounts.find((a) => a.id === selectedId) ?? null;
 
   const counts = useMemo(
     () => ({
@@ -63,12 +91,6 @@ function OrganizersPage() {
       a.contact.toLowerCase().includes(q);
     return matchStatus && matchQuery;
   });
-
-  function setStatus(id: string, status: OrganizerStatus, message: string) {
-    setAccounts((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-    setSelected((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
-    toast.success(message);
-  }
 
   return (
     <>
@@ -104,20 +126,22 @@ function OrganizersPage() {
       </div>
 
       <Panel bodyClassName="p-0">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-5 py-12 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Chargement des organisateurs…
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState icon={BadgeCheck} message="Aucun organisateur dans cette catégorie." />
         ) : (
           <ul className="divide-y divide-border">
             {filtered.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
-                <Avatar initials={a.initials} />
+                <Avatar initials={initialsOf(a.name)} />
                 <div className="min-w-48 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-bold">{a.name}</p>
-                    <TonePill tone={organizerStatusTone[a.status]}>
-                      {organizerStatusLabels[a.status]}
-                    </TonePill>
-                    {a.plan === "pro" && (
+                    <TonePill tone={statusTone[a.status]}>{statusLabels[a.status]}</TonePill>
+                    {a.isPro && (
                       <span className="rounded-md bg-mint/15 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-mint">
                         Pro
                       </span>
@@ -125,7 +149,7 @@ function OrganizersPage() {
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{a.university}</p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                    {a.contact} · {a.phone} · demande du {a.requestedAt}
+                    {a.contact} · {a.phone} · demande du {dateFr(a.createdAt)}
                   </p>
                 </div>
                 <div className="hidden text-right sm:block">
@@ -135,13 +159,14 @@ function OrganizersPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <AdminButton variant="ghost" onClick={() => setSelected(a)}>
+                  <AdminButton variant="ghost" onClick={() => setSelectedId(a.id)}>
                     <FileCheck2 className="size-3.5" /> Dossier
                   </AdminButton>
                   {a.status !== "approved" && (
                     <AdminButton
                       variant="success"
-                      onClick={() => setStatus(a.id, "approved", `${a.name} est désormais organisateur.`)}
+                      disabled={mutation.isPending}
+                      onClick={() => mutation.mutate({ organizerId: a.id, status: "approved" })}
                     >
                       <Check className="size-3.5" /> Accorder
                     </AdminButton>
@@ -149,7 +174,8 @@ function OrganizersPage() {
                   {a.status === "approved" && (
                     <AdminButton
                       variant="danger"
-                      onClick={() => setStatus(a.id, "suspended", `${a.name} a été suspendu.`)}
+                      disabled={mutation.isPending}
+                      onClick={() => mutation.mutate({ organizerId: a.id, status: "suspended" })}
                     >
                       <Ban className="size-3.5" /> Suspendre
                     </AdminButton>
@@ -157,7 +183,8 @@ function OrganizersPage() {
                   {a.status === "pending" && (
                     <AdminButton
                       variant="danger"
-                      onClick={() => setStatus(a.id, "rejected", `Demande de ${a.name} refusée.`)}
+                      disabled={mutation.isPending}
+                      onClick={() => mutation.mutate({ organizerId: a.id, status: "rejected" })}
                     >
                       <X className="size-3.5" /> Refuser
                     </AdminButton>
@@ -165,7 +192,8 @@ function OrganizersPage() {
                   {(a.status === "suspended" || a.status === "rejected") && (
                     <AdminButton
                       variant="ghost"
-                      onClick={() => setStatus(a.id, "pending", `${a.name} remis en file d'attente.`)}
+                      disabled={mutation.isPending}
+                      onClick={() => mutation.mutate({ organizerId: a.id, status: "pending" })}
                     >
                       <RotateCcw className="size-3.5" /> Réexaminer
                     </AdminButton>
@@ -181,7 +209,7 @@ function OrganizersPage() {
         <div className="fixed inset-0 z-50 grid place-items-center bg-brand/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-lifted">
             <div className="flex items-start gap-3">
-              <Avatar initials={selected.initials} />
+              <Avatar initials={initialsOf(selected.name)} />
               <div className="min-w-0 flex-1">
                 <p className="text-base font-extrabold tracking-tight">{selected.name}</p>
                 <p className="text-xs text-muted-foreground">{selected.university}</p>
@@ -189,7 +217,7 @@ function OrganizersPage() {
               <button
                 type="button"
                 aria-label="Fermer"
-                onClick={() => setSelected(null)}
+                onClick={() => setSelectedId(null)}
                 className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:text-foreground"
               >
                 <X className="size-4" />
@@ -209,33 +237,48 @@ function OrganizersPage() {
                 <dt className="text-xs text-muted-foreground">E-mail</dt>
                 <dd className="truncate font-semibold">{selected.email}</dd>
               </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Commission</dt>
+                <dd className="font-semibold">
+                  {Math.round(selected.commissionRate * 100)} %
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Vérifié le</dt>
+                <dd className="font-semibold">{dateFr(selected.verifiedAt)}</dd>
+              </div>
             </dl>
 
             <p className="mt-5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Documents
             </p>
-            <ul className="mt-2 space-y-2">
-              {selected.documents.map((d) => (
-                <li
-                  key={d.label}
-                  className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm"
-                >
-                  <span>{d.label}</span>
-                  <TonePill tone={d.verified ? "success" : "warning"}>
-                    {d.verified ? "Vérifié" : "À vérifier"}
-                  </TonePill>
-                </li>
-              ))}
-            </ul>
+            {selected.documents.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Aucun document déposé.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {selected.documents.map((d) => (
+                  <li
+                    key={d.label}
+                    className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm"
+                  >
+                    <span>{d.label}</span>
+                    <TonePill tone={d.verified ? "success" : "warning"}>
+                      {d.verified ? "Vérifié" : "À vérifier"}
+                    </TonePill>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="mt-6 flex flex-wrap justify-end gap-2">
-              <AdminButton variant="ghost" onClick={() => setSelected(null)}>
+              <AdminButton variant="ghost" onClick={() => setSelectedId(null)}>
                 Fermer
               </AdminButton>
               {selected.status !== "approved" ? (
                 <AdminButton
+                  disabled={mutation.isPending}
                   onClick={() =>
-                    setStatus(selected.id, "approved", `${selected.name} est désormais organisateur.`)
+                    mutation.mutate({ organizerId: selected.id, status: "approved" })
                   }
                 >
                   <BadgeCheck className="size-3.5" /> Accorder le statut d'organisateur
@@ -243,7 +286,10 @@ function OrganizersPage() {
               ) : (
                 <AdminButton
                   variant="danger"
-                  onClick={() => setStatus(selected.id, "suspended", `${selected.name} a été suspendu.`)}
+                  disabled={mutation.isPending}
+                  onClick={() =>
+                    mutation.mutate({ organizerId: selected.id, status: "suspended" })
+                  }
                 >
                   <Ban className="size-3.5" /> Retirer le statut
                 </AdminButton>
