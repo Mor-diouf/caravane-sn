@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Ban, BadgeCheck, Search, ShieldCheck, Users } from "lucide-react";
+import { Ban, BadgeCheck, Loader2, Search, ShieldCheck, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Avatar, EmptyState, KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
 import { AdminButton, Tabs, TonePill } from "@/components/admin/ui";
-import { platformUsers, userRoleLabels, type PlatformUser } from "@/lib/admin";
+import { adminUsersQuery } from "@/lib/dash-queries";
+import { adminSetUserBlocked, adminSetUserRole } from "@/lib/admin.functions";
+import { dateFr, initialsOf } from "@/lib/dash-shared";
 import { fcfa, fmt } from "@/lib/organizer";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
@@ -28,14 +32,46 @@ export const Route = createFileRoute("/_authenticated/admin/users")({
   component: UsersPage,
 });
 
-type Filter = "all" | PlatformUser["role"] | "blocked";
+type Role = "student" | "organizer" | "admin";
+type Filter = "all" | Role | "blocked";
+
+const roleLabels: Record<Role, string> = {
+  student: "Étudiant",
+  organizer: "Organisateur",
+  admin: "Administrateur",
+};
 
 function UsersPage() {
-  const [users, setUsers] = useState<PlatformUser[]>(platformUsers);
+  const { data: users, isLoading } = useQuery(adminUsersQuery());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
-  const filtered = users.filter((u) => {
+  const queryClient = useQueryClient();
+  const setRoleFn = useServerFn(adminSetUserRole);
+  const setBlockedFn = useServerFn(adminSetUserBlocked);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin"] });
+
+  const roleMutation = useMutation({
+    mutationFn: (payload: { userId: string; role: Role; grant: boolean }) =>
+      setRoleFn({ data: payload }),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Rôle mis à jour.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const blockMutation = useMutation({
+    mutationFn: (payload: { userId: string; blocked: boolean }) => setBlockedFn({ data: payload }),
+    onSuccess: (_r, vars) => {
+      invalidate();
+      toast.success(vars.blocked ? "Compte bloqué." : "Compte réactivé.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const rows = users ?? [];
+  const filtered = rows.filter((u) => {
     const matchFilter =
       filter === "all" ? true : filter === "blocked" ? u.blocked : u.role === filter;
     const q = query.trim().toLowerCase();
@@ -44,19 +80,10 @@ function UsersPage() {
     return matchFilter && matchQuery;
   });
 
-  const students = users.filter((u) => u.role === "student").length;
-  const organizers = users.filter((u) => u.role === "organizer").length;
-  const blocked = users.filter((u) => u.blocked).length;
-
-  function toggleBlock(u: PlatformUser) {
-    setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, blocked: !x.blocked } : x)));
-    toast.success(u.blocked ? `${u.name} réactivé.` : `${u.name} bloqué.`);
-  }
-
-  function promote(u: PlatformUser) {
-    setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, role: "organizer" } : x)));
-    toast.success(`${u.name} a reçu le statut d'organisateur.`);
-  }
+  const students = rows.filter((u) => u.role === "student").length;
+  const organizers = rows.filter((u) => u.role === "organizer").length;
+  const blocked = rows.filter((u) => u.blocked).length;
+  const busy = roleMutation.isPending || blockMutation.isPending;
 
   return (
     <>
@@ -109,7 +136,11 @@ function UsersPage() {
       </div>
 
       <Panel bodyClassName="p-0">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-5 py-12 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Chargement des comptes…
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState icon={Users} message="Aucun utilisateur ne correspond à cette recherche." />
         ) : (
           <div className="overflow-x-auto">
@@ -130,7 +161,7 @@ function UsersPage() {
                   <tr key={u.id}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar initials={u.initials} />
+                        <Avatar initials={initialsOf(u.name)} />
                         <div className="min-w-0">
                           <p className="truncate font-semibold">{u.name}</p>
                           <p className="truncate text-xs text-muted-foreground">{u.email}</p>
@@ -143,23 +174,42 @@ function UsersPage() {
                           u.role === "organizer" ? "success" : u.role === "admin" ? "info" : "neutral"
                         }
                       >
-                        {userRoleLabels[u.role]}
+                        {roleLabels[u.role]}
                       </TonePill>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{u.university}</td>
                     <td className="px-5 py-3 font-semibold">{u.trips}</td>
                     <td className="px-5 py-3 font-semibold">{fcfa(u.spent)}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{u.joined}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{dateFr(u.joined)}</td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-2">
-                        {u.role === "student" && (
-                          <AdminButton variant="ghost" onClick={() => promote(u)}>
+                        {u.role === "student" ? (
+                          <AdminButton
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              roleMutation.mutate({ userId: u.id, role: "organizer", grant: true })
+                            }
+                          >
                             <ShieldCheck className="size-3.5" /> Rendre organisateur
                           </AdminButton>
-                        )}
+                        ) : u.role === "organizer" ? (
+                          <AdminButton
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              roleMutation.mutate({ userId: u.id, role: "organizer", grant: false })
+                            }
+                          >
+                            <ShieldCheck className="size-3.5" /> Retirer le statut
+                          </AdminButton>
+                        ) : null}
                         <AdminButton
                           variant={u.blocked ? "success" : "danger"}
-                          onClick={() => toggleBlock(u)}
+                          disabled={busy}
+                          onClick={() =>
+                            blockMutation.mutate({ userId: u.id, blocked: !u.blocked })
+                          }
                         >
                           <Ban className="size-3.5" /> {u.blocked ? "Réactiver" : "Bloquer"}
                         </AdminButton>
