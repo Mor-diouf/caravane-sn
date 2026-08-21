@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Download, Loader2, Share2, Wallet } from "lucide-react";
@@ -8,6 +9,7 @@ import { PaymentMark } from "@/components/PaymentMark";
 import { ticketsQuery, profileQuery } from "@/lib/student-queries";
 import { toPng, toBlob } from "html-to-image";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
 export const Route = createFileRoute("/_authenticated/billets")({
   head: () => ({
@@ -33,6 +35,21 @@ export const Route = createFileRoute("/_authenticated/billets")({
 function Billets() {
   const { data: bookings, isLoading, isError } = useQuery(ticketsQuery);
   const { data: profile } = useQuery(profileQuery);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      toast.success("Paiement validé avec succès !");
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ["#22c55e", "#3b82f6", "#f59e0b"],
+      });
+      // Clean up the URL
+      window.history.replaceState({}, "", "/billets");
+    }
+  }, []);
 
   const downloadTicket = async (id: string, ref: string) => {
     const el = document.getElementById(`ticket-${id}`);

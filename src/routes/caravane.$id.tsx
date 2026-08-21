@@ -30,6 +30,7 @@ import { createBooking } from "@/lib/student.functions";
 import { useStudentFavorites } from "@/hooks/use-student-favorites";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/caravane/$id")({
   loader: async ({ context, params }) => {
@@ -102,17 +103,18 @@ function CaravaneDetail() {
   const university = universities.find((u) => u.id === caravane.universityId);
 
   const booking = useMutation({
-    mutationFn: () =>
-      createBooking({ data: { caravanId: caravane.id, seats, method } }),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      await queryClient.invalidateQueries({ queryKey: ["caravans"] });
-      await queryClient.invalidateQueries({ queryKey: ["caravan", caravane.id] });
-      setOpen(false);
-      toast.success("Paiement confirmé", {
-        description: `Billet ${result.reference} généré.`,
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("paytech-init", {
+        body: { caravanId: caravane.id, seats, method },
       });
-      navigate({ to: "/billets" });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.redirect_url) throw new Error("Erreur avec PayTech");
+      return data;
+    },
+    onSuccess: (result) => {
+      // Rediriger vers l'interface de paiement PayTech
+      window.location.href = result.redirect_url;
     },
     onError: (error) =>
       toast.error("Paiement impossible", {
