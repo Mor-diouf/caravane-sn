@@ -182,7 +182,7 @@ function BookingsPage() {
                     <td className="px-5 py-3.5 font-semibold">{fcfa(b.amount)}</td>
                     <td className="px-5 py-3.5 text-muted-foreground">
                       <div className="flex items-center">
-                        <PaymentMark method={b.method.toLowerCase() as any} className="size-6 shadow-none border-none bg-transparent" />
+                        <PaymentMark method={b.method.toLowerCase() as any} className="h-8 w-auto min-w-[3rem] shadow-none border-none bg-transparent" />
                       </div>
                     </td>
                     <td className="px-5 py-3.5">

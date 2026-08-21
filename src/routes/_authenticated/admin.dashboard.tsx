@@ -228,7 +228,7 @@ function AdminDashboard() {
                     <p className="truncate text-sm font-bold">{p.organizer}</p>
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                       {fcfa(p.amount)} &middot;
-                      <PaymentMark method={p.method.toLowerCase() as any} className="size-4 shadow-none border-none bg-transparent" />
+                      <PaymentMark method={p.method.toLowerCase() as any} className="h-6 w-auto min-w-[2.5rem] shadow-none border-none bg-transparent" />
                     </p>
                   </div>
                   <TonePill tone={p.status === "requested" ? "warning" : "info"}>

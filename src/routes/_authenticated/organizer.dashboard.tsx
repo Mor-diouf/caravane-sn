@@ -270,7 +270,7 @@ function DashboardPage() {
                               )}
                             >
                               {b.method ? (
-                                <PaymentMark method={b.method as any} className="size-6 shadow-none border-none bg-transparent" />
+                                <PaymentMark method={b.method as any} className="h-8 w-auto min-w-[3rem] shadow-none border-none bg-transparent" />
                               ) : (
                                 "—"
                               )}

@@ -6,6 +6,8 @@ import { QrCode } from "@/components/QrCode";
 import { formatPrice, paymentLabels } from "@/lib/student-shared";
 import { PaymentMark } from "@/components/PaymentMark";
 import { ticketsQuery, profileQuery } from "@/lib/student-queries";
+import { toPng, toBlob } from "html-to-image";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/billets")({
   head: () => ({
@@ -31,6 +33,47 @@ export const Route = createFileRoute("/_authenticated/billets")({
 function Billets() {
   const { data: bookings, isLoading, isError } = useQuery(ticketsQuery);
   const { data: profile } = useQuery(profileQuery);
+
+  const downloadTicket = async (id: string, ref: string) => {
+    const el = document.getElementById(`ticket-${id}`);
+    if (!el) return;
+    try {
+      const dataUrl = await toPng(el, { cacheBust: true, pixelRatio: 2 });
+      const a = document.createElement("a");
+      a.download = `Billet-${ref}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (err) {
+      toast.error("Erreur de téléchargement");
+    }
+  };
+
+  const shareTicket = async (id: string, ref: string, text: string) => {
+    const el = document.getElementById(`ticket-${id}`);
+    if (!el) return;
+    try {
+      const blob = await toBlob(el, { cacheBust: true, pixelRatio: 2 });
+      if (!blob) return;
+      const file = new File([blob], `Billet-${ref}.png`, { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Mon Billet',
+          text: text,
+        });
+      } else {
+        toast.info("Partage d'image non supporté sur votre appareil, téléchargement...");
+        const dataUrl = await toPng(el, { cacheBust: true, pixelRatio: 2 });
+        const a = document.createElement("a");
+        a.download = `Billet-${ref}.png`;
+        a.href = dataUrl;
+        a.click();
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+      }
+    } catch (err) {
+      toast.error("Erreur lors du partage");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -70,6 +113,7 @@ function Billets() {
             return (
               <article
                 key={b.id}
+                id={`ticket-${b.id}`}
                 className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-ambient"
               >
                 <div className="flex items-center justify-between gap-3 bg-accent px-5 py-3">
@@ -106,7 +150,7 @@ function Billets() {
                       <div>
                         <dt className="text-muted-foreground">Payé via</dt>
                         <dd className="font-bold flex items-center">
-                          {b.payment ? <PaymentMark method={b.payment.method} className="size-6" /> : "—"}
+                          {b.payment ? <PaymentMark method={b.payment.method} /> : "—"}
                         </dd>
                       </div>
                       <div>
@@ -119,21 +163,18 @@ function Billets() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => window.print()}
+                        onClick={() => downloadTicket(b.id, b.reference)}
                         className="flex items-center gap-2 rounded-2xl bg-gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-ambient transition-transform active:scale-[0.98]"
                       >
-                        <Download className="size-4" /> Télécharger en PDF
+                        <Download className="size-4" /> Télécharger l'image
                       </button>
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent(
-                          `Mon billet Caravane Étudiants ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`,
-                        )}`}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => shareTicket(b.id, b.reference, `Mon billet Caravane Étudiants ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`)}
                         className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-xs font-bold transition-colors hover:bg-accent"
                       >
                         <Share2 className="size-4" /> Partager sur WhatsApp
-                      </a>
+                      </button>
                       <button
                         type="button"
                         className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-xs font-bold transition-colors hover:bg-accent"
