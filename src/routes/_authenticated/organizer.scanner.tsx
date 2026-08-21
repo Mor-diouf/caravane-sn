@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, QrCode, ScanLine, XCircle } from "lucide-react";
+import { CheckCircle2, QrCode, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { Html5QrcodeScanner } from "html5-qrcode";
 import { KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
 import { orgOverviewQuery } from "@/lib/dash-queries";
 import { organizerScanTicket } from "@/lib/organizer.functions";
@@ -38,6 +39,7 @@ function ScannerPage() {
   const [code, setCode] = useState("");
   const [log, setLog] = useState<Result[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const isScanningRef = useRef(false);
 
   const { data: dbOverview } = useQuery(orgOverviewQuery());
   const scanFn = useServerFn(organizerScanTicket);
@@ -60,9 +62,10 @@ function ScannerPage() {
 
   const validate = async (raw: string) => {
     const value = raw.trim().toUpperCase();
-    if (!value) return;
+    if (!value || isScanningRef.current) return;
 
     setIsScanning(true);
+    isScanningRef.current = true;
     try {
       const res = await scanFn({ data: { code: value } });
       const ok = res.result === "valid";
@@ -100,10 +103,32 @@ function ScannerPage() {
       ].slice(0, 12));
       toast.error(message);
     } finally {
-      setIsScanning(false);
+      // Délai pour éviter de scanner le même code en boucle
+      setTimeout(() => {
+        setIsScanning(false);
+        isScanningRef.current = false;
+      }, 2000);
       setCode("");
     }
   };
+
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner(
+      "qr-reader",
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      false
+    );
+    scanner.render(
+      (decodedText) => validate(decodedText),
+      () => {
+        // silence
+      }
+    );
+
+    return () => {
+      scanner.clear().catch(console.error);
+    };
+  }, []);
 
   const boarded = log.filter((l) => l.ok).length;
 
@@ -122,12 +147,8 @@ function ScannerPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Panel title="Contrôle d'accès" description="Placez le QR code de l'étudiant dans le cadre">
-          <div className="relative grid aspect-square w-full place-items-center overflow-hidden rounded-2xl border border-border bg-muted/40">
-            <div className="absolute inset-8 rounded-2xl border-2 border-dashed border-primary-accent/50" />
-            <ScanLine className="size-16 text-primary-accent/70" />
-            <span className="absolute bottom-5 text-xs font-semibold text-muted-foreground">
-              Caméra prête — ou saisissez le code manuellement
-            </span>
+          <div className="w-full overflow-hidden rounded-2xl border border-border bg-card">
+            <div id="qr-reader" className="w-full border-0!" />
           </div>
           <form
             className="mt-4 flex gap-2"
@@ -139,7 +160,7 @@ function ScannerPage() {
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Ex : CE-5D02E ou QR Code"
+              placeholder="Saisie manuelle (ex: CE-5D02E)"
               className="h-11 flex-1 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
             />
             <button
@@ -161,7 +182,7 @@ function ScannerPage() {
         <Panel title="Historique des scans" description="Les 12 derniers contrôles">
           {log.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              Aucun scan pour l'instant. Essayez en saisissant un code de billet.
+              Aucun scan pour l'instant. Présentez un QR code ou saisissez une référence manuellement.
             </p>
           ) : (
             <ul className="space-y-2">
