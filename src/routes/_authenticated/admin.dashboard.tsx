@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { KpiCard, PageHeader, Panel, Avatar } from "@/components/organizer/ui";
 import { AdminButton, TonePill } from "@/components/admin/ui";
+import { PaymentMark } from "@/components/PaymentMark";
 import { useQuery } from "@tanstack/react-query";
 import { adminOverviewQuery } from "@/lib/dash-queries";
 import {
@@ -225,8 +226,9 @@ function AdminDashboard() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold">{p.organizer}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {fcfa(p.amount)} · {p.method.toUpperCase()}
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {fcfa(p.amount)} &middot;
+                      <PaymentMark method={p.method.toLowerCase() as any} className="size-4 shadow-none border-none bg-transparent" />
                     </p>
                   </div>
                   <TonePill tone={p.status === "requested" ? "warning" : "info"}>

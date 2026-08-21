@@ -4,6 +4,7 @@ import { CheckCircle2, Download, Loader2, Share2, Wallet } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { QrCode } from "@/components/QrCode";
 import { formatPrice, paymentLabels } from "@/lib/student-shared";
+import { PaymentMark } from "@/components/PaymentMark";
 import { ticketsQuery, profileQuery } from "@/lib/student-queries";
 
 export const Route = createFileRoute("/_authenticated/billets")({
@@ -104,8 +105,8 @@ function Billets() {
                       </div>
                       <div>
                         <dt className="text-muted-foreground">Payé via</dt>
-                        <dd className="font-bold">
-                          {b.payment ? (paymentLabels[b.payment.method] ?? b.payment.method) : "—"}
+                        <dd className="font-bold flex items-center">
+                          {b.payment ? <PaymentMark method={b.payment.method} className="size-6" /> : "—"}
                         </dd>
                       </div>
                       <div>

@@ -20,7 +20,9 @@ import { AdminButton, TonePill } from "@/components/admin/ui";
 import { adminFinanceQuery, adminOverviewQuery } from "@/lib/dash-queries";
 import { adminSetPayoutStatus } from "@/lib/admin.functions";
 import { dateTimeFr, methodLabels } from "@/lib/dash-shared";
+import { PaymentMark } from "@/components/PaymentMark";
 import { fcfa } from "@/lib/organizer";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/finance")({
   head: () => ({
@@ -223,8 +225,10 @@ function FinancePage() {
                 <li key={p.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
                   <div className="min-w-40 flex-1">
                     <p className="text-sm font-bold">{p.organizer}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {fcfa(p.amount)} · {methodLabels[p.method] ?? p.method} · {dateTimeFr(p.requestedAt)}
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {fcfa(p.amount)} &middot;
+                      <PaymentMark method={p.method.toLowerCase() as any} className="size-4 shadow-none border-none bg-transparent" />
+                      &middot; {dateTimeFr(p.requestedAt)}
                     </p>
                   </div>
                   <TonePill

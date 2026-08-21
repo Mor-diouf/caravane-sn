@@ -16,6 +16,7 @@ import {
 import { ArrowDownToLine, Undo2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { KpiCard, PageHeader, Panel, StatusPill } from "@/components/organizer/ui";
+import { PaymentMark } from "@/components/PaymentMark";
 import { orgPaymentsQuery } from "@/lib/dash-queries";
 import { organizerRequestPayout } from "@/lib/organizer.functions";
 import { bookings as mockBookings, fcfa, monthlySeries as mockMonthlySeries, paymentMethodSplit as mockPaymentMethodSplit } from "@/lib/organizer";
@@ -174,7 +175,11 @@ function PaymentsPage() {
                 <tr key={b.id} className="transition-colors hover:bg-muted/40">
                   <td className="px-5 py-3.5 font-mono text-xs">{b.id}</td>
                   <td className="px-5 py-3.5 font-semibold">{b.student}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground">{b.method}</td>
+                  <td className="px-5 py-3.5 text-muted-foreground">
+                    <div className="flex items-center">
+                      <PaymentMark method={b.method.toLowerCase() as any} className="size-6 shadow-none border-none bg-transparent" />
+                    </div>
+                  </td>
                   <td className="px-5 py-3.5 font-semibold">{fcfa(b.amount)}</td>
                   <td className="px-5 py-3.5">
                     <StatusPill status={b.status} />

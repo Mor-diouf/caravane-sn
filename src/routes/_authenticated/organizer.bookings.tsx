@@ -13,6 +13,8 @@ import {
 } from "@/components/organizer/ui";
 import { orgBookingsQuery } from "@/lib/dash-queries";
 import { bookings as mockBookings, fcfa, statusLabels, type Status } from "@/lib/organizer";
+import { dateTimeFr } from "@/lib/dash-shared";
+import { PaymentMark } from "@/components/PaymentMark";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/organizer/bookings")({
@@ -178,7 +180,11 @@ function BookingsPage() {
                     <td className="px-5 py-3.5">{b.destination}</td>
                     <td className="px-5 py-3.5">{b.seats}</td>
                     <td className="px-5 py-3.5 font-semibold">{fcfa(b.amount)}</td>
-                    <td className="px-5 py-3.5 text-muted-foreground">{b.method}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground">
+                      <div className="flex items-center">
+                        <PaymentMark method={b.method.toLowerCase() as any} className="size-6 shadow-none border-none bg-transparent" />
+                      </div>
+                    </td>
                     <td className="px-5 py-3.5">
                       <StatusPill status={b.status} />
                     </td>

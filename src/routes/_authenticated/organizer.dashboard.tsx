@@ -20,6 +20,7 @@ import {
 } from "@/components/organizer/ui";
 import { orgBookingsQuery, orgOverviewQuery } from "@/lib/dash-queries";
 import { dateTimeFr, initialsOf, methodLabels } from "@/lib/dash-shared";
+import { PaymentMark } from "@/components/PaymentMark";
 import { fcfa } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
@@ -268,7 +269,11 @@ function DashboardPage() {
                                 paymentTone[b.paymentStatus] ?? "bg-muted text-muted-foreground",
                               )}
                             >
-                              {b.method ? methodLabels[b.method] ?? b.method : "—"}
+                              {b.method ? (
+                                <PaymentMark method={b.method as any} className="size-6 shadow-none border-none bg-transparent" />
+                              ) : (
+                                "—"
+                              )}
                             </span>
                           </td>
                           <td className="px-5 py-3 text-muted-foreground">{dateTimeFr(b.createdAt)}</td>
