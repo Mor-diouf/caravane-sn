@@ -33,8 +33,8 @@ function PassengersPage() {
   const { data: dbBookings } = useQuery(orgBookingsQuery());
 
   const passengerList = useMemo(() => {
-    if (!dbBookings || dbBookings.length === 0) {
-      return mockPassengers;
+    if (!dbBookings) {
+      return [];
     }
 
     const map = new Map<

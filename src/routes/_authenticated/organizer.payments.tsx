@@ -60,28 +60,24 @@ function PaymentsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const gross = dbPayments?.totals?.gross ?? mockPaymentMethodSplit.reduce((a, m) => a + m.amount, 0);
-  const commission = dbPayments?.totals?.commission ?? Math.round(gross * 0.08);
-  const net = dbPayments?.totals?.net ?? (gross - commission);
+  const gross = dbPayments?.totals?.gross ?? 0;
+  const commission = dbPayments?.totals?.commission ?? 0;
+  const net = dbPayments?.totals?.net ?? 0;
 
-  const splitData = dbPayments?.byMethod?.length
-    ? dbPayments.byMethod.map((m) => ({
-        name: m.method.toUpperCase(),
-        amount: m.amount,
-        value: gross ? Math.round((m.amount / gross) * 100) : 0,
-      }))
-    : mockPaymentMethodSplit;
+  const splitData = (dbPayments?.byMethod ?? []).map((m) => ({
+    name: m.method.toUpperCase(),
+    amount: m.amount,
+    value: gross ? Math.round((m.amount / gross) * 100) : 0,
+  }));
 
-  const paymentList = dbPayments?.payments?.length
-    ? dbPayments.payments.map((p) => ({
-        id: p.reference || p.id.substring(0, 8),
-        student: p.student,
-        method: p.method ? p.method.toUpperCase() : "WAVE",
-        amount: p.amount,
-        status: (p.status === "paid" ? "paid" : "pending") as "paid" | "pending",
-        date: new Date(p.date).toLocaleDateString("fr-FR"),
-      }))
-    : mockBookings;
+  const paymentList = (dbPayments?.payments ?? []).map((p) => ({
+    id: p.reference || p.id.substring(0, 8),
+    student: p.student,
+    method: p.method ? p.method.toUpperCase() : "WAVE",
+    amount: p.amount,
+    status: (p.status === "paid" ? "paid" : "pending") as "paid" | "pending",
+    date: new Date(p.date).toLocaleDateString("fr-FR"),
+  }));
 
   return (
     <>

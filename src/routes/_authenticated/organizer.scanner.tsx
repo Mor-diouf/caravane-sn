@@ -42,13 +42,20 @@ function ScannerPage() {
   const { data: dbOverview } = useQuery(orgOverviewQuery());
   const scanFn = useServerFn(organizerScanTicket);
 
-  const activeCaravanInfo = dbOverview?.caravans?.[0]
-    ? {
-        route: dbOverview.caravans[0].route,
-        date: new Date(dbOverview.caravans[0].departureAt).toLocaleDateString("fr-FR"),
-        booked: dbOverview.caravans[0].booked,
-        capacity: dbOverview.caravans[0].capacity,
-      }
+  const activeCaravanInfo = dbOverview
+    ? dbOverview.caravans?.[0]
+      ? {
+          route: dbOverview.caravans[0].route,
+          date: new Date(dbOverview.caravans[0].departureAt).toLocaleDateString("fr-FR"),
+          booked: dbOverview.caravans[0].booked,
+          capacity: dbOverview.caravans[0].capacity,
+        }
+      : {
+          route: "Aucune caravane active",
+          date: "—",
+          booked: 0,
+          capacity: 0,
+        }
     : mockActiveCaravan;
 
   const validate = async (raw: string) => {

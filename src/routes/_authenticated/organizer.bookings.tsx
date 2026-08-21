@@ -51,8 +51,8 @@ function BookingsPage() {
   const { data: dbBookings, isLoading } = useQuery(orgBookingsQuery());
 
   const bookingList = useMemo(() => {
-    if (!dbBookings || dbBookings.length === 0) {
-      return mockBookings;
+    if (!dbBookings) {
+      return [];
     }
     return dbBookings.map((b) => {
       let derivedStatus: Status = "pending";
