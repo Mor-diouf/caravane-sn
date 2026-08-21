@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, LogIn, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { accessQuery } from "@/lib/dash-queries";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth")({
@@ -37,9 +39,22 @@ function AuthPage() {
   const [phone, setPhone] = useState("");
   const [pending, setPending] = useState(false);
 
+  const { data: access, isFetching: isFetchingAccess } = useQuery({
+    ...accessQuery(),
+    enabled: !!user && !loading,
+  });
+
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/billets" });
-  }, [loading, user, navigate]);
+    if (!loading && user && !isFetchingAccess && access !== undefined) {
+      if (access.isAdmin) {
+        navigate({ to: "/admin" });
+      } else if (access.organizerId) {
+        navigate({ to: "/organizer" });
+      } else {
+        navigate({ to: "/billets" });
+      }
+    }
+  }, [loading, user, access, isFetchingAccess, navigate]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();

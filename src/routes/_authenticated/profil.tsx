@@ -35,6 +35,7 @@ import {
   ticketsQuery,
   universitiesQuery,
 } from "@/lib/student-queries";
+import { accessQuery } from "@/lib/dash-queries";
 import { updateMyProfile, requestOrganizerAccount } from "@/lib/student.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -74,12 +75,6 @@ const links = [
   { icon: Heart, label: "Mes favoris", to: "/favoris" as const },
 ];
 
-const actions = [
-  { icon: Megaphone, label: "Devenir organisateur", hint: "Publiez vos caravanes" },
-  { icon: Shield, label: "Sécurité et confidentialité", hint: "Mot de passe, appareils" },
-  { icon: Settings, label: "Paramètres du compte", hint: "Langue, données" },
-  { icon: HelpCircle, label: "Aide et support", hint: "FAQ, WhatsApp support" },
-];
 
 function initials(name: string) {
   return (
@@ -105,9 +100,25 @@ function Profil() {
   const queryClient = useQueryClient();
   const { signOut } = useAuth();
   const { data: profile, isLoading } = useQuery(profileQuery);
+  const { data: access } = useQuery(accessQuery());
   const { data: bookings = [] } = useQuery(ticketsQuery);
   const { data: favorites = [] } = useQuery(favoritesQuery);
   const { data: universities = [] } = useQuery(universitiesQuery);
+
+  const dynamicActions = useMemo(() => {
+    const base: Array<{ icon: any; label: string; hint: string; to?: any }> = [
+      { icon: Shield, label: "Sécurité et confidentialité", hint: "Mot de passe, appareils" },
+      { icon: Settings, label: "Paramètres du compte", hint: "Langue, données" },
+      { icon: HelpCircle, label: "Aide et support", hint: "FAQ, WhatsApp support" },
+    ];
+    if (access?.isAdmin) {
+      return [{ icon: Shield, label: "Espace Admin", hint: "Gérer la plateforme", to: "/admin" as const }, ...base];
+    }
+    if (access?.organizerId) {
+      return [{ icon: Megaphone, label: "Espace Organisateur", hint: "Gérer vos caravanes", to: "/organizer" as const }, ...base];
+    }
+    return [{ icon: Megaphone, label: "Devenir organisateur", hint: "Publiez vos caravanes" }, ...base];
+  }, [access]);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>({
@@ -426,24 +437,38 @@ function Profil() {
                 </Link>
               </li>
             ))}
-            {actions.map(({ icon: Icon, label, hint }) => (
+            {dynamicActions.map(({ icon: Icon, label, hint, to }) => (
               <li key={label}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (label === "Devenir organisateur") setOrgModalOpen(true);
-                  }}
-                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-accent"
-                >
-                  <Icon className="size-4 shrink-0 text-primary-accent" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{label}</span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
-                      {hint}
+                {to ? (
+                  <Link
+                    to={to}
+                    className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-accent"
+                  >
+                    <Icon className="size-4 shrink-0 text-primary-accent" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{label}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{hint}</span>
                     </span>
-                  </span>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </button>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (label === "Devenir organisateur") setOrgModalOpen(true);
+                    }}
+                    className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-accent"
+                  >
+                    <Icon className="size-4 shrink-0 text-primary-accent" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{label}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {hint}
+                      </span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                )}
               </li>
             ))}
             <li>
