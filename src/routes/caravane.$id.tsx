@@ -103,18 +103,16 @@ function CaravaneDetail() {
   const university = universities.find((u) => u.id === caravane.universityId);
 
   const booking = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("paytech-init", {
-        body: { caravanId: caravane.id, seats, method },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (!data?.redirect_url) throw new Error("Erreur avec PayTech");
-      return data;
-    },
-    onSuccess: (result) => {
-      // Rediriger vers l'interface de paiement PayTech
-      window.location.href = result.redirect_url;
+    // Mode Test Temporaire : Simulation du paiement
+    mutationFn: () =>
+      createBooking({ data: { caravanId: caravane.id, seats, method } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      await queryClient.invalidateQueries({ queryKey: ["caravans"] });
+      await queryClient.invalidateQueries({ queryKey: ["caravan", caravane.id] });
+      setOpen(false);
+      // Rediriger avec le succès pour déclencher les confettis !
+      window.location.href = `/billets?payment=success&ref=${result.reference}`;
     },
     onError: (error) =>
       toast.error("Paiement impossible", {
