@@ -111,13 +111,17 @@ function Profil() {
       { icon: Settings, label: "Paramètres du compte", hint: "Langue, données" },
       { icon: HelpCircle, label: "Aide et support", hint: "FAQ, WhatsApp support" },
     ];
+    const top = [];
     if (access?.isAdmin) {
-      return [{ icon: Shield, label: "Espace Admin", hint: "Gérer la plateforme", to: "/admin" as const }, ...base];
+      top.push({ icon: Shield, label: "Espace Admin", hint: "Gérer la plateforme", to: "/admin" as const });
     }
     if (access?.organizerId) {
-      return [{ icon: Megaphone, label: "Espace Organisateur", hint: "Gérer vos caravanes", to: "/organizer" as const }, ...base];
+      top.push({ icon: Megaphone, label: "Espace Organisateur", hint: "Gérer vos caravanes", to: "/organizer" as const });
     }
-    return [{ icon: Megaphone, label: "Devenir organisateur", hint: "Publiez vos caravanes" }, ...base];
+    if (!access?.isAdmin && !access?.organizerId) {
+      top.push({ icon: Megaphone, label: "Devenir organisateur", hint: "Publiez vos caravanes" });
+    }
+    return [...top, ...base];
   }, [access]);
 
   const [editing, setEditing] = useState(false);
