@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Download, Search, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -10,7 +11,8 @@ import {
   Panel,
   StatusPill,
 } from "@/components/organizer/ui";
-import { bookings, fcfa, statusLabels, type Status } from "@/lib/organizer";
+import { orgBookingsQuery } from "@/lib/dash-queries";
+import { bookings as mockBookings, fcfa, statusLabels, type Status } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/organizer/bookings")({
@@ -46,17 +48,44 @@ const tabs: { id: "all" | Status; label: string }[] = [
 function BookingsPage() {
   const [tab, setTab] = useState<"all" | Status>("all");
   const [query, setQuery] = useState("");
+  const { data: dbBookings, isLoading } = useQuery(orgBookingsQuery());
+
+  const bookingList = useMemo(() => {
+    if (!dbBookings || dbBookings.length === 0) {
+      return mockBookings;
+    }
+    return dbBookings.map((b) => {
+      let derivedStatus: Status = "pending";
+      if (b.ticketStatus === "used") derivedStatus = "boarded";
+      else if (b.status === "confirmed") derivedStatus = "paid";
+      else if (b.status === "cancelled") derivedStatus = "cancelled";
+      else if (b.status === "refunded") derivedStatus = "refunded";
+
+      return {
+        id: b.reference || b.id.substring(0, 8),
+        student: b.student,
+        initials: (b.student || "E").substring(0, 2).toUpperCase(),
+        destination: b.route,
+        seats: b.seats,
+        amount: b.amount,
+        method: (b.method ? b.method.toUpperCase() : "WAVE") as "WAVE" | "ORANGE" | "FREE",
+        status: derivedStatus,
+        ticket: b.qrCode || b.reference,
+        date: new Date(b.createdAt).toLocaleDateString("fr-FR"),
+      };
+    });
+  }, [dbBookings]);
 
   const rows = useMemo(
     () =>
-      bookings.filter(
+      bookingList.filter(
         (b) =>
           (tab === "all" || b.status === tab) &&
           (b.student.toLowerCase().includes(query.toLowerCase()) ||
             b.id.toLowerCase().includes(query.toLowerCase()) ||
             b.ticket.toLowerCase().includes(query.toLowerCase())),
       ),
-    [tab, query],
+    [bookingList, tab, query],
   );
 
   const total = rows.reduce((acc, b) => acc + b.amount, 0);
@@ -82,7 +111,7 @@ function BookingsPage() {
         <KpiCard title="Montant cumulé" value={fcfa(total)} accent="mint" icon={Ticket} />
         <KpiCard
           title="En attente de paiement"
-          value={String(bookings.filter((b) => b.status === "pending").length)}
+          value={String(bookingList.filter((b) => b.status === "pending").length)}
           accent="warning"
           icon={Ticket}
         />

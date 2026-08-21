@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Download, MessageCircle, Phone, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, EmptyState, KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
-import { fcfa, passengers } from "@/lib/organizer";
+import { orgBookingsQuery } from "@/lib/dash-queries";
+import { fcfa, passengers as mockPassengers } from "@/lib/organizer";
 
 export const Route = createFileRoute("/_authenticated/organizer/passengers")({
   head: () => ({
@@ -28,18 +30,66 @@ export const Route = createFileRoute("/_authenticated/organizer/passengers")({
 
 function PassengersPage() {
   const [query, setQuery] = useState("");
+  const { data: dbBookings } = useQuery(orgBookingsQuery());
+
+  const passengerList = useMemo(() => {
+    if (!dbBookings || dbBookings.length === 0) {
+      return mockPassengers;
+    }
+
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        initials: string;
+        university: string;
+        phone: string;
+        trips: number;
+        spent: number;
+        lastTripDate: string;
+      }
+    >();
+
+    for (const b of dbBookings) {
+      const key = b.email || b.phone || b.student;
+      const cur = map.get(key) ?? {
+        id: b.id,
+        name: b.student || "Étudiant",
+        initials: (b.student || "E").substring(0, 2).toUpperCase(),
+        university: "Université",
+        phone: b.phone || "—",
+        trips: 0,
+        spent: 0,
+        lastTripDate: b.createdAt,
+      };
+
+      cur.trips += b.seats;
+      cur.spent += b.amount;
+      if (new Date(b.createdAt) > new Date(cur.lastTripDate)) {
+        cur.lastTripDate = b.createdAt;
+      }
+      map.set(key, cur);
+    }
+
+    return [...map.values()].map((p) => ({
+      ...p,
+      lastTrip: new Date(p.lastTripDate).toLocaleDateString("fr-FR"),
+    }));
+  }, [dbBookings]);
+
   const rows = useMemo(
     () =>
-      passengers.filter(
+      passengerList.filter(
         (p) =>
           p.name.toLowerCase().includes(query.toLowerCase()) ||
           p.university.toLowerCase().includes(query.toLowerCase()),
       ),
-    [query],
+    [passengerList, query],
   );
 
-  const totalSpent = passengers.reduce((a, p) => a + p.spent, 0);
-  const loyal = passengers.filter((p) => p.trips >= 3).length;
+  const totalSpent = passengerList.reduce((a, p) => a + p.spent, 0);
+  const loyal = passengerList.filter((p) => p.trips >= 3).length;
 
   return (
     <>
@@ -58,7 +108,7 @@ function PassengersPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard title="Passagers uniques" value={String(passengers.length)} icon={Users} />
+        <KpiCard title="Passagers uniques" value={String(passengerList.length)} icon={Users} />
         <KpiCard title="Étudiants fidèles" value={`${loyal}`} secondary="3 voyages ou plus" accent="info" icon={Users} />
         <KpiCard title="Dépenses cumulées" value={fcfa(totalSpent)} accent="mint" icon={Users} />
       </div>

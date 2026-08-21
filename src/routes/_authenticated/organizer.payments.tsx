@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Bar,
   BarChart,
@@ -14,7 +16,9 @@ import {
 import { ArrowDownToLine, Undo2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { KpiCard, PageHeader, Panel, StatusPill } from "@/components/organizer/ui";
-import { bookings, fcfa, monthlySeries, paymentMethodSplit } from "@/lib/organizer";
+import { orgPaymentsQuery } from "@/lib/dash-queries";
+import { organizerRequestPayout } from "@/lib/organizer.functions";
+import { bookings as mockBookings, fcfa, monthlySeries as mockMonthlySeries, paymentMethodSplit as mockPaymentMethodSplit } from "@/lib/organizer";
 
 export const Route = createFileRoute("/_authenticated/organizer/payments")({
   head: () => ({
@@ -40,8 +44,44 @@ export const Route = createFileRoute("/_authenticated/organizer/payments")({
 const colors = ["var(--color-info)", "var(--color-warning)", "var(--color-mint)", "var(--color-primary-accent)"];
 
 function PaymentsPage() {
-  const gross = paymentMethodSplit.reduce((a, m) => a + m.amount, 0);
-  const commission = Math.round(gross * 0.03);
+  const queryClient = useQueryClient();
+  const { data: dbPayments, isLoading } = useQuery(orgPaymentsQuery());
+  const requestPayoutFn = useServerFn(organizerRequestPayout);
+
+  const payoutMutation = useMutation({
+    mutationFn: (payload: { amount: number; method: "wave" | "orange" | "free" }) =>
+      requestPayoutFn({ data: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Demande de retrait envoyée", {
+        description: "Les fonds arrivent sous 24 h ouvrées sur votre compte mobile money.",
+      });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const gross = dbPayments?.totals?.gross ?? mockPaymentMethodSplit.reduce((a, m) => a + m.amount, 0);
+  const commission = dbPayments?.totals?.commission ?? Math.round(gross * 0.08);
+  const net = dbPayments?.totals?.net ?? (gross - commission);
+
+  const splitData = dbPayments?.byMethod?.length
+    ? dbPayments.byMethod.map((m) => ({
+        name: m.method.toUpperCase(),
+        amount: m.amount,
+        value: gross ? Math.round((m.amount / gross) * 100) : 0,
+      }))
+    : mockPaymentMethodSplit;
+
+  const paymentList = dbPayments?.payments?.length
+    ? dbPayments.payments.map((p) => ({
+        id: p.reference || p.id.substring(0, 8),
+        student: p.student,
+        method: p.method ? p.method.toUpperCase() : "WAVE",
+        amount: p.amount,
+        status: (p.status === "paid" ? "paid" : "pending") as "paid" | "pending",
+        date: new Date(p.date).toLocaleDateString("fr-FR"),
+      }))
+    : mockBookings;
 
   return (
     <>
@@ -51,30 +91,33 @@ function PaymentsPage() {
         actions={
           <button
             type="button"
-            onClick={() =>
-              toast.success("Demande de retrait envoyée", {
-                description: "Les fonds arrivent sous 24 h ouvrées sur votre compte Wave.",
-              })
-            }
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-ambient"
+            onClick={() => {
+              if (net <= 0) {
+                toast.error("Solde insuffisant pour effectuer un retrait.");
+                return;
+              }
+              payoutMutation.mutate({ amount: net, method: "wave" });
+            }}
+            disabled={payoutMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-ambient hover:opacity-90 disabled:opacity-50"
           >
-            <ArrowDownToLine className="size-4" /> Demander un retrait
+            <ArrowDownToLine className="size-4" /> {payoutMutation.isPending ? "Traitement..." : "Demander un retrait"}
           </button>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard title="Encaissements bruts" value={fcfa(gross)} trend="+18%" icon={Wallet} accent="mint" />
-        <KpiCard title="Commission plateforme" value={fcfa(commission)} secondary="3% par billet" icon={Wallet} />
-        <KpiCard title="Solde disponible" value={fcfa(gross - commission)} secondary="Retirable maintenant" icon={Wallet} accent="info" />
-        <KpiCard title="Remboursements" value={fcfa(8500)} secondary="1 dossier traité" icon={Undo2} accent="warning" />
+        <KpiCard title="Commission plateforme" value={fcfa(commission)} secondary="8 % par billet" icon={Wallet} />
+        <KpiCard title="Solde disponible" value={fcfa(net)} secondary="Retirable maintenant" icon={Wallet} accent="info" />
+        <KpiCard title="Remboursements" value={fcfa(0)} secondary="0 dossier" icon={Undo2} accent="warning" />
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <Panel className="xl:col-span-2" title="Revenus mensuels" description="Encaissements des 6 derniers mois">
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlySeries} margin={{ left: -6, right: 8, top: 8 }}>
+              <BarChart data={mockMonthlySeries} margin={{ left: -6, right: 8, top: 8 }}>
                 <CartesianGrid strokeDasharray="4 4" stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
                 <YAxis tickFormatter={(v: number) => `${v / 1000}k`} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
@@ -92,8 +135,8 @@ function PaymentsPage() {
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={paymentMethodSplit} dataKey="value" nameKey="name" innerRadius={52} outerRadius={80} paddingAngle={3}>
-                  {paymentMethodSplit.map((entry, i) => (
+                <Pie data={splitData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={80} paddingAngle={3}>
+                  {splitData.map((entry, i) => (
                     <Cell key={entry.name} fill={colors[i % colors.length]} stroke="none" />
                   ))}
                 </Pie>
@@ -105,7 +148,7 @@ function PaymentsPage() {
             </ResponsiveContainer>
           </div>
           <ul className="mt-3 space-y-2 text-sm">
-            {paymentMethodSplit.map((m, i) => (
+            {splitData.map((m, i) => (
               <li key={m.name} className="flex items-center gap-2">
                 <span className="size-2.5 rounded-full" style={{ background: colors[i % colors.length] }} />
                 <span className="flex-1">{m.name}</span>
@@ -131,7 +174,7 @@ function PaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {bookings.map((b) => (
+              {paymentList.map((b) => (
                 <tr key={b.id} className="transition-colors hover:bg-muted/40">
                   <td className="px-5 py-3.5 font-mono text-xs">{b.id}</td>
                   <td className="px-5 py-3.5 font-semibold">{b.student}</td>
