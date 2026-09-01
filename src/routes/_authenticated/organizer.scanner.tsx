@@ -144,6 +144,16 @@ function ScannerPage() {
   }, [dbOverview]);
 
   useEffect(() => {
+    // Preload audio files for zero-latency playback on mobile
+    try {
+      const success = new Audio("/sounds/boarding-success.mp3");
+      const used = new Audio(encodeURI("/sounds/Maintenant_vous_pouvez_génére_trimmed.mp3"));
+      success.load();
+      used.load();
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
     if (activeCaravans.length > 0 && !selectedCaravanId) {
       setSelectedCaravanId(activeCaravans[0].id);
     }
@@ -174,14 +184,34 @@ function ScannerPage() {
       navigator.vibrate(isSuccess ? [100, 40, 100] : [200, 100, 200]);
     }
 
-    // 3. Audio / Speech Feedback
-    if (type === "used") {
+    // 3. Audio / Voice Feedback
+    if (type === "valid") {
+      // Play custom user-provided boarding-success audio file
+      try {
+        const successAudio = new Audio("/sounds/boarding-success.mp3");
+        successAudio.play().catch((err) => {
+          console.warn("[Scanner] Audio file play failed, fallback to SpeechSynthesis:", err);
+          if (typeof window !== "undefined" && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = "fr-FR";
+            utterance.pitch = 1.1;
+            window.speechSynthesis.speak(utterance);
+          }
+        });
+      } catch (_) {
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = "fr-FR";
+          window.speechSynthesis.speak(utterance);
+        }
+      }
+    } else if (type === "used") {
       // Play custom audio provided for already used tickets
       try {
-        const audioUrl = encodeURI("/sounds/Maintenant_vous_pouvez_génére_trimmed.mp3");
-        const audio = new Audio(audioUrl);
-        audio.play().catch(() => {
-          // Fallback to SpeechSynthesis if audio play fails
+        const usedAudio = new Audio(encodeURI("/sounds/Maintenant_vous_pouvez_génére_trimmed.mp3"));
+        usedAudio.play().catch(() => {
           if (typeof window !== "undefined" && window.speechSynthesis) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance("Attention, ce billet a déjà été utilisé");
@@ -192,22 +222,19 @@ function ScannerPage() {
         });
       } catch (_) {}
     } else {
-      // Speech Synthesis for valid or invalid tickets
+      // Speech Synthesis fallback for invalid / error tickets
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "fr-FR";
-        utterance.pitch = isSuccess ? 1.15 : 0.85;
+        utterance.pitch = 0.85;
         utterance.rate = 1.0;
 
         const voices = window.speechSynthesis.getVoices();
         const frVoice = voices.find((v) => v.lang.startsWith("fr"));
         if (frVoice) utterance.voice = frVoice;
 
-        // Small delay so Pop-Pop plays right before speech
-        setTimeout(() => {
-          window.speechSynthesis.speak(utterance);
-        }, 150);
+        window.speechSynthesis.speak(utterance);
       }
     }
   }, []);
