@@ -4,25 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, MessageCircle, Phone, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, EmptyState, KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
-import { orgBookingsQuery } from "@/lib/dash-queries";
-import { fcfa, passengers as mockPassengers } from "@/lib/organizer";
+import { orgBookingsQuery, orgCaravansQuery } from "@/lib/dash-queries";
+import { fcfa } from "@/lib/organizer";
+import { exportPassengerManifestPdf } from "@/lib/pdf-export";
 
 export const Route = createFileRoute("/_authenticated/organizer/passengers")({
   head: () => ({
     meta: [
-      { title: "Passagers — CaravaneHub Organisateur" },
+      { title: "Passagers & Manifestes — CaravaneHub Organisateur" },
       {
         name: "description",
         content:
-          "Annuaire des étudiants transportés : université, historique de voyages, dépenses et contact WhatsApp.",
+          "Annuaire des étudiants et manifestes d'embarquement par caravane avec export PDF officiel.",
       },
-      { property: "og:title", content: "Passagers — CaravaneHub" },
-      {
-        property: "og:description",
-        content: "Votre base d'étudiants fidèles, prête pour vos campagnes.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: PassengersPage,
@@ -30,13 +24,43 @@ export const Route = createFileRoute("/_authenticated/organizer/passengers")({
 
 function PassengersPage() {
   const [query, setQuery] = useState("");
+  const [selectedCaravanId, setSelectedCaravanId] = useState<string>("all");
   const { data: dbBookings } = useQuery(orgBookingsQuery());
+  const { data: dbCaravans } = useQuery(orgCaravansQuery());
+
+  const caravans = dbCaravans ?? [];
+  const selectedCaravan = caravans.find((c) => c.id === selectedCaravanId);
+
+  // Filtrage selon la caravane sélectionnée
+  const filteredBookings = useMemo(() => {
+    if (!dbBookings) return [];
+    if (selectedCaravanId === "all") return dbBookings;
+    return dbBookings.filter((b) => b.caravanId === selectedCaravanId);
+  }, [dbBookings, selectedCaravanId]);
 
   const passengerList = useMemo(() => {
-    if (!dbBookings) {
-      return [];
+    if (!filteredBookings) return [];
+
+    if (selectedCaravanId !== "all") {
+      // Affichage passager par passager / billet pour cette caravane
+      return filteredBookings.map((b) => ({
+        id: b.id,
+        name: b.student || "Étudiant",
+        initials: (b.student || "E").substring(0, 2).toUpperCase(),
+        university: b.university || "Non renseigné",
+        phone: b.phone || "—",
+        reference: b.reference,
+        trips: b.seats,
+        seats: b.seats,
+        spent: b.amount,
+        amount: b.amount,
+        paymentStatus: b.paymentStatus,
+        status: b.status,
+        lastTrip: b.departureAt ? new Date(b.departureAt).toLocaleDateString("fr-FR") : new Date(b.createdAt).toLocaleDateString("fr-FR"),
+      }));
     }
 
+    // Vue agrégée par étudiant quand "Toutes les caravanes" est sélectionné
     const map = new Map<
       string,
       {
@@ -51,13 +75,13 @@ function PassengersPage() {
       }
     >();
 
-    for (const b of dbBookings) {
+    for (const b of filteredBookings) {
       const key = b.email || b.phone || b.student;
       const cur = map.get(key) ?? {
         id: b.id,
         name: b.student || "Étudiant",
         initials: (b.student || "E").substring(0, 2).toUpperCase(),
-        university: "Université",
+        university: b.university || "Non renseigné",
         phone: b.phone || "—",
         trips: 0,
         spent: 0,
@@ -66,6 +90,9 @@ function PassengersPage() {
 
       cur.trips += b.seats;
       cur.spent += b.amount;
+      if (b.university && b.university !== "—" && cur.university === "Non renseigné") {
+        cur.university = b.university;
+      }
       if (new Date(b.createdAt) > new Date(cur.lastTripDate)) {
         cur.lastTripDate = b.createdAt;
       }
@@ -74,43 +101,93 @@ function PassengersPage() {
 
     return [...map.values()].map((p) => ({
       ...p,
+      seats: p.trips,
+      amount: p.spent,
       lastTrip: new Date(p.lastTripDate).toLocaleDateString("fr-FR"),
     }));
-  }, [dbBookings]);
+  }, [filteredBookings, selectedCaravanId]);
 
   const rows = useMemo(
     () =>
       passengerList.filter(
         (p) =>
           p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.university.toLowerCase().includes(query.toLowerCase()),
+          p.university.toLowerCase().includes(query.toLowerCase()) ||
+          p.phone.includes(query),
       ),
     [passengerList, query],
   );
 
-  const totalSpent = passengerList.reduce((a, p) => a + p.spent, 0);
-  const loyal = passengerList.filter((p) => p.trips >= 3).length;
+  const totalSpent = rows.reduce((a, p) => a + (p.spent || p.amount || 0), 0);
+  const totalSeats = rows.reduce((a, p) => a + (p.seats || p.trips || 1), 0);
+
+  const handleExportPdf = () => {
+    if (rows.length === 0) {
+      toast.error("Aucun passager à exporter.");
+      return;
+    }
+
+    exportPassengerManifestPdf({
+      organizerName: "Espace Organisateur",
+      caravanTitle: selectedCaravan ? `${selectedCaravan.from_label} ➔ ${selectedCaravan.to_label}` : undefined,
+      departureDate: selectedCaravan?.departure_at ? new Date(selectedCaravan.departure_at).toLocaleString("fr-FR") : undefined,
+      pickupLocation: selectedCaravan?.pickup_label,
+      passengers: rows,
+    });
+
+    toast.success("Manifeste PDF téléchargé !", {
+      description: `${rows.length} passagers exportés pour ${selectedCaravan ? selectedCaravan.to_label : "toutes les caravanes"}.`,
+    });
+  };
 
   return (
     <>
       <PageHeader
-        title="Passagers"
-        subtitle="L'annuaire des étudiants qui voyagent avec votre amicale."
+        title={selectedCaravan ? `Manifeste : ${selectedCaravan.from_label} ➔ ${selectedCaravan.to_label}` : "Passagers & Manifestes"}
+        subtitle="Consultez et exportez la liste officielle des passagers par caravane ou pour tout votre réseau."
         actions={
           <button
             type="button"
-            onClick={() => toast.success("Annuaire exporté", { description: `${rows.length} passagers.` })}
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold hover:bg-muted"
+            onClick={handleExportPdf}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-md transition-all hover:opacity-90 active:scale-95"
           >
-            <Download className="size-4" /> Exporter
+            <Download className="size-4" /> Exporter en PDF
           </button>
         }
       />
 
+      {/* Selecteur de caravane */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <label htmlFor="caravan-select" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Filtrer par caravane :
+          </label>
+          <select
+            id="caravan-select"
+            value={selectedCaravanId}
+            onChange={(e) => setSelectedCaravanId(e.target.value)}
+            className="h-9 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="all">🌍 Toutes les caravanes (Annuaire complet)</option>
+            {caravans.map((c) => (
+              <option key={c.id} value={c.id}>
+                🚌 {c.from_label} ➔ {c.to_label} ({new Date(c.departure_at).toLocaleDateString("fr-FR")})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {selectedCaravan && (
+          <span className="text-xs font-bold text-primary">
+            📍 Ramassage : {selectedCaravan.pickup_label || "Non spécifié"}
+          </span>
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard title="Passagers uniques" value={String(passengerList.length)} icon={Users} />
-        <KpiCard title="Étudiants fidèles" value={`${loyal}`} secondary="3 voyages ou plus" accent="info" icon={Users} />
-        <KpiCard title="Dépenses cumulées" value={fcfa(totalSpent)} accent="mint" icon={Users} />
+        <KpiCard title="Passagers inscrits" value={String(rows.length)} icon={Users} />
+        <KpiCard title="Places réservées" value={`${totalSeats}`} secondary={selectedCaravan ? "Pour ce car" : "Tous trajets"} accent="info" icon={Users} />
+        <KpiCard title="Montant collecté" value={fcfa(totalSpent)} accent="mint" icon={Users} />
       </div>
 
       <Panel className="mt-4" bodyClassName="p-0">
@@ -121,7 +198,7 @@ function PassengersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Nom ou université…"
+              placeholder="Nom, université ou téléphone…"
               className="h-9 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
             />
           </label>

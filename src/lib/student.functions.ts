@@ -71,6 +71,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
         email: z.string().email().nullable().optional(),
         student_id: z.string().max(60).nullable().optional(),
         university_id: z.string().max(40).nullable().optional(),
+        avatar_url: z.string().nullable().optional(),
         preferred_payment: z.enum(["wave", "orange", "free"]).optional(),
         notify_departures: z.boolean().optional(),
         notify_promos: z.boolean().optional(),
@@ -131,25 +132,95 @@ export const getMyTickets = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("bookings")
       .select(
-        `id, seats, amount_fcfa, reference, status, created_at,
+        `id, caravan_id, seats, amount_fcfa, reference, status, created_at, passenger_name,
          caravans(${CARAVAN_SELECT}),
          tickets(id, qr_code, status, checked_in_at),
          payments(method, status, amount_fcfa, paid_at)`,
       )
       .eq("user_id", context.userId)
+      .eq("status", "confirmed")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
+
+    // Fetch user reviews
+    const caravanIds = [...new Set((data ?? []).map((b) => b.caravan_id).filter(Boolean))];
+    const { data: reviews } = caravanIds.length
+      ? await context.supabase
+          .from("reviews")
+          .select("id, caravan_id, rating, comment, created_at")
+          .eq("user_id", context.userId)
+          .in("caravan_id", caravanIds)
+      : { data: [] };
+
     return (data ?? []).map((b) => ({
       id: b.id,
+      caravanId: b.caravan_id,
       seats: b.seats,
       amount: b.amount_fcfa,
       reference: b.reference,
       status: b.status,
+      passenger_name: b.passenger_name,
       createdAt: b.created_at,
       caravan: b.caravans ? mapCaravan(b.caravans as never) : null,
       ticket: (b.tickets ?? [])[0] ?? null,
       payment: (b.payments ?? [])[0] ?? null,
+      review: (reviews ?? []).find((r) => r.caravan_id === b.caravan_id) ?? null,
     }));
+  });
+
+export const initiateWavePayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data) =>
+    z
+      .object({
+        caravanId: z.string().uuid(),
+        seats: z.number().int().min(1).max(6),
+        payerPhone: z.string().min(9),
+        passengerName: z.string().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    // 1. Fetch Caravan and its payment_link
+    const { data: caravan, error: caravanError } = await context.supabase
+      .from("caravans")
+      .select("id, price_fcfa, seats_left, payment_link")
+      .eq("id", data.caravanId)
+      .maybeSingle();
+
+    if (caravanError || !caravan) throw new Error("Caravane introuvable");
+    if (caravan.seats_left < data.seats)
+      throw new Error("Il ne reste pas assez de places disponibles");
+    if (!caravan.payment_link)
+      throw new Error("Paiement non disponible pour cette caravane (Lien manquant)");
+
+    const amount = caravan.price_fcfa * data.seats;
+    const ref = `BK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+
+    // 2. Create Pending Booking with payer_phone
+    const { data: booking, error: bookingError } = await context.supabase
+      .from("bookings")
+      .insert({
+        user_id: context.userId,
+        caravan_id: data.caravanId,
+        seats: data.seats,
+        amount_fcfa: amount,
+        reference: ref,
+        status: "pending",
+        payer_phone: data.payerPhone.replace(/\s/g, ""),
+        passenger_name: data.passengerName || null,
+      })
+      .select("id")
+      .single();
+
+    if (bookingError || !booking)
+      throw new Error(bookingError?.message || "Erreur lors de la création de la réservation");
+
+    // Redirect to the Wave Business Link
+    return { 
+      redirectUrl: caravan.payment_link,
+      bookingId: booking.id 
+    };
   });
 
 export const createBooking = createServerFn({ method: "POST" })
@@ -160,6 +231,7 @@ export const createBooking = createServerFn({ method: "POST" })
         caravanId: z.string().uuid(),
         seats: z.number().int().min(1).max(6),
         method: z.enum(["wave", "orange", "free"]),
+        passengerName: z.string().optional(),
       })
       .parse(data),
   )
@@ -187,6 +259,7 @@ export const createBooking = createServerFn({ method: "POST" })
         amount_fcfa: amount,
         reference,
         status: "confirmed",
+        passenger_name: data.passengerName || null,
       })
       .select("id, reference")
       .single();
@@ -206,7 +279,7 @@ export const createBooking = createServerFn({ method: "POST" })
 
     const { error: ticketError } = await context.supabase.from("tickets").insert({
       booking_id: booking.id,
-      qr_code: reference,
+      qr_code: crypto.randomUUID(),
       status: "valid",
     });
     if (ticketError) throw new Error(ticketError.message);
@@ -282,4 +355,222 @@ export const requestOrganizerAccount = createServerFn({ method: "POST" })
     });
 
     return { success: true, organizerId: newOrg.id };
+  });
+
+export const submitCaravanReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) =>
+    z
+      .object({
+        caravanId: z.string().uuid(),
+        rating: z.number().int().min(1).max(5),
+        comment: z.string().max(1000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Verify caravan and organizer
+    const { data: caravan, error: caravanErr } = await supabaseAdmin
+      .from("caravans")
+      .select("id, organizer_id, departure_at")
+      .eq("id", data.caravanId)
+      .maybeSingle();
+
+    if (caravanErr || !caravan) throw new Error("Caravane introuvable");
+
+    // 2. Check if student has a booking for this caravan
+    const { data: booking, error: bookingErr } = await supabaseAdmin
+      .from("bookings")
+      .select("id, status, tickets(status, checked_in_at)")
+      .eq("user_id", context.userId)
+      .eq("caravan_id", data.caravanId)
+      .limit(1)
+      .maybeSingle();
+
+    if (bookingErr || !booking) {
+      throw new Error("Vous devez avoir réservé cette caravane pour donner votre avis.");
+    }
+
+    // 3. Upsert review
+    const { data: existingReview } = await supabaseAdmin
+      .from("reviews")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("caravan_id", data.caravanId)
+      .maybeSingle();
+
+    if (existingReview) {
+      const { error: upErr } = await supabaseAdmin
+        .from("reviews")
+        .update({
+          rating: data.rating,
+          comment: data.comment || null,
+          status: "published",
+        } as never)
+        .eq("id", existingReview.id);
+      if (upErr) throw new Error(upErr.message);
+    } else {
+      const { error: inErr } = await supabaseAdmin.from("reviews").insert({
+        user_id: context.userId,
+        caravan_id: data.caravanId,
+        organizer_id: caravan.organizer_id,
+        rating: data.rating,
+        comment: data.comment || null,
+        status: "published",
+      } as never);
+      if (inErr) throw new Error(inErr.message);
+    }
+
+    // 4. Recalculate and update organizer's rating in database
+    const { data: allReviews } = await supabaseAdmin
+      .from("reviews")
+      .select("rating")
+      .eq("organizer_id", caravan.organizer_id)
+      .eq("status", "published");
+
+    if (allReviews && allReviews.length > 0) {
+      const avg =
+        Math.round(
+          (allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length) * 10,
+        ) / 10;
+      await supabaseAdmin
+        .from("organizers")
+        .update({ rating: avg } as never)
+        .eq("id", caravan.organizer_id);
+    }
+
+    return { ok: true, message: "Avis enregistré avec succès !" };
+  });
+
+export const getCaravanReviews = createServerFn({ method: "GET" })
+  .validator((d: { caravanId: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      if (!data?.caravanId) return { reviews: [], total: 0, average: 5.0 };
+
+      const { createPublicClient } = await import("@/lib/supabase-public.server");
+      const client = createPublicClient();
+
+      // Fetch caravan to get organizer
+      const { data: caravan } = await client
+        .from("caravans")
+        .select("id, organizer_id")
+        .eq("id", data.caravanId)
+        .maybeSingle();
+
+      if (!caravan) return { reviews: [], total: 0, average: 5.0 };
+
+      // Fetch published reviews for this organizer
+      const { data: reviews } = await client
+        .from("reviews")
+        .select("id, rating, comment, created_at, user_id, caravan_id, caravans(from_label, to_label)")
+        .eq("organizer_id", caravan.organizer_id)
+        .eq("status", "published")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const userIds = [...new Set((reviews ?? []).map((r) => r.user_id))];
+      let profiles: { id: string; full_name: string | null }[] = [];
+      if (userIds.length > 0) {
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const res = await supabaseAdmin.from("profiles").select("id, full_name").in("id", userIds);
+          if (res.data) profiles = res.data;
+        } catch (_) {}
+      }
+
+      const formatted = (reviews ?? []).map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment ?? "",
+        createdAt: r.created_at,
+        author: profiles?.find((p) => p.id === r.user_id)?.full_name ?? "Étudiant voyageur",
+        route: r.caravans ? `${(r.caravans as any).from_label} → ${(r.caravans as any).to_label}` : "",
+        isThisCaravan: r.caravan_id === data.caravanId,
+      }));
+
+      const avg =
+        formatted.length > 0
+          ? Math.round(
+              (formatted.reduce((sum, r) => sum + r.rating, 0) / formatted.length) * 10,
+            ) / 10
+          : 5.0;
+
+      return {
+        reviews: formatted,
+        total: formatted.length,
+        average: avg,
+      };
+    } catch (_) {
+      return { reviews: [], total: 0, average: 5.0 };
+    }
+  });
+
+export const listOrganizers = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { createPublicClient } = await import("@/lib/supabase-public.server");
+    const { data, error } = await createPublicClient()
+      .from("organizers")
+      .select(`
+        id, name, description, logo_url, slogan, rating, status,
+        caravans(id, status, is_hidden)
+      `)
+      .eq("status", "approved")
+      .order("name", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return (data ?? []).map((org) => {
+      const activeCaravans = org.caravans?.filter(c => c.status === "published" && !c.is_hidden).length || 0;
+      return {
+        id: org.id,
+        name: org.name,
+        description: org.description,
+        logoUrl: org.logo_url,
+        slogan: org.slogan,
+        rating: org.rating,
+        activeCaravansCount: activeCaravans
+      };
+    });
+  }
+);
+
+export const getOrganizer = createServerFn({ method: "GET" })
+  .validator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const { createPublicClient } = await import("@/lib/supabase-public.server");
+    const { data: org, error } = await createPublicClient()
+      .from("organizers")
+      .select(`
+        id, name, description, logo_url, slogan, support_phone, rating, status,
+        caravans(
+          id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa,
+          total_seats, seats_left, status, is_hidden, image_url, amenities, about,
+          organizer_id, organizers(id, name, logo_url)
+        )
+      `)
+      .eq("id", data.id)
+      .eq("status", "approved")
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!org) return null;
+
+    const caravans = (org.caravans ?? [])
+      .filter((c: any) => c.status === "published" && !c.is_hidden)
+      .map((c: any) => mapCaravan(c as never))
+      .sort((a, b) => new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime());
+
+    return {
+      id: org.id,
+      name: org.name,
+      description: org.description,
+      logoUrl: org.logo_url,
+      slogan: org.slogan,
+      supportPhone: org.support_phone,
+      rating: org.rating,
+      caravans,
+    };
   });

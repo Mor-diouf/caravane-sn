@@ -162,6 +162,15 @@ function AdminBell() {
       detail: d.subject,
       time: dateFr(d.createdAt),
     })),
+    ...(overview.data?.recentPayouts ?? [])
+      .filter((p) => p.status === "requested")
+      .map((p) => ({
+        id: `pay-${p.id}`,
+        tone: "info" as const,
+        title: "Demande de retrait",
+        detail: `${p.organizer} - ${p.amount} FCFA`,
+        time: dateFr(p.requestedAt),
+      })),
   ];
 
   return (

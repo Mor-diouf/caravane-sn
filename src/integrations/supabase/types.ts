@@ -50,6 +50,8 @@ export type Database = {
           caravan_id: string
           created_at: string
           id: string
+          payer_phone: string | null
+          passenger_name: string | null
           reference: string
           seats: number
           status: Database["public"]["Enums"]["booking_status"]
@@ -61,6 +63,8 @@ export type Database = {
           caravan_id: string
           created_at?: string
           id?: string
+          payer_phone?: string | null
+          passenger_name?: string | null
           reference: string
           seats?: number
           status?: Database["public"]["Enums"]["booking_status"]
@@ -72,6 +76,8 @@ export type Database = {
           caravan_id?: string
           created_at?: string
           id?: string
+          payer_phone?: string | null
+          passenger_name?: string | null
           reference?: string
           seats?: number
           status?: Database["public"]["Enums"]["booking_status"]
@@ -100,6 +106,7 @@ export type Database = {
           image_url: string | null
           is_hidden: boolean
           organizer_id: string
+          payment_link: string | null
           pickup: string
           price_fcfa: number
           seats_left: number
@@ -120,6 +127,7 @@ export type Database = {
           image_url?: string | null
           is_hidden?: boolean
           organizer_id: string
+          payment_link?: string | null
           pickup: string
           price_fcfa: number
           seats_left: number
@@ -140,6 +148,7 @@ export type Database = {
           image_url?: string | null
           is_hidden?: boolean
           organizer_id?: string
+          payment_link?: string | null
           pickup?: string
           price_fcfa?: number
           seats_left?: number
@@ -727,7 +736,7 @@ export type Database = {
     Enums: {
       app_role: "student" | "organizer" | "admin"
       booking_status: "pending" | "confirmed" | "cancelled" | "refunded"
-      caravan_status: "draft" | "published" | "full" | "completed" | "cancelled"
+      caravan_status: "draft" | "pending" | "published" | "full" | "completed" | "cancelled"
       dispute_status: "open" | "investigating" | "resolved" | "rejected"
       organizer_status: "pending" | "approved" | "suspended" | "rejected"
       payment_method: "wave" | "orange" | "free"
@@ -865,7 +874,7 @@ export const Constants = {
     Enums: {
       app_role: ["student", "organizer", "admin"],
       booking_status: ["pending", "confirmed", "cancelled", "refunded"],
-      caravan_status: ["draft", "published", "full", "completed", "cancelled"],
+      caravan_status: ["draft", "pending", "published", "full", "completed", "cancelled"],
       dispute_status: ["open", "investigating", "resolved", "rejected"],
       organizer_status: ["pending", "approved", "suspended", "rejected"],
       payment_method: ["wave", "orange", "free"],

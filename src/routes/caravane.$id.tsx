@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CalendarDays,
@@ -25,8 +25,8 @@ import {
 import { PaymentMark } from "@/components/PaymentMark";
 import { UniversityMark } from "@/components/UniversityMark";
 import { formatPrice, seatTone } from "@/lib/student-shared";
-import { caravanQuery, universitiesQuery } from "@/lib/student-queries";
-import { createBooking } from "@/lib/student.functions";
+import { caravanQuery, caravanReviewsQuery, universitiesQuery } from "@/lib/student-queries";
+import { createBooking, initiateWavePayment } from "@/lib/student.functions";
 import { useStudentFavorites } from "@/hooks/use-student-favorites";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -78,8 +78,6 @@ const amenityMap = {
 
 const methods = [
   { id: "wave", label: "Wave", hint: "Instantané" },
-  { id: "orange", label: "Orange Money", hint: "Code OTP" },
-  { id: "free", label: "Free Money", hint: "USSD" },
 ] as const;
 
 type Method = (typeof methods)[number]["id"];
@@ -94,7 +92,11 @@ function CaravaneDetail() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<Method>("wave");
-  const [seats, setSeats] = useState(1);
+  const [payerPhone, setPayerPhone] = useState("");
+  const [forFriend, setForFriend] = useState(false);
+  const [friendFirstName, setFriendFirstName] = useState("");
+  const [friendLastName, setFriendLastName] = useState("");
+  const seats = 1;
 
   const caravane = data!;
   const favorite = favorites.includes(caravane.id);
@@ -102,17 +104,24 @@ function CaravaneDetail() {
   const total = caravane.price * seats;
   const university = universities.find((u) => u.id === caravane.universityId);
 
+  const { data: reviewsData } = useQuery(caravanReviewsQuery(caravane.id));
+  const reviews: any[] = reviewsData?.reviews ?? [];
+  const avgRating = reviewsData?.average ?? caravane.rating;
+  const totalReviews = reviewsData?.total ?? 0;
+
   const booking = useMutation({
-    // Mode Test Temporaire : Simulation du paiement
-    mutationFn: () =>
-      createBooking({ data: { caravanId: caravane.id, seats, method } }),
-    onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      await queryClient.invalidateQueries({ queryKey: ["caravans"] });
-      await queryClient.invalidateQueries({ queryKey: ["caravan", caravane.id] });
+    mutationFn: () => {
+      const passengerName = forFriend ? `${friendFirstName.trim()} ${friendLastName.trim()}`.trim() : undefined;
+      return initiateWavePayment({ data: { caravanId: caravane.id, seats: 1, payerPhone, passengerName } });
+    },
+    onSuccess: (res) => {
       setOpen(false);
-      // Rediriger avec le succès pour déclencher les confettis !
-      window.location.href = `/billets?payment=success&ref=${result.reference}`;
+      if (res.redirectUrl) {
+        window.location.href = res.redirectUrl;
+      } else {
+        toast.success("Réservation confirmée avec succès !");
+        navigate({ to: "/billets" });
+      }
     },
     onError: (error) =>
       toast.error("Paiement impossible", {
@@ -179,7 +188,15 @@ function CaravaneDetail() {
       <main className="mx-auto -mt-4 max-w-3xl space-y-4 px-5">
         <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
           <div className="flex items-start gap-4">
-            <UniversityMark abbr={caravane.from} active className="size-14 shrink-0" />
+            {caravane.organizerLogoUrl ? (
+              <img
+                src={caravane.organizerLogoUrl}
+                alt={caravane.organizer}
+                className="size-14 shrink-0 rounded-full border border-border/60 bg-white object-contain p-1 shadow-sm"
+              />
+            ) : (
+              <UniversityMark abbr={caravane.from} active className="size-14 shrink-0" />
+            )}
             <div className="min-w-0 flex-1">
               {university && (
                 <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -234,14 +251,27 @@ function CaravaneDetail() {
         </section>
 
         <section className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
-          <UniversityMark abbr={caravane.from} showAbbr={false} className="size-11 shrink-0" />
+          {caravane.organizerLogoUrl ? (
+            <img
+              src={caravane.organizerLogoUrl}
+              alt={caravane.organizer}
+              className="size-12 rounded-2xl border border-border/60 bg-white object-contain p-1 shadow-sm"
+            />
+          ) : (
+            <UniversityMark abbr={caravane.from} showAbbr={false} className="size-12 shrink-0" />
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-muted-foreground">Organisé par</p>
-            <p className="truncate text-sm font-bold">{caravane.organizer}</p>
+            <p className="truncate text-sm font-extrabold">{caravane.organizer}</p>
+            {caravane.organizerSlogan && (
+              <p className="truncate text-[11px] italic text-muted-foreground">
+                "{caravane.organizerSlogan}"
+              </p>
+            )}
           </div>
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
-            {caravane.rating.toFixed(1)}
-            <Star className="size-3 fill-current" />
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-black text-primary-foreground shadow-sm">
+            {avgRating.toFixed(1)}
+            <Star className="size-3.5 fill-current" />
           </span>
         </section>
 
@@ -273,6 +303,73 @@ function CaravaneDetail() {
             )}
           </section>
         )}
+        {/* ── Section Avis & Réputation des Étudiants ── */}
+        <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-extrabold tracking-tight">Avis & Expériences</h2>
+              <p className="text-xs text-muted-foreground">
+                {totalReviews > 0
+                  ? `${totalReviews} avis vérifié${totalReviews > 1 ? "s" : ""} d'étudiants`
+                  : "Nouveau transporteur certifié"}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 rounded-2xl bg-amber-500/10 px-3 py-1.5 text-amber-600 dark:text-amber-400 font-extrabold text-sm">
+              <Star className="size-4 fill-current" />
+              <span>{avgRating.toFixed(1)} / 5</span>
+            </div>
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="mt-4 rounded-2xl bg-muted/40 p-4 text-center text-xs text-muted-foreground">
+              <p>Aucun avis publié pour le moment.</p>
+              <p className="mt-1 font-medium text-foreground">
+                Soyez parmi les premiers à voyager avec cette caravane et partagez votre expérience !
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {reviews.map((r) => (
+                <li key={r.id} className="rounded-2xl border border-border/60 bg-muted/20 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                        {r.author.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-xs font-bold">{r.author}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={cn(
+                            "size-3",
+                            i < r.rating
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-muted-foreground/30"
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {r.comment && (
+                    <p className="text-xs leading-relaxed text-muted-foreground italic">
+                      "{r.comment}"
+                    </p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70">
+                    {r.route ? `${r.route} • ` : ""}
+                    {new Date(r.createdAt).toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-surface-blur px-5 py-4 backdrop-blur-xl">
@@ -297,9 +394,9 @@ function CaravaneDetail() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl sm:max-w-md">
+        <DialogContent className="rounded-3xl sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-extrabold">Paiement PayTech</DialogTitle>
+            <DialogTitle className="text-lg font-extrabold">Confirmation de réservation</DialogTitle>
             <DialogDescription>
               {caravane.from} → {caravane.to} • {caravane.date}
             </DialogDescription>
@@ -307,29 +404,44 @@ function CaravaneDetail() {
 
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-2xl bg-muted/60 p-3 text-sm">
-              <span className="font-medium">Places</span>
-              <span className="flex items-center gap-3">
-                <button
-                  type="button"
-                  aria-label="Retirer une place"
-                  onClick={() => setSeats((s) => Math.max(1, s - 1))}
-                  className="grid size-8 place-items-center rounded-full border border-border bg-card font-bold"
-                >
-                  −
-                </button>
-                <span className="w-4 text-center font-bold">{seats}</span>
-                <button
-                  type="button"
-                  aria-label="Ajouter une place"
-                  onClick={() =>
-                    setSeats((s) => Math.min(Math.min(caravane.seatsLeft, 6), s + 1))
-                  }
-                  className="grid size-8 place-items-center rounded-full border border-border bg-card font-bold"
-                >
-                  +
-                </button>
-              </span>
+              <span className="font-medium">Place(s)</span>
+              <span className="font-bold">1 place</span>
             </div>
+
+            <label className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm font-medium cursor-pointer transition-colors hover:bg-muted/40">
+              <input 
+                type="checkbox" 
+                checked={forFriend} 
+                onChange={(e) => setForFriend(e.target.checked)}
+                className="size-4 rounded-sm border-border text-primary-accent focus:ring-primary-accent"
+              />
+              Réserver pour une autre personne
+            </label>
+
+            {forFriend && (
+              <div className="grid grid-cols-2 gap-3 rounded-2xl bg-muted/30 p-3 border border-border/50">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Prénom</label>
+                  <input
+                    type="text"
+                    placeholder="Moussa"
+                    value={friendFirstName}
+                    onChange={(e) => setFriendFirstName(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-accent"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Nom</label>
+                  <input
+                    type="text"
+                    placeholder="Sarr"
+                    value={friendLastName}
+                    onChange={(e) => setFriendLastName(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-accent"
+                  />
+                </div>
+              </div>
+            )}
 
             <ul className="space-y-2">
               {methods.map((m) => (
@@ -369,6 +481,24 @@ function CaravaneDetail() {
               ))}
             </ul>
 
+            {method === "wave" && (
+              <div className="space-y-3 pt-2">
+                <div className="rounded-xl bg-danger/10 p-3 text-xs font-medium text-danger border border-danger/20 leading-relaxed">
+                  <span className="font-bold">⚠️ ATTENTION :</span> Le numéro saisi ci-dessous DOIT être le numéro avec lequel vous allez effectuer le transfert sur Wave. Sinon, votre billet ne sera pas généré automatiquement.
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Numéro de téléphone Wave</label>
+                  <input
+                    type="tel"
+                    placeholder="77 123 45 67"
+                    value={payerPhone}
+                    onChange={(e) => setPayerPhone(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-accent"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between border-t border-border pt-3">
               <span className="text-sm font-medium text-muted-foreground">À payer</span>
               <span className="text-lg font-extrabold text-primary-accent">
@@ -378,14 +508,14 @@ function CaravaneDetail() {
 
             <button
               type="button"
-              disabled={booking.isPending}
+              disabled={booking.isPending || (method === "wave" && payerPhone.length < 9) || (forFriend && (!friendFirstName || !friendLastName))}
               onClick={() => booking.mutate()}
-              className="w-full rounded-2xl bg-gradient-primary py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-70"
+              className="w-full rounded-2xl bg-gradient-primary py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-50"
             >
-              {booking.isPending ? "Paiement en cours…" : "Confirmer le paiement"}
+              {booking.isPending ? "Paiement en cours…" : "Continuer vers le paiement"}
             </button>
             <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-              <ShieldCheck className="size-3.5" /> Transaction chiffrée via PayTech
+              <ShieldCheck className="size-3.5" /> Transaction 100% sécurisée
             </p>
           </div>
         </DialogContent>

@@ -37,48 +37,36 @@ export async function findOrganizerId(supabase: Client, userId: string) {
 }
 
 export async function requireOrganizerId(supabase: Client, userId: string) {
-  let id = await findOrganizerId(supabase, userId);
-  if (!id) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", userId)
-        .maybeSingle();
+  const owned = await supabase
+    .from("organizers")
+    .select("id, status")
+    .eq("owner_id", userId)
+    .maybeSingle();
 
-      const name = profile?.full_name ? `Amicale (${profile.full_name})` : "Mon amicale";
-
-      const { data: created, error } = await supabaseAdmin
-        .from("organizers")
-        .insert({
-          owner_id: userId,
-          name,
-          status: "approved",
-          is_pro: true,
-          commission_rate: 8.00,
-        } as never)
-        .select("id")
-        .maybeSingle();
-
-      if (!error && created?.id) {
-        return created.id;
-      }
-
-      const { data: firstOrg } = await supabaseAdmin
-        .from("organizers")
-        .select("id")
-        .limit(1)
-        .maybeSingle();
-
-      if (firstOrg?.id) return firstOrg.id;
-    } catch {
-      // Ignore fallback errors and throw default message
+  if (owned.data) {
+    if (owned.data.status !== "approved") {
+      throw new Error("Votre espace organisateur n'a pas encore été validé par l'administration.");
     }
-
-    throw new Error("Aucun espace organisateur associé à ce compte");
+    return owned.data.id;
   }
-  return id;
+
+  const member = await supabase
+    .from("organizer_members")
+    .select("organizer_id, organizers(status)")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (member.data) {
+    // TypeScript doesn't know organizers(status) shape easily without strict types here
+    const status = (member.data.organizers as any)?.status;
+    if (status !== "approved") {
+      throw new Error("L'espace organisateur auquel vous appartenez n'est pas validé.");
+    }
+    return member.data.organizer_id;
+  }
+
+  throw new Error("Aucun espace organisateur associé à ce compte");
 }
 
 export function monthKey(iso: string) {

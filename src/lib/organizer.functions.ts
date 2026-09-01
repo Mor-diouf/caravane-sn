@@ -134,7 +134,7 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
         about: z.string().max(1000).optional(),
         image_url: z.string().url().optional(),
         university_id: z.string().max(40).optional(),
-        status: z.enum(["draft", "published", "full", "completed", "cancelled"]).default("draft"),
+        status: z.enum(["draft", "pending", "published", "full", "completed", "cancelled"]).default("draft"),
       })
       .parse(d),
   )
@@ -143,6 +143,10 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
     const supabase = context.supabase;
     const organizerId = await requireOrganizerId(supabase, context.userId);
     const { id, ...fields } = data;
+
+    if (fields.status === "published" || fields.status === "full") {
+      throw new Error("Seul un administrateur peut publier une caravane.");
+    }
 
     if (id) {
       const { error } = await supabase
@@ -173,7 +177,7 @@ export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
     z
       .object({
         caravanId: z.string().uuid(),
-        status: z.enum(["draft", "published", "full", "completed", "cancelled"]).optional(),
+        status: z.enum(["draft", "pending", "published", "full", "completed", "cancelled"]).optional(),
         hidden: z.boolean().optional(),
       })
       .parse(d),
@@ -183,7 +187,12 @@ export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
     const supabase = context.supabase;
     const organizerId = await requireOrganizerId(supabase, context.userId);
     const patch: Record<string, unknown> = {};
-    if (data.status) patch['status'] = data.status;
+    if (data.status) {
+      if (data.status === "published" || data.status === "full") {
+        throw new Error("Seul un administrateur peut publier une caravane.");
+      }
+      patch['status'] = data.status;
+    }
     if (typeof data.hidden === "boolean") patch['is_hidden'] = data.hidden;
     const { error } = await supabase
       .from("caravans")
@@ -203,7 +212,7 @@ export const organizerListBookings = createServerFn({ method: "GET" })
 
     const caravans = await supabase
       .from("caravans")
-      .select("id, from_label, to_label, departure_at")
+      .select("id, from_label, to_label, departure_at, university_id, universities(name, abbr)")
       .eq("organizer_id", organizerId);
     if (caravans.error) throw new Error(caravans.error.message);
     const ids = (caravans.data ?? []).map((c) => c.id);
@@ -212,7 +221,7 @@ export const organizerListBookings = createServerFn({ method: "GET" })
     const [bookings, tickets] = await Promise.all([
       supabase
         .from("bookings")
-        .select("id, caravan_id, user_id, seats, amount_fcfa, reference, status, created_at")
+        .select("id, caravan_id, user_id, reference, status, seats, created_at, amount_fcfa, passenger_name, payer_phone")
         .in("caravan_id", ids)
         .order("created_at", { ascending: false }),
       supabase.from("tickets").select("booking_id, status, checked_in_at, qr_code"),
@@ -220,8 +229,9 @@ export const organizerListBookings = createServerFn({ method: "GET" })
     for (const r of [bookings, tickets]) if (r.error) throw new Error(r.error.message);
 
     const userIds = [...new Set((bookings.data ?? []).map((b) => b.user_id))];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const profiles = userIds.length
-      ? (await supabase.from("profiles").select("id, full_name, phone, email").in("id", userIds))
+      ? (await supabaseAdmin.from("profiles").select("id, full_name, phone, email, university_id, universities(name, abbr)").in("id", userIds))
           .data ?? []
       : [];
 
@@ -234,16 +244,20 @@ export const organizerListBookings = createServerFn({ method: "GET" })
       );
 
     return (bookings.data ?? []).map((b) => {
-      const caravan = caravans.data?.find((c) => c.id === b.caravan_id);
+      const caravan = (caravans.data ?? []).find((c) => c.id === b.caravan_id);
       const profile = profiles.find((p) => p.id === b.user_id);
-      const ticket = tickets.data?.find((t) => t.booking_id === b.id);
-      const payment = payments.data?.find((p) => p.booking_id === b.id);
+      const ticket = (tickets.data ?? []).find((t) => t.booking_id === b.id);
+      const payment = (payments.data ?? []).find((p) => p.booking_id === b.id);
+      
+      const uniName = (profile?.universities as any)?.abbr || (profile?.universities as any)?.name || (caravan?.universities as any)?.abbr || caravan?.from_label || "—";
+
       return {
         id: b.id,
         reference: b.reference,
-        student: profile?.full_name || "Étudiant",
-        phone: profile?.phone ?? "—",
+        student: b.passenger_name || profile?.full_name || "Étudiant",
+        phone: b.payer_phone || profile?.phone || "—",
         email: profile?.email ?? "—",
+        university: uniName,
         route: caravan ? `${caravan.from_label} → ${caravan.to_label}` : "—",
         departureAt: caravan?.departure_at ?? null,
         caravanId: b.caravan_id,
@@ -282,31 +296,81 @@ export const organizerSetBookingStatus = createServerFn({ method: "POST" })
 
 export const organizerScanTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d) => z.object({ code: z.string().min(3).max(80) }).parse(d))
+  .validator((d) => z.object({ 
+    code: z.string().min(3).max(80),
+    targetCaravanId: z.string().optional()
+  }).parse(d))
   .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { requireOrganizerId } = await import("@/lib/dash.server");
     const supabase = context.supabase;
-    const code = data.code.trim().toUpperCase();
+    const organizerId = await requireOrganizerId(supabase, context.userId);
 
-    const { data: ticket, error } = await supabase
+    const rawCode = data.code.trim();
+    const cleanCode = rawCode.toLowerCase();
+    const upperRef = rawCode.toUpperCase();
+
+    // 1. Try finding by qr_code exact match or ilike
+    let { data: ticket } = await supabaseAdmin
       .from("tickets")
       .select(
-        `id, status, checked_in_at, qr_code,
-         bookings(reference, seats, status, user_id, caravans(from_label, to_label, departure_at, organizer_id))`,
+        `id, status, checked_in_at, qr_code, booking_id,
+         bookings(id, reference, seats, status, user_id, passenger_name, caravan_id, caravans(from_label, to_label, departure_at, organizer_id, organizers(name)))`
       )
-      .or(`qr_code.eq.${code},qr_code.ilike.%${code}%`)
+      .eq("qr_code", cleanCode)
       .limit(1)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+
+    // 2. If not found by qr_code, try by ticket id (if valid UUID)
+    if (!ticket && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode)) {
+      const { data: byId } = await supabaseAdmin
+        .from("tickets")
+        .select(
+          `id, status, checked_in_at, qr_code, booking_id,
+           bookings(id, reference, seats, status, user_id, passenger_name, caravan_id, caravans(from_label, to_label, departure_at, organizer_id, organizers(name)))`
+        )
+        .eq("id", rawCode)
+        .limit(1)
+        .maybeSingle();
+      if (byId) ticket = byId;
+    }
+
+    // 3. If still not found, search by booking reference
+    if (!ticket) {
+      const { data: byRef } = await supabaseAdmin
+        .from("bookings")
+        .select(
+          `id, reference, seats, status, user_id, passenger_name, caravan_id, caravans(from_label, to_label, departure_at, organizer_id, organizers(name)),
+           tickets(id, status, checked_in_at, qr_code)`
+        )
+        .ilike("reference", upperRef)
+        .limit(1)
+        .maybeSingle();
+
+      if (byRef && byRef.tickets && (byRef.tickets as any[]).length > 0) {
+        const t = (byRef.tickets as any[])[0];
+        ticket = {
+          id: t.id,
+          status: t.status,
+          checked_in_at: t.checked_in_at,
+          qr_code: t.qr_code,
+          booking_id: byRef.id,
+          bookings: byRef as any,
+        };
+      }
+    }
+
     if (!ticket) return { result: "unknown" as const, message: "Billet introuvable" };
 
-    const booking = ticket.bookings;
+    const booking = (ticket as any).bookings;
     const profile = booking?.user_id
-      ? (await supabase.from("profiles").select("full_name").eq("id", booking.user_id).maybeSingle())
+      ? (await supabaseAdmin.from("profiles").select("full_name").eq("id", booking.user_id).maybeSingle())
           .data
       : null;
+
     const info = {
       reference: booking?.reference ?? "—",
-      student: profile?.full_name ?? "Étudiant",
+      student: booking?.passenger_name || profile?.full_name || "Étudiant",
       seats: booking?.seats ?? 1,
       route: booking?.caravans
         ? `${booking.caravans.from_label} → ${booking.caravans.to_label}`
@@ -314,12 +378,29 @@ export const organizerScanTicket = createServerFn({ method: "POST" })
       departureAt: booking?.caravans?.departure_at ?? null,
     };
 
+    if (booking?.caravans?.organizer_id && booking.caravans.organizer_id !== organizerId) {
+      const otherOrgName = booking.caravans.organizers?.name || "un autre organisateur";
+      return { 
+        result: "wrong_caravan" as const, 
+        message: `Billet refusé : Réservé chez ${otherOrgName}`,
+        ...info 
+      };
+    }
+
+    if (data.targetCaravanId && booking?.caravan_id && booking.caravan_id !== data.targetCaravanId) {
+      return { 
+        result: "wrong_caravan" as const, 
+        message: `Billet refusé : Réservé pour la caravane ${booking.caravans.from_label} → ${booking.caravans.to_label}`,
+        ...info 
+      };
+    }
+
     if (ticket.status === "used")
       return { result: "used" as const, message: "Billet déjà scanné", ...info };
     if (ticket.status === "void" || booking?.status === "cancelled" || booking?.status === "refunded")
       return { result: "void" as const, message: "Billet annulé", ...info };
 
-    const { error: upErr } = await supabase
+    const { error: upErr } = await supabaseAdmin
       .from("tickets")
       .update({
         status: "used",
@@ -327,6 +408,7 @@ export const organizerScanTicket = createServerFn({ method: "POST" })
         checked_in_by: context.userId,
       } as never)
       .eq("id", ticket.id);
+
     if (upErr) throw new Error(upErr.message);
 
     return { result: "valid" as const, message: "Embarquement validé", ...info };
@@ -344,7 +426,7 @@ export const organizerPayments = createServerFn({ method: "GET" })
       supabase.from("caravans").select("id, from_label, to_label").eq("organizer_id", organizerId),
       supabase
         .from("payouts")
-        .select("id, amount_fcfa, method, status, requested_at, processed_at")
+        .select("id, amount_fcfa, method, status, requested_at, processed_at, caravan_id")
         .eq("organizer_id", organizerId)
         .order("requested_at", { ascending: false }),
     ]);
@@ -371,8 +453,9 @@ export const organizerPayments = createServerFn({ method: "GET" })
         ).data ?? []
       : [];
     const userIds = [...new Set(bookings.map((b) => b.user_id))];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const profiles = userIds.length
-      ? (await supabase.from("profiles").select("id, full_name").in("id", userIds)).data ?? []
+      ? (await supabaseAdmin.from("profiles").select("id, full_name").in("id", userIds)).data ?? []
       : [];
 
     const commissionRate = Number(org.data?.commission_rate ?? 0.08);
@@ -397,15 +480,46 @@ export const organizerPayments = createServerFn({ method: "GET" })
     const byMethod = new Map<string, number>();
     for (const r of paid) byMethod.set(r.method, (byMethod.get(r.method) ?? 0) + r.amount);
 
+    const caravanBalances = (caravans.data ?? []).map((c) => {
+      const cBookings = bookings.filter((b) => b.caravan_id === c.id);
+      const cPayments = payments.filter((p) => cBookings.some((b) => b.id === p.booking_id && p.status === "paid"));
+      const cGross = cPayments.reduce((a, p) => a + p.amount_fcfa, 0);
+      const cCommission = cPayments.reduce((a, p) => a + p.commission_fcfa, 0);
+      const cNet = cGross - cCommission;
+      
+      const cPayouts = (payouts.data ?? []).filter((p) => p.caravan_id === c.id);
+      const cPendingPayouts = cPayouts
+        .filter((p) => p.status === "requested" || p.status === "approved")
+        .reduce((a, p) => a + p.amount_fcfa, 0);
+      const cPaidPayouts = cPayouts
+        .filter((p) => p.status === "paid")
+        .reduce((a, p) => a + p.amount_fcfa, 0);
+        
+      const available = cNet - cPendingPayouts - cPaidPayouts;
+
+      return {
+        id: c.id,
+        route: `${c.from_label} → ${c.to_label}`,
+        gross: cGross,
+        commission: cCommission,
+        net: cNet,
+        pendingPayouts: cPendingPayouts,
+        paidPayouts: cPaidPayouts,
+        available,
+      };
+    });
+
     return {
       commissionRate,
       totals: {
         gross: paid.reduce((a, r) => a + r.amount, 0),
         commission: paid.reduce((a, r) => a + r.commission, 0),
         net: paid.reduce((a, r) => a + r.net, 0),
+        available: caravanBalances.reduce((a, c) => a + c.available, 0),
         pending: rows.filter((r) => r.status === "pending").reduce((a, r) => a + r.amount, 0),
       },
       byMethod: [...byMethod.entries()].map(([method, amount]) => ({ method, amount })),
+      caravanBalances,
       payments: rows.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "")),
       payouts: (payouts.data ?? []).map((p) => ({
         id: p.id,
@@ -414,6 +528,10 @@ export const organizerPayments = createServerFn({ method: "GET" })
         status: p.status,
         requestedAt: p.requested_at,
         processedAt: p.processed_at,
+        caravanId: p.caravan_id,
+        caravanRoute: caravans.data?.find((c) => c.id === p.caravan_id)
+          ? `${caravans.data.find((c) => c.id === p.caravan_id)!.from_label} → ${caravans.data.find((c) => c.id === p.caravan_id)!.to_label}`
+          : "—",
       })),
     };
   });
@@ -423,6 +541,7 @@ export const organizerRequestPayout = createServerFn({ method: "POST" })
   .validator((d) =>
     z
       .object({
+        caravanId: z.string().uuid(),
         amount: z.number().int().min(1000),
         method: z.enum(["wave", "orange", "free"]),
       })
@@ -434,6 +553,7 @@ export const organizerRequestPayout = createServerFn({ method: "POST" })
     const organizerId = await requireOrganizerId(supabase, context.userId);
     const { error } = await supabase.from("payouts").insert({
       organizer_id: organizerId,
+      caravan_id: data.caravanId,
       amount_fcfa: data.amount,
       method: data.method,
       status: "requested",
@@ -516,8 +636,9 @@ export const organizerReputation = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     const ids = [...new Set((data ?? []).map((r) => r.user_id))];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const profiles = ids.length
-      ? (await supabase.from("profiles").select("id, full_name").in("id", ids)).data ?? []
+      ? (await supabaseAdmin.from("profiles").select("id, full_name").in("id", ids)).data ?? []
       : [];
 
     const published = (data ?? []).filter((r) => r.status === "published");
@@ -563,8 +684,9 @@ export const organizerTeam = createServerFn({ method: "GET" })
     const ids = [
       ...new Set([...(members.data ?? []).map((m) => m.user_id), org.data?.owner_id].filter(Boolean)),
     ] as string[];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const profiles = ids.length
-      ? (await supabase.from("profiles").select("id, full_name, email, phone").in("id", ids)).data ??
+      ? (await supabaseAdmin.from("profiles").select("id, full_name, email, phone").in("id", ids)).data ??
         []
       : [];
 
@@ -667,6 +789,10 @@ export const organizerUpdateSettings = createServerFn({ method: "POST" })
         phone: z.string().max(40).optional(),
         whatsapp: z.string().max(40).optional(),
         university_id: z.string().max(40).optional(),
+        // Branding fields (King Bus 2.0 style)
+        logo_url: z.string().nullable().optional(),
+        slogan: z.string().max(200).nullable().optional(),
+        support_phone: z.string().max(40).nullable().optional(),
       })
       .parse(d),
   )

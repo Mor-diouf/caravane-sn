@@ -18,7 +18,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { KpiCard, PageHeader, Panel } from "@/components/organizer/ui";
 import { AdminButton, TonePill } from "@/components/admin/ui";
 import { adminFinanceQuery, adminOverviewQuery } from "@/lib/dash-queries";
-import { adminSetPayoutStatus } from "@/lib/admin.functions";
+import { adminSetPayoutStatus, adminCaravanBalances } from "@/lib/admin.functions";
 import { dateTimeFr, methodLabels } from "@/lib/dash-shared";
 import { PaymentMark } from "@/components/PaymentMark";
 import { fcfa } from "@/lib/organizer";
@@ -70,6 +70,10 @@ const payoutStatusLabels: Record<string, string> = {
 function FinancePage() {
   const { data: finance, isLoading } = useQuery(adminFinanceQuery());
   const { data: overview } = useQuery(adminOverviewQuery());
+  const { data: caravanBalances } = useQuery({
+    queryKey: ["admin", "caravanBalances"],
+    queryFn: () => adminCaravanBalances(),
+  });
 
   const payments = finance?.payments ?? [];
   const payouts = finance?.payouts ?? [];
@@ -225,11 +229,19 @@ function FinancePage() {
                 <li key={p.id} className="flex flex-wrap items-center gap-3 px-5 py-4">
                   <div className="min-w-40 flex-1">
                     <p className="text-sm font-bold">{p.organizer}</p>
+                    {p.caravanRoute && (
+                      <p className="mt-0.5 text-xs font-medium text-muted-foreground">{p.caravanRoute}</p>
+                    )}
                     <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                       {fcfa(p.amount)} &middot;
                       <PaymentMark method={p.method.toLowerCase() as any} className="h-6 w-auto min-w-[2.5rem] shadow-none border-none bg-transparent" />
                       &middot; {dateTimeFr(p.requestedAt)}
                     </p>
+                    {p.status === "requested" && p.availableBalance !== null && (
+                      <p className="mt-1 text-xs text-info font-medium">
+                        Solde disponible : {fcfa(p.availableBalance)}
+                      </p>
+                    )}
                   </div>
                   <TonePill
                     tone={p.status === "paid" ? "success" : p.status === "approved" ? "info" : "warning"}
@@ -282,6 +294,39 @@ function FinancePage() {
                           {paymentStatusLabels[t.status] ?? t.status}
                         </TonePill>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <div className="mt-4">
+        <Panel title="Soldes par Caravane (Vue globale)" bodyClassName="p-0">
+          {!caravanBalances || caravanBalances.length === 0 ? (
+            <p className="px-5 py-8 text-center text-xs text-muted-foreground">Aucune caravane disponible.</p>
+          ) : (
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full min-w-[700px] text-sm">
+                <thead className="sticky top-0 bg-card z-10">
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="px-5 py-3 font-bold">Trajet</th>
+                    <th className="px-5 py-3 font-bold">Organisateur</th>
+                    <th className="px-5 py-3 font-bold text-right">Net généré</th>
+                    <th className="px-5 py-3 font-bold text-right">Retraits (Payés)</th>
+                    <th className="px-5 py-3 font-bold text-right">Solde disponible</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {caravanBalances.map((c) => (
+                    <tr key={c.id} className="transition-colors hover:bg-muted/30">
+                      <td className="px-5 py-3 font-medium text-xs">{c.route}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{c.organizer}</td>
+                      <td className="px-5 py-3 font-semibold text-right">{fcfa(c.net)}</td>
+                      <td className="px-5 py-3 text-right text-muted-foreground">{fcfa(c.paidPayouts)}</td>
+                      <td className="px-5 py-3 font-bold text-info text-right">{fcfa(c.available)}</td>
                     </tr>
                   ))}
                 </tbody>

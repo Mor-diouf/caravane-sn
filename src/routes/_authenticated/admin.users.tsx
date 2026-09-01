@@ -32,12 +32,13 @@ export const Route = createFileRoute("/_authenticated/admin/users")({
   component: UsersPage,
 });
 
-type Role = "student" | "organizer" | "admin";
+type Role = "student" | "organizer" | "pending_organizer" | "admin";
 type Filter = "all" | Role | "blocked";
 
 const roleLabels: Record<Role, string> = {
   student: "Étudiant",
   organizer: "Organisateur",
+  pending_organizer: "En attente org.",
   admin: "Administrateur",
 };
 
@@ -129,6 +130,7 @@ function UsersPage() {
           options={[
             { value: "all", label: "Tous" },
             { value: "student", label: "Étudiants" },
+            { value: "pending_organizer", label: "Org. en attente" },
             { value: "organizer", label: "Organisateurs" },
             { value: "blocked", label: "Bloqués" },
           ]}
@@ -163,7 +165,10 @@ function UsersPage() {
                       <div className="flex items-center gap-3">
                         <Avatar initials={initialsOf(u.name)} />
                         <div className="min-w-0">
-                          <p className="truncate font-semibold">{u.name}</p>
+                          <p className="truncate font-semibold">
+                            {u.name}
+                            {u.orgName && <span className="ml-2 text-xs font-normal text-muted-foreground">— {u.orgName}</span>}
+                          </p>
                           <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                         </div>
                       </div>
@@ -171,7 +176,13 @@ function UsersPage() {
                     <td className="px-5 py-3">
                       <TonePill
                         tone={
-                          u.role === "organizer" ? "success" : u.role === "admin" ? "info" : "neutral"
+                          u.role === "organizer"
+                            ? "success"
+                            : u.role === "admin"
+                              ? "info"
+                              : u.role === "pending_organizer"
+                                ? "warning"
+                                : "neutral"
                         }
                       >
                         {roleLabels[u.role]}

@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Bus, EyeOff, Eye, Loader2, Search } from "lucide-react";
+import { Bus, EyeOff, Eye, Loader2, Search, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { EmptyState, KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
 import { AdminButton, Tabs, TonePill, type Tone } from "@/components/admin/ui";
 import { adminCaravansQuery } from "@/lib/dash-queries";
-import { adminSetCaravanHidden } from "@/lib/admin.functions";
+import { adminSetCaravanHidden, adminUpdateCaravan } from "@/lib/admin.functions";
 import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, fmt, pct } from "@/lib/organizer";
 
@@ -32,11 +32,12 @@ export const Route = createFileRoute("/_authenticated/admin/caravans")({
   component: AdminCaravans,
 });
 
-type CaravanStatus = "draft" | "published" | "full" | "completed" | "cancelled";
+type CaravanStatus = "draft" | "pending" | "published" | "full" | "completed" | "cancelled";
 type Filter = "all" | CaravanStatus | "hidden";
 
 const statusLabels: Record<CaravanStatus, string> = {
   draft: "Brouillon",
+  pending: "En attente",
   published: "Publiée",
   full: "Complète",
   completed: "Terminée",
@@ -45,6 +46,7 @@ const statusLabels: Record<CaravanStatus, string> = {
 
 const statusTone: Record<CaravanStatus, Tone> = {
   draft: "neutral",
+  pending: "warning",
   published: "success",
   full: "info",
   completed: "neutral",
@@ -55,14 +57,33 @@ function AdminCaravans() {
   const { data, isLoading } = useQuery(adminCaravansQuery());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [editingCaravan, setEditingCaravan] = useState<any>(null);
+  const [editForm, setEditForm] = useState({
+    from_label: "",
+    to_label: "",
+    departure_at: "",
+    price_fcfa: 0,
+    total_seats: 1,
+  });
 
   const queryClient = useQueryClient();
   const setHiddenFn = useServerFn(adminSetCaravanHidden);
+  const updateCaravanFn = useServerFn(adminUpdateCaravan);
+  
   const mutation = useMutation({
     mutationFn: (payload: { caravanId: string; hidden: boolean }) => setHiddenFn({ data: payload }),
     onSuccess: (_r, vars) => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success(vars.hidden ? "Caravane masquée du catalogue." : "Caravane republiée.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: { caravanId: string; status?: CaravanStatus; payment_link?: string; from_label?: string; to_label?: string; departure_at?: string; price_fcfa?: number; total_seats?: number }) => updateCaravanFn({ data: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("Caravane mise à jour avec succès.");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -130,6 +151,7 @@ function AdminCaravans() {
           onChange={setFilter}
           options={[
             { value: "all", label: "Toutes" },
+            { value: "pending", label: "En attente" },
             { value: "published", label: "Publiées" },
             { value: "full", label: "Complètes" },
             { value: "completed", label: "Terminées" },
@@ -182,7 +204,36 @@ function AdminCaravans() {
                       </TonePill>
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        {c.status === "pending" && (
+                          <AdminButton
+                            variant="primary"
+                            disabled={updateMutation.isPending}
+                            onClick={() => {
+                              const link = prompt("Entrez le lien de paiement Wave Business généré pour cette caravane :");
+                              if (link !== null) {
+                                updateMutation.mutate({ caravanId: c.id, status: "published", payment_link: link });
+                              }
+                            }}
+                          >
+                            <Eye className="size-3.5" /> Valider & Lien
+                          </AdminButton>
+                        )}
+                        <AdminButton
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingCaravan(c);
+                            setEditForm({
+                              from_label: c.fromLabel || "",
+                              to_label: c.toLabel || "",
+                              departure_at: c.departureAt ? new Date(c.departureAt).toISOString().slice(0, 16) : "",
+                              price_fcfa: c.price || 0,
+                              total_seats: c.capacity || 1,
+                            });
+                          }}
+                        >
+                          <Edit2 className="size-3.5" /> Éditer
+                        </AdminButton>
                         <AdminButton
                           variant={c.hidden ? "success" : "ghost"}
                           disabled={mutation.isPending}
@@ -209,6 +260,87 @@ function AdminCaravans() {
           </div>
         )}
       </Panel>
+
+      {editingCaravan && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <h2 className="mb-4 text-lg font-bold">Éditer la caravane</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">Départ</label>
+                <input
+                  type="text"
+                  value={editForm.from_label}
+                  onChange={(e) => setEditForm({ ...editForm, from_label: e.target.value })}
+                  className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">Destination</label>
+                <input
+                  type="text"
+                  value={editForm.to_label}
+                  onChange={(e) => setEditForm({ ...editForm, to_label: e.target.value })}
+                  className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-muted-foreground">Date et heure</label>
+                <input
+                  type="datetime-local"
+                  value={editForm.departure_at}
+                  onChange={(e) => setEditForm({ ...editForm, departure_at: e.target.value })}
+                  className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-muted-foreground">Prix (FCFA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editForm.price_fcfa}
+                    onChange={(e) => setEditForm({ ...editForm, price_fcfa: Number(e.target.value) })}
+                    className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-muted-foreground">Places totales</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editForm.total_seats}
+                    onChange={(e) => setEditForm({ ...editForm, total_seats: Number(e.target.value) })}
+                    className="h-9 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <AdminButton variant="ghost" onClick={() => setEditingCaravan(null)}>
+                Annuler
+              </AdminButton>
+              <AdminButton
+                variant="primary"
+                disabled={updateMutation.isPending}
+                onClick={() => {
+                  updateMutation.mutate({
+                    caravanId: editingCaravan.id,
+                    from_label: editForm.from_label,
+                    to_label: editForm.to_label,
+                    departure_at: editForm.departure_at ? new Date(editForm.departure_at).toISOString() : undefined,
+                    price_fcfa: editForm.price_fcfa,
+                    total_seats: editForm.total_seats,
+                  });
+                  setEditingCaravan(null);
+                }}
+              >
+                Enregistrer
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

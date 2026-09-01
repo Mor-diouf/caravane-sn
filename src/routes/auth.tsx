@@ -110,7 +110,7 @@ function AuthPage() {
         </div>
       </header>
 
-      <main className="mx-auto -mt-10 max-w-lg px-5 pb-16">
+      <main className="relative z-10 mx-auto -mt-10 max-w-lg px-5 pb-16">
         <div className="rounded-3xl border border-border/70 bg-card p-5 shadow-lifted">
           <div className="grid grid-cols-2 gap-1 rounded-2xl bg-accent p-1">
             {(["signin", "signup"] as const).map((value) => (

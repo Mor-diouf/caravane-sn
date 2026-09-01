@@ -18,6 +18,8 @@ import { Route as AuthenticatedFavorisRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedOrganizerRouteImport } from './routes/_authenticated/organizer'
 import { Route as AuthenticatedProfilRouteImport } from './routes/_authenticated/profil'
 import { Route as CaravaneIdRouteImport } from './routes/caravane.$id'
+import { Route as OrganisateursIndexRouteImport } from './routes/organisateurs/index'
+import { Route as OrganisateursIdRouteImport } from './routes/organisateurs/$id'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAnalyticsRouteImport } from './routes/_authenticated/admin.analytics'
 import { Route as AuthenticatedAdminCaravansRouteImport } from './routes/_authenticated/admin.caravans'
@@ -86,6 +88,16 @@ const AuthenticatedProfilRoute = AuthenticatedProfilRouteImport.update({
 const CaravaneIdRoute = CaravaneIdRouteImport.update({
   id: '/caravane/$id',
   path: '/caravane/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganisateursIndexRoute = OrganisateursIndexRouteImport.update({
+  id: '/organisateurs/',
+  path: '/organisateurs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganisateursIdRoute = OrganisateursIdRouteImport.update({
+  id: '/organisateurs/$id',
+  path: '/organisateurs/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -246,6 +258,8 @@ export interface FileRoutesByFullPath {
   '/organizer': typeof AuthenticatedOrganizerRouteWithChildren
   '/profil': typeof AuthenticatedProfilRoute
   '/caravane/$id': typeof CaravaneIdRoute
+  '/organisateurs/$id': typeof OrganisateursIdRoute
+  '/organisateurs/': typeof OrganisateursIndexRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/caravans': typeof AuthenticatedAdminCaravansRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
@@ -279,6 +293,8 @@ export interface FileRoutesByTo {
   '/favoris': typeof AuthenticatedFavorisRoute
   '/profil': typeof AuthenticatedProfilRoute
   '/caravane/$id': typeof CaravaneIdRoute
+  '/organisateurs/$id': typeof OrganisateursIdRoute
+  '/organisateurs': typeof OrganisateursIndexRoute
   '/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/admin/caravans': typeof AuthenticatedAdminCaravansRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
@@ -316,6 +332,8 @@ export interface FileRoutesById {
   '/_authenticated/organizer': typeof AuthenticatedOrganizerRouteWithChildren
   '/_authenticated/profil': typeof AuthenticatedProfilRoute
   '/caravane/$id': typeof CaravaneIdRoute
+  '/organisateurs/$id': typeof OrganisateursIdRoute
+  '/organisateurs/': typeof OrganisateursIndexRoute
   '/_authenticated/admin/analytics': typeof AuthenticatedAdminAnalyticsRoute
   '/_authenticated/admin/caravans': typeof AuthenticatedAdminCaravansRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
@@ -353,6 +371,8 @@ export interface FileRouteTypes {
     | '/organizer'
     | '/profil'
     | '/caravane/$id'
+    | '/organisateurs/$id'
+    | '/organisateurs/'
     | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
@@ -386,6 +406,8 @@ export interface FileRouteTypes {
     | '/favoris'
     | '/profil'
     | '/caravane/$id'
+    | '/organisateurs/$id'
+    | '/organisateurs'
     | '/admin/analytics'
     | '/admin/caravans'
     | '/admin/dashboard'
@@ -422,6 +444,8 @@ export interface FileRouteTypes {
     | '/_authenticated/organizer'
     | '/_authenticated/profil'
     | '/caravane/$id'
+    | '/organisateurs/$id'
+    | '/organisateurs/'
     | '/_authenticated/admin/analytics'
     | '/_authenticated/admin/caravans'
     | '/_authenticated/admin/dashboard'
@@ -454,6 +478,8 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CaravaneIdRoute: typeof CaravaneIdRoute
+  OrganisateursIdRoute: typeof OrganisateursIdRoute
+  OrganisateursIndexRoute: typeof OrganisateursIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -519,6 +545,20 @@ declare module '@tanstack/react-router' {
       path: '/caravane/$id'
       fullPath: '/caravane/$id'
       preLoaderRoute: typeof CaravaneIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organisateurs/': {
+      id: '/organisateurs/'
+      path: '/organisateurs'
+      fullPath: '/organisateurs/'
+      preLoaderRoute: typeof OrganisateursIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organisateurs/$id': {
+      id: '/organisateurs/$id'
+      path: '/organisateurs/$id'
+      fullPath: '/organisateurs/$id'
+      preLoaderRoute: typeof OrganisateursIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -798,6 +838,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CaravaneIdRoute: CaravaneIdRoute,
+  OrganisateursIdRoute: OrganisateursIdRoute,
+  OrganisateursIndexRoute: OrganisateursIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

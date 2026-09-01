@@ -72,7 +72,7 @@ function BookingsPage() {
         amount: b.amount,
         method: (b.method ? b.method.toUpperCase() : "WAVE") as "WAVE" | "ORANGE" | "FREE",
         status: derivedStatus,
-        ticket: b.qrCode || b.reference,
+        ticket: (b.qrCode || b.reference || "").substring(0, 8).toUpperCase(),
         date: new Date(b.createdAt).toLocaleDateString("fr-FR"),
       };
     });

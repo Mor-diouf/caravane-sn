@@ -1,6 +1,7 @@
 import bus1 from "@/assets/bus-1.jpg";
 import bus2 from "@/assets/bus-2.jpg";
 import bus3 from "@/assets/bus-3.jpg";
+import bus4 from "@/assets/bus-4.jpg";
 
 export type Amenity = "wifi" | "ac" | "usb" | "video";
 
@@ -29,13 +30,18 @@ export type CaravanView = {
   organizer: string;
   organizerId: string;
   organizerPhone: string | null;
+  /** Branding fields shown on tickets */
+  organizerLogoUrl: string | null;
+  organizerSlogan: string | null;
+  organizerSupportPhone: string | null;
   rating: number;
   isPro: boolean;
   amenities: Amenity[];
   about: string;
 };
 
-const fallbackImages = [bus1, bus2, bus3];
+export const BUS_PRESET_IMAGES = [bus1, bus2, bus3, bus4];
+const fallbackImages = BUS_PRESET_IMAGES;
 
 export const formatPrice = (value: number) =>
   new Intl.NumberFormat("fr-FR").format(value);
@@ -56,9 +62,12 @@ const timeFmt = new Intl.DateTimeFormat("fr-FR", {
 });
 
 export function fallbackImage(id: string) {
-  let sum = 0;
-  for (const char of id) sum += char.charCodeAt(0);
-  return fallbackImages[sum % fallbackImages.length]!;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  return fallbackImages[Math.abs(hash) % fallbackImages.length]!;
 }
 
 type RawCaravan = {
@@ -81,6 +90,9 @@ type RawCaravan = {
     rating: number | null;
     is_pro: boolean | null;
     phone: string | null;
+    logo_url: string | null;
+    slogan: string | null;
+    support_phone: string | null;
   } | null;
 };
 
@@ -103,6 +115,9 @@ export function mapCaravan(row: RawCaravan): CaravanView {
     organizer: row.organizers?.name ?? "Amicale étudiante",
     organizerId: row.organizer_id,
     organizerPhone: row.organizers?.phone ?? null,
+    organizerLogoUrl: row.organizers?.logo_url ?? null,
+    organizerSlogan: row.organizers?.slogan ?? null,
+    organizerSupportPhone: row.organizers?.support_phone ?? null,
     rating: Number(row.organizers?.rating ?? 0),
     isPro: Boolean(row.organizers?.is_pro),
     amenities: (row.amenities ?? []).filter((a): a is Amenity =>
@@ -113,7 +128,7 @@ export function mapCaravan(row: RawCaravan): CaravanView {
 }
 
 export const CARAVAN_SELECT =
-  "id, university_id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, seats_left, total_seats, image_url, amenities, about, organizer_id, organizers(name, rating, is_pro, phone)";
+  "id, university_id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, seats_left, total_seats, image_url, amenities, about, organizer_id, organizers(name, rating, is_pro, phone, logo_url, slogan, support_phone)";
 
 export const paymentLabels: Record<string, string> = {
   wave: "Wave",
@@ -128,6 +143,7 @@ export type ProfileUpdate = {
   email?: string | null;
   student_id?: string | null;
   university_id?: string | null;
+  avatar_url?: string | null;
   preferred_payment?: "wave" | "orange" | "free";
   notify_departures?: boolean;
   notify_promos?: boolean;

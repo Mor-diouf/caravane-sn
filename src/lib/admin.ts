@@ -328,7 +328,7 @@ export const adminActivity = [
 
 export const systemHealth = [
   { label: "API réservations", status: "ok" as const, detail: "99,98 % de disponibilité" },
-  { label: "Paiements PayTech", status: "ok" as const, detail: "Latence moyenne 420 ms" },
-  { label: "Scanner QR", status: "warn" as const, detail: "2 échecs de scan signalés" },
+  { label: "Paiements Wave Webhook", status: "ok" as const, detail: "Validation automatique en temps réel" },
+  { label: "Scanner QR", status: "ok" as const, detail: "Validation instantanée des billets" },
   { label: "Notifications WhatsApp", status: "ok" as const, detail: "1 842 messages envoyés" },
 ];

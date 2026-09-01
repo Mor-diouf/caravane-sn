@@ -83,13 +83,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Réservez votre place dans les caravanes étudiantes du Sénégal et payez avec Wave, Orange Money ou Free Money.",
+          "Réservez votre place dans les caravanes étudiantes du Sénégal et payez en toute sécurité via Wave Mobile Money.",
       },
       { name: "author", content: "Caravane Étudiants" },
       { property: "og:title", content: "Caravane Étudiants" },
       {
         property: "og:description",
-        content: "Caravanes universitaires, paiement mobile et billet électronique QR.",
+        content: "Caravanes universitaires, paiement Wave instantané et billet électronique QR.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

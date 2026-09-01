@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 180" width="100%" height="100%">
+  <defs>
+    <!-- Wave official brand gradient -->
+    <linearGradient id="waveBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1dc3ec"/>
+      <stop offset="100%" stop-color="#00aee6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background with smooth rounded corners -->
+  <rect width="420" height="180" rx="32" fill="url(#waveBg)"/>
+
+  <!-- PENGUIN GROUP (LEFT) -->
+  <g transform="translate(18, 10)">
+    <!-- Feet -->
+    <ellipse cx="62" cy="148" rx="17" ry="10" fill="#ff7900"/>
+    <ellipse cx="104" cy="148" rx="17" ry="10" fill="#ff7900"/>
+
+    <!-- Left Waving Arm / Wing -->
+    <path d="M 52 86 C 28 72 22 56 32 52 C 44 48 57 65 62 82 Z" fill="#111315"/>
+
+    <!-- Main Penguin Body -->
+    <path d="M 58 38 
+             C 58 14, 108 14, 108 38 
+             C 108 58, 126 94, 126 126 
+             C 126 146, 40 146, 40 126 
+             C 40 94, 58 58, 58 38 Z" 
+          fill="#111315"/>
+
+    <!-- Right Wing (Resting) -->
+    <path d="M 112 78 C 124 88 126 104 120 118 C 117 108 114 94 110 82 Z" fill="#111315"/>
+
+    <!-- Belly (White Oval) -->
+    <ellipse cx="83" cy="104" rx="22" ry="30" fill="#ffffff"/>
+
+    <!-- Eyes -->
+    <circle cx="73" cy="42" r="4.5" fill="#ffffff"/>
+    <circle cx="93" cy="42" r="4.5" fill="#ffffff"/>
+
+    <!-- Beak -->
+    <path d="M 71 52 Q 83 62 95 52 Q 83 48 71 52 Z" fill="#ff7900"/>
+  </g>
+
+  <!-- "wave" TYPOGRAPHY (RIGHT) - Vectorized bold rounded geometric -->
+  <g fill="#ffffff" transform="translate(165, 50)">
+    <!-- 'w' -->
+    <path d="M 0 15 
+             L 16 75 
+             C 17 80, 24 80, 26 75 
+             L 40 28 
+             L 54 75 
+             C 56 80, 63 80, 65 75 
+             L 81 15 
+             C 83 9, 75 6, 70 12 
+             L 59 58 
+             L 46 16 
+             C 44 10, 36 10, 34 16 
+             L 21 58 
+             L 10 12 
+             C 6 6, -2 9, 0 15 Z"/>
+
+    <!-- 'a' -->
+    <path d="M 116 14 
+             C 96 14, 86 28, 86 46 
+             C 86 64, 96 78, 116 78 
+             C 125 78, 133 74, 137 68 
+             L 137 72 
+             C 137 77, 142 80, 148 78 
+             C 151 77, 153 74, 153 70 
+             L 153 22 
+             C 153 16, 148 14, 143 14 
+             C 139 14, 137 16, 137 20 
+             C 132 16, 124 14, 116 14 Z 
+             M 119 28 
+             C 130 28, 137 36, 137 46 
+             C 137 56, 130 64, 119 64 
+             C 108 64, 102 56, 102 46 
+             C 102 36, 108 28, 119 28 Z"/>
+
+    <!-- 'v' -->
+    <path d="M 160 16 
+             L 182 73 
+             C 184 78, 192 78, 194 73 
+             L 216 16 
+             C 218 10, 210 6, 206 12 
+             L 188 58 
+             L 170 12 
+             C 166 6, 158 10, 160 16 Z"/>
+
+    <!-- 'e' -->
+    <path d="M 252 14 
+             C 232 14, 220 28, 220 46 
+             C 220 64, 233 78, 254 78 
+             C 267 78, 276 72, 281 64 
+             C 284 59, 278 54, 273 57 
+             C 268 62, 262 65, 253 65 
+             C 242 65, 236 58, 235 48 
+             L 282 48 
+             C 286 48, 288 45, 288 41 
+             C 287 25, 274 14, 252 14 Z 
+             M 235 37 
+             C 237 29, 243 24, 252 24 
+             C 261 24, 269 29, 271 37 
+             Z"/>
+  </g>
+</svg>

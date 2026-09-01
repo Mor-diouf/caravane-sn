@@ -18,7 +18,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { caravanId, seats, method } = await req.json()
+    const reqBody = await req.json()
+    const { caravanId, seats, method, apiKey, apiSecret, env } = reqBody
 
     if (!caravanId || !seats || !method) {
       throw new Error("Missing parameters")
@@ -27,7 +28,7 @@ serve(async (req) => {
     // 1. Fetch Caravan
     const { data: caravan, error: caravanError } = await supabase
       .from('caravans')
-      .select('price_fcfa, total_seats, seats_left')
+      .select('price_fcfa, total_seats, seats_left, organizer_id, organizers(commission_rate)')
       .eq('id', caravanId)
       .single()
 
@@ -35,6 +36,8 @@ serve(async (req) => {
     if (caravan.seats_left < seats) throw new Error("Not enough seats available")
 
     const amount = caravan.price_fcfa * seats
+    const rate = Number((caravan.organizers as any)?.commission_rate ?? 0.05)
+    const commission = Math.round(amount * rate)
 
     // 2. Get User
     const { data: { user } } = await supabase.auth.getUser()
@@ -64,6 +67,7 @@ serve(async (req) => {
         user_id: user.id,
         booking_id: booking.id,
         amount_fcfa: amount,
+        commission_fcfa: commission,
         method: method,
         status: 'pending'
       })
@@ -71,15 +75,21 @@ serve(async (req) => {
     if (paymentError) throw paymentError
 
     // 5. Call PayTech
-    const PAYTECH_API_KEY = Deno.env.get('PAYTECH_API_KEY')
-    const PAYTECH_API_SECRET = Deno.env.get('PAYTECH_API_SECRET')
-    const PAYTECH_ENV = Deno.env.get('PAYTECH_ENV') || 'test'
+    const PAYTECH_API_KEY = Deno.env.get('PAYTECH_API_KEY') || apiKey
+    const PAYTECH_API_SECRET = Deno.env.get('PAYTECH_API_SECRET') || apiSecret
+    const PAYTECH_ENV = Deno.env.get('PAYTECH_ENV') || env || 'test'
     
     if (!PAYTECH_API_KEY || !PAYTECH_API_SECRET) {
-        throw new Error("PayTech credentials are not configured on the server.")
+        throw new Error("Les identifiants PayTech (PAYTECH_API_KEY et PAYTECH_API_SECRET) ne sont pas configurés sur le serveur Supabase.")
     }
 
-    const origin = req.headers.get('origin') || 'http://localhost:8080'
+    let origin = req.headers.get('origin') || 'https://127.0.0.1:8080'
+    if (origin.startsWith('http://')) {
+      origin = origin.replace('http://', 'https://')
+    }
+    if (origin.includes('localhost')) {
+      origin = origin.replace('localhost', '127.0.0.1')
+    }
 
     const paytechBody = {
       item_name: `Billet Caravane - ${seats} place(s)`,
@@ -90,7 +100,7 @@ serve(async (req) => {
       env: PAYTECH_ENV,
       ipn_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/paytech-webhook`,
       success_url: `${origin}/billets?payment=success&ref=${booking.id}`,
-      cancel_url: `${origin}/caravane/${caravanId}`
+      cancel_url: `${origin}/caravane/${caravanId}?payment=cancelled`
     }
 
     const paytechResponse = await fetch('https://paytech.sn/api/payment/request-payment', {
@@ -107,12 +117,12 @@ serve(async (req) => {
     const paytechData = await paytechResponse.json()
 
     if (paytechData.success !== 1) {
-      throw new Error(`PayTech Error: ${JSON.stringify(paytechData)}`)
+      throw new Error(`PayTech Error: ${paytechData.error?.[0] || JSON.stringify(paytechData)}`)
     }
 
     // Return the redirect URL to the frontend
     return new Response(
-      JSON.stringify({ redirect_url: paytechData.redirect_url, token: paytechData.token }),
+      JSON.stringify({ redirect_url: paytechData.redirect_url, token: paytechData.token, bookingId: booking.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

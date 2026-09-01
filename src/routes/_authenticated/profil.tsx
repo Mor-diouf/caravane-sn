@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BadgeCheck,
   Bell,
+  Camera,
   Check,
   ChevronRight,
   CreditCard,
@@ -20,6 +21,7 @@ import {
   Shield,
   Sparkles,
   TicketCheck,
+  Trash2,
   Wallet,
   X,
   Upload,
@@ -87,12 +89,53 @@ function initials(name: string) {
   );
 }
 
+async function compressAvatar(file: File, maxSize = 400, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(ev.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = ev.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 type Draft = {
   full_name: string;
   student_id: string;
   phone: string;
   email: string;
   university_id: string | null;
+  avatar_url: string | null;
 };
 
 function Profil() {
@@ -124,6 +167,10 @@ function Profil() {
     return [...top, ...base];
   }, [access]);
 
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const modalAvatarInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft>({
     full_name: "",
@@ -131,10 +178,31 @@ function Profil() {
     phone: "",
     email: "",
     university_id: null,
+    avatar_url: null,
   });
 
   const [orgModalOpen, setOrgModalOpen] = useState(false);
   const [orgForm, setOrgForm] = useState({ name: "", phone: "", studentCard: "", idCard: "" });
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, isModal = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingAvatar(true);
+      const compressed = await compressAvatar(file);
+      if (isModal) {
+        setDraft((d) => ({ ...d, avatar_url: compressed }));
+      } else {
+        await save.mutateAsync({ avatar_url: compressed });
+        toast.success("Photo de profil mise à jour !");
+      }
+    } catch (err) {
+      toast.error("Erreur lors du chargement de l'image");
+    } finally {
+      setIsUploadingAvatar(false);
+      if (e.target) e.target.value = "";
+    }
+  };
 
   useEffect(() => {
     if (!profile) return;
@@ -144,6 +212,7 @@ function Profil() {
       phone: profile.phone ?? "",
       email: profile.email ?? "",
       university_id: profile.university_id ?? null,
+      avatar_url: profile.avatar_url ?? null,
     });
     setOrgForm((f) => ({
       ...f,
@@ -246,9 +315,48 @@ function Profil() {
           </div>
 
           <div className="mt-5 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4">
-            <span className="grid size-16 shrink-0 place-items-center rounded-3xl bg-primary-foreground/15 text-xl font-black backdrop-blur">
-              {initials(profile?.full_name ?? "")}
-            </span>
+            <div className="relative shrink-0">
+              <div
+                onClick={() => avatarInputRef.current?.click()}
+                className="group relative cursor-pointer overflow-hidden rounded-3xl"
+                title="Changer la photo de profil"
+              >
+                {isUploadingAvatar ? (
+                  <div className="grid size-16 place-items-center rounded-3xl bg-primary-foreground/20 backdrop-blur">
+                    <Loader2 className="size-6 animate-spin text-primary-foreground" />
+                  </div>
+                ) : profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.full_name || "Avatar"}
+                    className="size-16 rounded-3xl object-cover ring-2 ring-primary-foreground/30 shadow-md transition-opacity group-hover:opacity-85"
+                  />
+                ) : (
+                  <span className="grid size-16 place-items-center rounded-3xl bg-primary-foreground/15 text-xl font-black backdrop-blur transition-colors group-hover:bg-primary-foreground/25">
+                    {initials(profile?.full_name ?? "")}
+                  </span>
+                )}
+                <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Camera className="size-5 text-white" />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                title="Changer la photo de profil"
+                aria-label="Changer la photo de profil"
+                className="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full bg-primary-accent text-white shadow-lifted transition-transform hover:scale-110 active:scale-95"
+              >
+                <Camera className="size-3.5" />
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleAvatarUpload(e, false)}
+              />
+            </div>
             <div className="min-w-0">
               <h1 className="flex items-center gap-2 text-[19px] font-extrabold leading-tight tracking-tight">
                 <span className="truncate">{profile?.full_name || "Étudiant"}</span>
@@ -265,7 +373,7 @@ function Profil() {
         </div>
       </header>
 
-      <main className="mx-auto -mt-14 max-w-3xl space-y-5 px-5">
+      <main className="relative z-10 mx-auto -mt-10 max-w-3xl space-y-5 px-5">
         <section className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-lifted">
           <div className="flex items-center gap-3 border-b border-border/70 p-4">
             <UniversityMark abbr={abbr} showAbbr={false} />
@@ -498,8 +606,8 @@ function Profil() {
       </main>
 
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-5 shadow-lifted sm:rounded-3xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl border border-border/70 bg-card p-5 shadow-lifted sm:rounded-3xl no-scrollbar">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-extrabold tracking-tight">Modifier mon profil</h2>
               <button
@@ -513,6 +621,58 @@ function Profil() {
             </div>
 
             <div className="mt-4 space-y-3">
+              <div className="flex flex-col items-center justify-center gap-2 pb-2">
+                <div className="relative shrink-0">
+                  {draft.avatar_url ? (
+                    <img
+                      src={draft.avatar_url}
+                      alt="Aperçu avatar"
+                      className="size-20 rounded-3xl object-cover border border-border/70 shadow-ambient"
+                    />
+                  ) : (
+                    <span className="grid size-20 place-items-center rounded-3xl bg-accent text-2xl font-black text-primary-accent border border-border/70">
+                      {initials(draft.full_name || "")}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => modalAvatarInputRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full bg-primary-accent text-white shadow-lifted hover:scale-110"
+                    title="Changer la photo"
+                  >
+                    <Camera className="size-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => modalAvatarInputRef.current?.click()}
+                    className="text-xs font-semibold text-primary-accent hover:underline"
+                  >
+                    Changer la photo
+                  </button>
+                  {draft.avatar_url && (
+                    <>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setDraft((d) => ({ ...d, avatar_url: null }))}
+                        className="flex items-center gap-1 text-xs font-semibold text-danger hover:underline"
+                      >
+                        <Trash2 className="size-3" /> Supprimer
+                      </button>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={modalAvatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleAvatarUpload(e, true)}
+                />
+              </div>
+
               {(
                 [
                   { key: "full_name", label: "Nom complet", type: "text" },
@@ -576,6 +736,7 @@ function Profil() {
                   phone: draft.phone || null,
                   email: draft.email || null,
                   university_id: draft.university_id,
+                  avatar_url: draft.avatar_url,
                 })
               }
               className="mt-5 w-full rounded-2xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-lifted disabled:opacity-70"
@@ -587,8 +748,8 @@ function Profil() {
       )}
 
       {orgModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-t-3xl border border-border/70 bg-card p-5 shadow-lifted sm:rounded-3xl">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl border border-border/70 bg-card p-5 shadow-lifted sm:rounded-3xl no-scrollbar">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-extrabold tracking-tight">Devenir Organisateur</h2>
               <button

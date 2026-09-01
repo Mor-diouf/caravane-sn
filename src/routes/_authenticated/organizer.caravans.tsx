@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, MapPin, Plus, Search } from "lucide-react";
+import { Bus, MapPin, Plus, Search, Monitor, Plug, Snowflake, Wifi, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -12,11 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
-import { orgCaravansQuery } from "@/lib/dash-queries";
+import { orgCaravansQuery, orgBookingsQuery } from "@/lib/dash-queries";
 import { organizerSaveCaravan, organizerSetCaravanStatus } from "@/lib/organizer.functions";
 import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, pct } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
+import { exportPassengerManifestPdf } from "@/lib/pdf-export";
 
 export const Route = createFileRoute("/_authenticated/organizer/caravans")({
   head: () => ({
@@ -39,18 +40,19 @@ export const Route = createFileRoute("/_authenticated/organizer/caravans")({
   component: CaravansPage,
 });
 
-type CaravanStatus = "draft" | "published" | "full" | "completed" | "cancelled";
+type CaravanStatus = "draft" | "pending" | "published" | "full" | "completed" | "cancelled";
 
 const filters = [
   { id: "all", label: "Toutes" },
-  { id: "published", label: "Publiées" },
   { id: "draft", label: "Brouillons" },
-  { id: "completed", label: "Terminées" },
+  { id: "pending", label: "En attente" },
+  { id: "published", label: "Publiées" },
   { id: "cancelled", label: "Annulées" },
 ] as const;
 
 const statusClass: Record<CaravanStatus, string> = {
-  draft: "bg-muted text-muted-foreground",
+  draft: "bg-neutral-800 text-neutral-400",
+  pending: "bg-warning/10 text-warning",
   published: "bg-success/10 text-success",
   full: "bg-warning/12 text-warning",
   completed: "bg-info/10 text-info",
@@ -59,11 +61,19 @@ const statusClass: Record<CaravanStatus, string> = {
 
 const statusLabel: Record<CaravanStatus, string> = {
   draft: "Brouillon",
+  pending: "En attente",
   published: "Publiée",
   full: "Complète",
   completed: "Terminée",
   cancelled: "Annulée",
 };
+
+const amenityMap = {
+  ac: { icon: Snowflake, label: "Climatisation" },
+  wifi: { icon: Wifi, label: "Wi-Fi" },
+  usb: { icon: Plug, label: "Prises USB" },
+  video: { icon: Monitor, label: "Vidéo" },
+} as const;
 
 const emptyForm = {
   id: undefined as string | undefined,
@@ -74,7 +84,7 @@ const emptyForm = {
   dropoff: "",
   price_fcfa: "",
   total_seats: "",
-  amenities: "",
+  amenities: [] as string[],
   about: "",
   status: "draft" as CaravanStatus,
 };
@@ -82,6 +92,7 @@ const emptyForm = {
 function CaravansPage() {
   const queryClient = useQueryClient();
   const { data: caravans, isLoading } = useQuery(orgCaravansQuery());
+  const { data: dbBookings } = useQuery(orgBookingsQuery());
   const saveCaravanFn = useServerFn(organizerSaveCaravan);
   const setStatusFn = useServerFn(organizerSetCaravanStatus);
 
@@ -91,7 +102,7 @@ function CaravansPage() {
   const [form, setForm] = useState(emptyForm);
 
   const saveMutation = useMutation({
-    mutationFn: (data: { id?: string | undefined; from_label: string; to_label: string; departure_at: string; pickup: string; dropoff: string; price_fcfa: number; total_seats: number; amenities?: string[] | undefined; about?: string | undefined; image_url?: string | undefined; status?: "draft" | "published" | "full" | "completed" | "cancelled"  | undefined}) =>
+    mutationFn: (data: { id?: string | undefined; from_label: string; to_label: string; departure_at: string; pickup: string; dropoff: string; price_fcfa: number; total_seats: number; amenities?: string[] | undefined; about?: string | undefined; image_url?: string | undefined; status?: "draft" | "pending" | "published" | "full" | "completed" | "cancelled" }) =>
       saveCaravanFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
@@ -102,7 +113,7 @@ function CaravansPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (data: { caravanId: string; status?: "draft" | "published" | "full" | "completed" | "cancelled" | undefined; hidden?: boolean  | undefined}) =>
+    mutationFn: (data: { caravanId: string; status?: "draft" | "pending" | "published" | "full" | "completed" | "cancelled"; hidden?: boolean }) =>
       setStatusFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
@@ -136,7 +147,7 @@ function CaravansPage() {
       dropoff: c.dropoff ?? "",
       price_fcfa: String(c.price_fcfa ?? ""),
       total_seats: String(c.total_seats ?? ""),
-      amenities: (c.amenities ?? []).join(", "),
+      amenities: c.amenities ?? [],
       about: c.about ?? "",
       status: c.status as CaravanStatus,
     });
@@ -158,12 +169,9 @@ function CaravansPage() {
       dropoff: form.dropoff,
       price_fcfa: Number(form.price_fcfa) || 0,
       total_seats: Number(form.total_seats) || 1,
-      amenities: form.amenities
-        .split(",")
-        .map((a) => a.trim())
-        .filter(Boolean),
+      amenities: form.amenities,
       about: form.about,
-      status: form.status,
+      status: (!form.id || form.status === "draft") ? "pending" : form.status,
     });
   };
 
@@ -293,12 +301,14 @@ function CaravansPage() {
                             <button
                               type="button"
                               onClick={() =>
-                                statusMutation.mutate({ caravanId: c.id, status: "published" })
+                                statusMutation.mutate({ caravanId: c.id, status: "pending" })
                               }
                               className="text-xs font-bold text-primary-accent hover:underline"
                             >
-                              Publier
+                              Soumettre
                             </button>
+                          ) : c.status === "pending" ? (
+                            <span className="text-xs font-bold text-warning">En attente d'admin</span>
                           ) : c.status === "published" ? (
                             <button
                               type="button"
@@ -313,6 +323,40 @@ function CaravansPage() {
                               {c.is_hidden ? "Afficher" : "Masquer"}
                             </button>
                           ) : null}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const caravanBookings = (dbBookings ?? []).filter((b) => b.caravanId === c.id);
+                              if (caravanBookings.length === 0) {
+                                toast.info("Aucun passager inscrit pour cette caravane pour l'instant.");
+                                return;
+                              }
+                              exportPassengerManifestPdf({
+                                organizerName: "Espace Organisateur",
+                                caravanTitle: `${c.from_label} ➔ ${c.to_label}`,
+                                departureDate: dateTimeFr(c.departure_at),
+                                pickupLocation: c.pickup_label,
+                                passengers: caravanBookings.map((b) => ({
+                                  name: b.student || "Étudiant",
+                                  phone: b.phone || "—",
+                                  university: b.university || "—",
+                                  reference: b.reference,
+                                  seats: b.seats,
+                                  amount: b.amount,
+                                  paymentStatus: b.paymentStatus,
+                                  status: b.status,
+                                })),
+                              });
+                              toast.success("Manifeste PDF généré !", {
+                                description: `${caravanBookings.length} passagers exportés pour ${c.from_label} ➔ ${c.to_label}.`,
+                              });
+                            }}
+                            title="Télécharger le manifeste PDF des passagers pour ce car"
+                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground shadow-2xs hover:bg-muted"
+                          >
+                            <FileText className="size-3 text-primary" /> PDF
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -401,31 +445,42 @@ function CaravansPage() {
                   className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </label>
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Statut</span>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as CaravanStatus }))}
-                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-                >
-                  <option value="draft">Brouillon</option>
-                  <option value="published">Publiée</option>
-                  <option value="completed">Terminée</option>
-                  <option value="cancelled">Annulée</option>
-                </select>
-              </label>
+
             </div>
-            <label className="block">
+            <div className="block">
               <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
-                Équipements (séparés par des virgules)
+                Équipements
               </span>
-              <input
-                value={form.amenities}
-                onChange={(e) => setForm((f) => ({ ...f, amenities: e.target.value }))}
-                placeholder="Climatisation, Wi-Fi, Pause à Kaolack"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-              />
-            </label>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(amenityMap) as Array<keyof typeof amenityMap>).map((key) => {
+                  const { icon: Icon, label } = amenityMap[key];
+                  const active = form.amenities.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          amenities: active
+                            ? f.amenities.filter((a) => a !== key)
+                            : [...f.amenities, key],
+                        }))
+                      }
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors",
+                        active
+                          ? "border-primary-accent bg-primary-accent/10 text-primary-accent"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <Icon className="size-4" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span>
               <textarea
@@ -449,7 +504,7 @@ function CaravansPage() {
                 disabled={saveMutation.isPending}
                 className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
               >
-                {saveMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+                {saveMutation.isPending ? "Traitement…" : (!form.id || form.status === "draft" ? "Soumettre" : "Enregistrer")}
               </button>
             </div>
           </form>

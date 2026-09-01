@@ -20,6 +20,8 @@ import {
   UsersRound,
   Wallet,
   X,
+  LogOut,
+  ArrowLeft,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +34,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
   label: string;
@@ -59,19 +69,8 @@ const navGroups: Array<{ title: string; items: NavItem[] }> = [
     ],
   },
   {
-    title: "Croissance",
-    items: [
-      { label: "Analytics", icon: BarChart3, to: "/organizer/analytics", pro: true },
-      { label: "Historique", icon: History, to: "/organizer/history", pro: true },
-      { label: "Équipe", icon: UsersRound, to: "/organizer/team", pro: true },
-      { label: "Promotions", icon: Megaphone, to: "/organizer/promotions", pro: true },
-      { label: "Rapports", icon: FileText, to: "/organizer/reports", pro: true },
-    ],
-  },
-  {
     title: "Compte",
     items: [
-      { label: "Abonnement", icon: Crown, to: "/organizer/subscription" },
       { label: "Paramètres", icon: Settings, to: "/organizer/settings" },
     ],
   },
@@ -150,24 +149,6 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
         </div>
       </div>
       <NavList onNavigate={onNavigate} />
-      <div className="m-3 rounded-2xl bg-brand-foreground/8 p-4 ring-1 ring-brand-foreground/10">
-        <p className="flex items-center gap-1.5 text-xs font-bold">
-          <Crown className="size-3.5 text-mint" />{" "}
-          {access.data?.organizerIsPro ? "Plan Pro actif" : "Plan Standard"}
-        </p>
-        <p className="mt-1 text-[11px] leading-snug text-brand-foreground/60">
-          {access.data?.organizerIsPro
-            ? "Analytics, exports et assistant intelligent inclus."
-            : "Passez au Pro pour les analytics avancées et les exports."}
-        </p>
-        <Link
-          to="/organizer/subscription"
-          onClick={onNavigate}
-          className="mt-3 block rounded-lg bg-brand-foreground px-3 py-2 text-center text-[11px] font-bold text-brand"
-        >
-          Gérer l'abonnement
-        </Link>
-      </div>
     </div>
   );
 }
@@ -298,22 +279,42 @@ export function OrgShell({ children }: { children: ReactNode }) {
                 <HelpCircle className="size-4" />
               </button>
               <NotificationBell />
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5">
-                <span className="grid size-7 place-items-center rounded-lg bg-brand text-[10px] font-black text-brand-foreground">
-                  {initialsOf(ownerName)}
-                </span>
-                <span className="hidden min-w-0 leading-tight sm:block">
-                  <span className="block truncate text-xs font-bold">{ownerName}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">
-                    {access.data?.organizerName ?? "Mon amicale"}
-                  </span>
-                </span>
-                {access.data?.organizerIsPro && (
-                  <span className="ml-1 rounded-md bg-mint/15 px-1.5 py-0.5 text-[9px] font-black uppercase text-mint">
-                    Pro
-                  </span>
-                )}
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5 transition-colors hover:bg-muted text-left">
+                    <span className="grid size-7 place-items-center rounded-lg bg-brand text-[10px] font-black text-brand-foreground">
+                      {initialsOf(ownerName)}
+                    </span>
+                    <span className="hidden min-w-0 leading-tight sm:block">
+                      <span className="block truncate text-xs font-bold">{ownerName}</span>
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {access.data?.organizerName ?? "Mon amicale"}
+                      </span>
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Mon Compte</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/" className="cursor-pointer flex items-center gap-2">
+                      <ArrowLeft className="size-4" />
+                      Retour à l'application
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-danger focus:text-danger focus:bg-danger/10 flex items-center gap-2"
+                    onClick={async () => {
+                      await supabase.auth.signOut();
+                      window.location.href = "/";
+                    }}
+                  >
+                    <LogOut className="size-4" />
+                    Déconnexion
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>

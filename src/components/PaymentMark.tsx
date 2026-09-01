@@ -15,8 +15,8 @@ export function PaymentMark({ method, className }: { method: Method; className?:
     <span
       aria-hidden
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-xl bg-white shadow-ambient overflow-hidden border border-border/50",
-        className || "w-16 h-11",
+        "flex shrink-0 items-center justify-center rounded-full bg-white shadow-ambient overflow-hidden border border-border/50",
+        className || "size-11",
       )}
     >
       <img 

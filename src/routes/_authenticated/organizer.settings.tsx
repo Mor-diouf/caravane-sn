@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Building2, CreditCard, Save } from "lucide-react";
+import { Building2, CreditCard, Image, Phone, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, Panel } from "@/components/organizer/ui";
 import { orgSettingsQuery } from "@/lib/dash-queries";
@@ -29,12 +29,33 @@ export const Route = createFileRoute("/_authenticated/organizer/settings")({
   component: SettingsPage,
 });
 
+type FormState = {
+  name: string;
+  description: string;
+  phone: string;
+  whatsapp: string;
+  /** Branding fields — displayed on tickets and caravan pages */
+  logo_url: string;
+  slogan: string;
+  support_phone: string;
+};
+
 function SettingsPage() {
   const queryClient = useQueryClient();
   const { data: settings, isLoading } = useQuery(orgSettingsQuery());
   const updateFn = useServerFn(organizerUpdateSettings);
 
-  const [form, setForm] = useState({ name: "", description: "", phone: "", whatsapp: "" });
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    description: "",
+    phone: "",
+    whatsapp: "",
+    logo_url: "",
+    slogan: "",
+    support_phone: "",
+  });
+
+  const [logoPreviewError, setLogoPreviewError] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -43,18 +64,38 @@ function SettingsPage() {
         description: settings.description ?? "",
         phone: settings.phone ?? "",
         whatsapp: settings.whatsapp ?? "",
+        logo_url: (settings as any).logo_url ?? "",
+        slogan: (settings as any).slogan ?? "",
+        support_phone: (settings as any).support_phone ?? "",
       });
+      setLogoPreviewError(false);
     }
   }, [settings]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name?: string | undefined; description?: string | undefined; phone?: string | undefined; whatsapp?: string | undefined; university_id?: string  | undefined}) => updateFn({ data }),
+    mutationFn: (data: Partial<FormState>) =>
+      updateFn({
+        data: {
+          ...data,
+          logo_url: data.logo_url || null,
+          slogan: data.slogan || null,
+          support_phone: data.support_phone || null,
+        } as never,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
       toast.success("Paramètres enregistrés");
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  const field =
+    (key: keyof FormState) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const inputClass =
+    "h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40";
 
   return (
     <>
@@ -70,32 +111,43 @@ function SettingsPage() {
             updateMutation.mutate(form);
           }}
         >
+          {/* ── Profil de l'organisation ── */}
           <Panel title="Profil de l'organisation" description="Visible par les étudiants dans l'application">
             <div className="mb-4 flex items-center gap-3">
-              <span className="grid size-12 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground">
-                <Building2 className="size-5" />
-              </span>
+              {form.logo_url && !logoPreviewError ? (
+                <img
+                  src={form.logo_url}
+                  alt={form.name}
+                  onError={() => setLogoPreviewError(true)}
+                  className="size-12 rounded-2xl object-cover border border-border/60 shadow-sm"
+                />
+              ) : (
+                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground">
+                  <Building2 className="size-5" />
+                </span>
+              )}
               <div>
                 <p className="font-bold">{form.name || "Mon amicale"}</p>
-                <p className="text-xs text-muted-foreground">{settings?.status ?? "—"}</p>
+                {form.slogan ? (
+                  <p className="text-xs text-muted-foreground italic">{form.slogan}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{settings?.status ?? "—"}</p>
+                )}
               </div>
             </div>
             <div className="space-y-3">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Nom de l'amicale</span>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  maxLength={120}
-                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-                />
+                <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+                  Nom de l'amicale / marque
+                </span>
+                <input value={form.name} onChange={field("name")} maxLength={120} className={inputClass} />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Description</span>
                 <textarea
                   rows={3}
                   value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  onChange={field("description")}
                   maxLength={1000}
                   className="w-full rounded-xl border border-border bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
                 />
@@ -103,26 +155,107 @@ function SettingsPage() {
             </div>
           </Panel>
 
+          {/* ── Identité & Marque ── */}
+          <Panel
+            title="Identité & Marque"
+            description="Logo et slogan affichés sur les billets QR des passagers"
+          >
+            <div className="space-y-3">
+              {/* Logo Upload */}
+              <label className="block">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Image className="size-3.5" /> Logo de la marque (Téléversement)
+                </span>
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error("L'image est trop lourde (max 2 Mo)");
+                      return;
+                    }
+                    setLogoPreviewError(false);
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                      if (typeof evt.target?.result === "string") {
+                        setForm((f) => ({ ...f, logo_url: evt.target!.result as string }));
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                  className="w-full cursor-pointer text-sm text-muted-foreground file:mr-4 file:cursor-pointer file:rounded-xl file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-primary transition-colors hover:file:bg-primary/20"
+                />
+              </label>
+
+              {/* Logo live preview */}
+              {form.logo_url && (
+                <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 border border-border/50">
+                  {!logoPreviewError ? (
+                    <img
+                      src={form.logo_url}
+                      alt="Aperçu logo"
+                      onError={() => setLogoPreviewError(true)}
+                      className="size-14 rounded-xl object-contain border border-border/60 bg-white p-1"
+                    />
+                  ) : (
+                    <div className="grid size-14 place-items-center rounded-xl border border-dashed border-destructive/50 bg-destructive/10 text-destructive">
+                      <Image className="size-5" />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {logoPreviewError
+                      ? "⚠️ URL invalide — vérifiez le lien de l'image"
+                      : "✅ Aperçu du logo — apparaîtra sur les billets passagers"}
+                  </p>
+                </div>
+              )}
+
+              {/* Slogan */}
+              <label className="block">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Sparkles className="size-3.5" /> Slogan / Devise
+                </span>
+                <input
+                  value={form.slogan}
+                  onChange={field("slogan")}
+                  maxLength={200}
+                  placeholder="Ex : Votre confort, notre priorité !"
+                  className={inputClass}
+                />
+              </label>
+
+              {/* Support phone */}
+              <label className="block">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Phone className="size-3.5" /> Téléphone d'assistance passagers
+                </span>
+                <input
+                  value={form.support_phone}
+                  onChange={field("support_phone")}
+                  maxLength={40}
+                  placeholder="Ex : +221 77 000 00 00"
+                  className={inputClass}
+                />
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Affiché sur le billet en cas de problème lors du voyage.
+                </p>
+              </label>
+            </div>
+          </Panel>
+
+          {/* ── Contact ── */}
           <div className="space-y-4">
             <Panel title="Contact" description="Coordonnées visibles pour vos passagers">
               <div className="space-y-3">
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Téléphone</span>
-                  <input
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    maxLength={40}
-                    className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-                  />
+                  <input value={form.phone} onChange={field("phone")} maxLength={40} className={inputClass} />
                 </label>
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">WhatsApp</span>
-                  <input
-                    value={form.whatsapp}
-                    onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
-                    maxLength={40}
-                    className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-                  />
+                  <input value={form.whatsapp} onChange={field("whatsapp")} maxLength={40} className={inputClass} />
                 </label>
                 <p className="flex items-center gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
                   <CreditCard className="size-4 shrink-0" /> Commission plateforme :{" "}
@@ -137,7 +270,8 @@ function SettingsPage() {
               disabled={updateMutation.isPending}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-ambient disabled:opacity-60"
             >
-              <Save className="size-4" /> {updateMutation.isPending ? "Enregistrement…" : "Enregistrer les modifications"}
+              <Save className="size-4" />{" "}
+              {updateMutation.isPending ? "Enregistrement…" : "Enregistrer les modifications"}
             </button>
           </div>
         </form>

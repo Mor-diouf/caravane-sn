@@ -63,7 +63,7 @@ serve(async (req) => {
       for (let i = 0; i < booking.seats; i++) {
         tickets.push({
           booking_id: booking.id,
-          qr_code: `TKT-${booking.reference}-${i+1}-${Math.random().toString(36).substring(2,8).toUpperCase()}`,
+          qr_code: crypto.randomUUID(),
           status: 'valid'
         })
       }

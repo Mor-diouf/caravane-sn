@@ -267,33 +267,43 @@ export const adminListUsers = createServerFn({ method: "GET" })
     const supabase = context.supabase;
     await assertAdmin(supabase, context.userId);
 
-    const [profiles, roles, bookings] = await Promise.all([
+    const [profiles, roles, bookings, orgs] = await Promise.all([
       supabase
         .from("profiles")
         .select("id, full_name, email, phone, is_blocked, created_at, universities(abbr)")
         .order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("bookings").select("user_id, seats, amount_fcfa, status"),
+      supabase.from("organizers").select("owner_id, name, status"),
     ]);
-    for (const r of [profiles, roles, bookings]) if (r.error) throw new Error(r.error.message);
+    for (const r of [profiles, roles, bookings, orgs]) if (r.error) throw new Error(r.error.message);
 
     return (profiles.data ?? []).map((p) => {
       const userRoles = (roles.data ?? []).filter((r) => r.user_id === p.id).map((r) => r.role);
+      const ownedOrg = (orgs.data ?? []).find((o) => o.owner_id === p.id);
+      
       const mine = (bookings.data ?? []).filter(
         (b) => b.user_id === p.id && (b.status === "confirmed" || b.status === "pending"),
       );
-      const role = userRoles.includes("admin")
-        ? "admin"
-        : userRoles.includes("organizer")
-          ? "organizer"
-          : "student";
+      
+      let role = "student";
+      if (userRoles.includes("admin")) {
+         role = "admin";
+      } else if (userRoles.includes("organizer") || ownedOrg?.status === "approved") {
+         role = "organizer";
+      } else if (ownedOrg && ownedOrg.status !== "rejected") {
+         role = "pending_organizer";
+      }
+
       return {
         id: p.id,
         name: p.full_name || "Sans nom",
         email: p.email ?? "—",
         phone: p.phone ?? "—",
         university: p.universities?.abbr ?? "—",
-        role: role as "student" | "organizer" | "admin",
+        role: role as "student" | "organizer" | "pending_organizer" | "admin",
+        orgName: ownedOrg?.name ?? null,
+        orgStatus: ownedOrg?.status ?? null,
         trips: mine.length,
         spent: mine.reduce((a, b) => a + b.amount_fcfa, 0),
         joined: p.created_at,
@@ -377,6 +387,8 @@ export const adminListCaravans = createServerFn({ method: "GET" })
     return (data ?? []).map((c) => ({
       id: c.id,
       route: `${c.from_label} → ${c.to_label}`,
+      fromLabel: c.from_label,
+      toLabel: c.to_label,
       departureAt: c.departure_at,
       price: c.price_fcfa,
       capacity: c.total_seats,
@@ -404,6 +416,43 @@ export const adminSetCaravanHidden = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const adminUpdateCaravan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) =>
+    z
+      .object({
+        caravanId: z.string().uuid(),
+        status: z.enum(["draft", "pending", "published", "full", "completed", "cancelled"]).optional(),
+        payment_link: z.string().max(500).optional().or(z.literal("")),
+        from_label: z.string().min(1).max(100).optional(),
+        to_label: z.string().min(1).max(100).optional(),
+        departure_at: z.string().optional(),
+        price_fcfa: z.number().int().min(0).optional(),
+        total_seats: z.number().int().min(1).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { assertAdmin } = await import("@/lib/dash.server");
+    await assertAdmin(context.supabase, context.userId);
+
+    const patch: Record<string, unknown> = {};
+    if (data.status) patch["status"] = data.status;
+    if (data.payment_link !== undefined) patch["payment_link"] = data.payment_link === "" ? null : data.payment_link;
+    if (data.from_label) patch["from_label"] = data.from_label;
+    if (data.to_label) patch["to_label"] = data.to_label;
+    if (data.departure_at) patch["departure_at"] = data.departure_at;
+    if (data.price_fcfa !== undefined) patch["price_fcfa"] = data.price_fcfa;
+    if (data.total_seats !== undefined) patch["total_seats"] = data.total_seats;
+
+    const { error } = await context.supabase
+      .from("caravans")
+      .update(patch as never)
+      .eq("id", data.caravanId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const adminFinance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -422,11 +471,11 @@ export const adminFinance = createServerFn({ method: "GET" })
         .limit(200),
       supabase
         .from("payouts")
-        .select("id, amount_fcfa, method, status, requested_at, processed_at, organizers(name)")
+        .select("id, amount_fcfa, method, status, requested_at, processed_at, caravan_id, organizers(name), caravans(from_label, to_label)")
         .order("requested_at", { ascending: false }),
       supabase
         .from("caravans")
-        .select("price_fcfa, total_seats, seats_left, universities(abbr)"),
+        .select("id, price_fcfa, total_seats, seats_left, from_label, to_label, universities(abbr)"),
     ]);
     for (const r of [payments, payouts, caravans]) if (r.error) throw new Error(r.error.message);
 
@@ -457,15 +506,36 @@ export const adminFinance = createServerFn({ method: "GET" })
         status: p.status,
         date: p.paid_at ?? p.created_at,
       })),
-      payouts: (payouts.data ?? []).map((p) => ({
-        id: p.id,
-        organizer: p.organizers?.name ?? "—",
-        amount: p.amount_fcfa,
-        method: p.method,
-        status: p.status,
-        requestedAt: p.requested_at,
-        processedAt: p.processed_at,
-      })),
+      payouts: (payouts.data ?? []).map((p) => {
+        // Compute available balance for the caravan
+        const cId = p.caravan_id;
+        let cNet = 0;
+        let cPayoutsTotal = 0;
+        
+        if (cId) {
+          const cBookings = bookingsData.filter(b => b.caravan_id === cId);
+          const cPayments = paymentsData.filter(pay => cBookings.some(b => b.id === pay.booking_id && pay.status === "paid"));
+          const cGross = cPayments.reduce((a, pay) => a + pay.amount_fcfa, 0);
+          const cCommission = cPayments.reduce((a, pay) => a + pay.commission_fcfa, 0);
+          cNet = cGross - cCommission;
+          
+          cPayoutsTotal = (payouts.data ?? [])
+            .filter(po => po.caravan_id === cId && (po.status === "requested" || po.status === "approved" || po.status === "paid"))
+            .reduce((a, po) => a + po.amount_fcfa, 0);
+        }
+        
+        return {
+          id: p.id,
+          organizer: p.organizers?.name ?? "—",
+          caravanRoute: p.caravans ? `${p.caravans.from_label} → ${p.caravans.to_label}` : null,
+          amount: p.amount_fcfa,
+          method: p.method,
+          status: p.status,
+          requestedAt: p.requested_at,
+          processedAt: p.processed_at,
+          availableBalance: cId ? Math.max(0, cNet - cPayoutsTotal + p.amount_fcfa) : null, // Add requested amount back to see balance before approval
+        };
+      }),
       universitySplit: [...split.entries()]
         .sort((a, b) => b[1] - a[1])
         .map(([name, revenue]) => ({
@@ -492,11 +562,44 @@ export const adminSetPayoutStatus = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = { status: data.status, processed_by: context.userId };
     if (data.status === "paid" || data.status === "rejected")
       patch['processed_at'] = new Date().toISOString();
-    const { error } = await context.supabase
+    
+    // Select the organizer's phone and owner_id to send notifications
+    const { data: payout, error } = await context.supabase
       .from("payouts")
       .update(patch as never)
-      .eq("id", data.payoutId);
+      .eq("id", data.payoutId)
+      .select("amount_fcfa, organizers(name, phone, owner_id)")
+      .single();
+      
     if (error) throw new Error(error.message);
+
+    // If payment is validated, trigger MacroDroid SMS Webhook and create in-app notification
+    if (data.status === "paid" && payout) {
+      const amount = payout.amount_fcfa;
+      const phone = payout.organizers?.phone;
+      const ownerId = payout.organizers?.owner_id;
+
+      // In-app Notification
+      if (ownerId) {
+        await context.supabase.from("notifications").insert({
+          user_id: ownerId,
+          title: "Retrait validé",
+          body: `Votre demande de retrait de ${amount} FCFA a été traitée et envoyée avec succès sur votre compte mobile.`,
+          kind: "success",
+        } as never);
+      }
+
+      // SMS Notification
+      const webhookUrl = process.env.MACRODROID_SMS_WEBHOOK_URL;
+      if (webhookUrl && phone) {
+        const msg = `CaravaneHub: Votre demande de retrait de ${amount} FCFA a été traitée et envoyée sur votre compte.`;
+        
+        // Fire and forget (don't await or catch silently to not block the UI)
+        fetch(`${webhookUrl}?phone=${encodeURIComponent(phone)}&msg=${encodeURIComponent(msg)}`)
+          .catch(e => console.error("MacroDroid SMS Webhook failed:", e));
+      }
+    }
+
     return { ok: true };
   });
 
@@ -700,4 +803,58 @@ export const adminAnalytics = createServerFn({ method: "GET" })
         .sort((a, b) => b[1].revenue - a[1].revenue)
         .map(([name, v]) => ({ name, revenue: v.revenue, caravans: v.caravans })),
     };
+  });
+
+export const adminCaravanBalances = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdmin } = await import("@/lib/dash.server");
+    const supabase = context.supabase;
+    await assertAdmin(supabase, context.userId);
+
+    const [caravans, payouts, bookings] = await Promise.all([
+      supabase.from("caravans").select("id, from_label, to_label, organizers(name)"),
+      supabase.from("payouts").select("amount_fcfa, status, caravan_id"),
+      supabase.from("bookings").select("id, caravan_id"),
+    ]);
+    
+    if (caravans.error) throw new Error(caravans.error.message);
+    if (payouts.error) throw new Error(payouts.error.message);
+    if (bookings.error) throw new Error(bookings.error.message);
+
+    const bookingIds = (bookings.data ?? []).map(b => b.id);
+    
+    const payments = bookingIds.length 
+      ? (await supabase.from("payments").select("booking_id, amount_fcfa, commission_fcfa, status").in("booking_id", bookingIds)).data ?? []
+      : [];
+
+    return (caravans.data ?? []).map((c) => {
+      const cBookings = bookings.data.filter(b => b.caravan_id === c.id);
+      const cPayments = payments.filter((p) => cBookings.some((b) => b.id === p.booking_id && p.status === "paid"));
+      const cGross = cPayments.reduce((a, p) => a + p.amount_fcfa, 0);
+      const cCommission = cPayments.reduce((a, p) => a + p.commission_fcfa, 0);
+      const cNet = cGross - cCommission;
+      
+      const cPayouts = (payouts.data ?? []).filter((p) => p.caravan_id === c.id);
+      const cPendingPayouts = cPayouts
+        .filter((p) => p.status === "requested" || p.status === "approved")
+        .reduce((a, p) => a + p.amount_fcfa, 0);
+      const cPaidPayouts = cPayouts
+        .filter((p) => p.status === "paid")
+        .reduce((a, p) => a + p.amount_fcfa, 0);
+        
+      const available = cNet - cPendingPayouts - cPaidPayouts;
+
+      return {
+        id: c.id,
+        route: `${c.from_label} → ${c.to_label}`,
+        organizer: c.organizers?.name ?? "—",
+        gross: cGross,
+        commission: cCommission,
+        net: cNet,
+        pendingPayouts: cPendingPayouts,
+        paidPayouts: cPaidPayouts,
+        available: available,
+      };
+    }).sort((a, b) => b.available - a.available);
   });
