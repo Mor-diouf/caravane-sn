@@ -329,12 +329,47 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
     await assertAdmin(supabase, context.userId);
 
     if (data.grant) {
+      // Removed uniqueness check to allow multiple approved organizers
+
       const { error } = await supabase
         .from("user_roles")
         .upsert({ user_id: data.userId, role: data.role, granted_by: context.userId } as never, {
           onConflict: "user_id,role",
         });
       if (error) throw new Error(error.message);
+
+      // If granting organizer role, associate the user with a shared approved organizer if one exists,
+      // otherwise create a new organizer record for this user.
+      if (data.role === "organizer") {
+        // Look for an existing approved organizer
+        const { data: existingOrg, error: existingError } = await supabase
+          .from("organizers")
+          .select("id")
+          .eq("status", "approved")
+          .maybeSingle();
+        if (existingError) throw new Error(existingError.message);
+        if (existingOrg && existingOrg.id) {
+          // Add the user as a member of the existing organizer
+          await supabase
+            .from("organizer_members")
+            .upsert({ user_id: data.userId, organizer_id: existingOrg.id } as never, {
+              onConflict: "user_id,organizer_id",
+            });
+        } else {
+          // No approved organizer yet – create one owned by this user
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", data.userId)
+            .single();
+          const organizerName = profile?.full_name ?? "Organisateur";
+          await supabase
+            .from("organizers")
+            .upsert({ owner_id: data.userId, name: organizerName, status: "approved" } as never, {
+              onConflict: "owner_id",
+            });
+        }
+      }
     } else {
       if (data.role === "admin" && data.userId === context.userId)
         throw new Error("Vous ne pouvez pas retirer votre propre statut d'administrateur");
@@ -344,6 +379,13 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
         .eq("user_id", data.userId)
         .eq("role", data.role);
       if (error) throw new Error(error.message);
+
+      if (data.role === "organizer") {
+        await supabase
+          .from("organizer_members")
+          .delete()
+          .eq("user_id", data.userId);
+      }
     }
 
     await supabase.from("audit_log").insert({

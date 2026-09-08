@@ -16,57 +16,83 @@ export async function assertAdmin(supabase: Client, userId: string) {
   if (!(await isAdmin(supabase, userId))) throw new Error("Accès réservé aux administrateurs");
 }
 
-/** Organisateur dont l'utilisateur est propriétaire, sinon membre d'équipe. */
+/** Organisateur dont l'utilisateur est propriétaire, sinon membre d'équipe, ou organisateur approuvé partagé si rôle organisateur/admin. */
 export async function findOrganizerId(supabase: Client, userId: string) {
-  const owned = await supabase
-    .from("organizers")
-    .select("id")
-    .eq("owner_id", userId)
-    .maybeSingle();
-  if (owned.error) throw new Error(owned.error.message);
-  if (owned.data) return owned.data.id;
+  try {
+    const owned = await supabase
+      .from("organizers")
+      .select("id")
+      .eq("owner_id", userId)
+      .maybeSingle();
+    if (owned.data?.id) return owned.data.id;
 
-  const member = await supabase
-    .from("organizer_members")
-    .select("organizer_id")
-    .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
-  if (member.error) throw new Error(member.error.message);
-  return member.data?.organizer_id ?? null;
+    const member = await supabase
+      .from("organizer_members")
+      .select("organizer_id")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+    if (member.data?.organizer_id) return member.data.organizer_id;
+
+    // Fallback : Si l'utilisateur possède le rôle 'organizer' ou 'admin', le rattacher à l'organisateur approuvé partagé
+    const { data: rolesData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const roles = (rolesData ?? []).map((r) => r.role);
+
+    if (roles.includes("organizer") || roles.includes("admin")) {
+      const { data: sharedOrg } = await supabase
+        .from("organizers")
+        .select("id")
+        .eq("status", "approved")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (sharedOrg?.id) return sharedOrg.id;
+
+      // Fallback si aucun n'est marqué 'approved'
+      const { data: anyOrg } = await supabase
+        .from("organizers")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
+
+      if (anyOrg?.id) return anyOrg.id;
+    }
+  } catch (err) {
+    console.error("[findOrganizerId] Error resolving organizer ID:", err);
+  }
+
+  return null;
 }
 
 export async function requireOrganizerId(supabase: Client, userId: string) {
-  const owned = await supabase
+  const orgId = await findOrganizerId(supabase, userId);
+  if (!orgId) {
+    throw new Error("Aucun espace organisateur associé à ce compte");
+  }
+
+  const { data: org } = await supabase
     .from("organizers")
-    .select("id, status")
-    .eq("owner_id", userId)
+    .select("status")
+    .eq("id", orgId)
     .maybeSingle();
 
-  if (owned.data) {
-    if (owned.data.status !== "approved") {
+  if (org && org.status && org.status !== "approved") {
+    // Check if user is granted organizer/admin role by admin
+    const { data: rolesData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const roles = (rolesData ?? []).map((r) => r.role);
+    if (!roles.includes("organizer") && !roles.includes("admin")) {
       throw new Error("Votre espace organisateur n'a pas encore été validé par l'administration.");
     }
-    return owned.data.id;
   }
 
-  const member = await supabase
-    .from("organizer_members")
-    .select("organizer_id, organizers(status)")
-    .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
-
-  if (member.data) {
-    // TypeScript doesn't know organizers(status) shape easily without strict types here
-    const status = (member.data.organizers as any)?.status;
-    if (status !== "approved") {
-      throw new Error("L'espace organisateur auquel vous appartenez n'est pas validé.");
-    }
-    return member.data.organizer_id;
-  }
-
-  throw new Error("Aucun espace organisateur associé à ce compte");
+  return orgId;
 }
 
 export function monthKey(iso: string) {

@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BadgeCheck,
   Bell,
+  Bus,
   Camera,
   Check,
   ChevronRight,
-  CreditCard,
   Heart,
   HelpCircle,
   Loader2,
@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { BottomNav } from "@/components/BottomNav";
-import { PaymentMark } from "@/components/PaymentMark";
 import { UniversityMark } from "@/components/UniversityMark";
 import { formatPrice, type ProfileUpdate } from "@/lib/student-shared";
 import {
@@ -45,17 +44,17 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/profil")({
   head: () => ({
     meta: [
-      { title: "Mon profil étudiant — Caravane Étudiants" },
+      { title: "Mon Compte — KING-BUS 2.0" },
       {
         name: "description",
         content:
-          "Gérez votre profil étudiant, votre université, votre moyen de paiement mobile et vos préférences de notifications pour vos caravanes.",
+          "Gérez votre compte voyageur, vos coordonnées et vos billets de bus KING-BUS 2.0.",
       },
-      { property: "og:title", content: "Profil étudiant — Caravane Étudiants" },
+      { property: "og:title", content: "Mon Compte — KING-BUS 2.0" },
       {
         property: "og:description",
         content:
-          "Carte étudiant numérique, historique de trajets, moyens de paiement Wave / Orange Money et préférences de voyage.",
+          "Espace voyageur officiel KING-BUS 2.0 : départs Dakar ⇄ Ziguinchor, e-billets et profil.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -64,13 +63,6 @@ export const Route = createFileRoute("/_authenticated/profil")({
   component: Profil,
 });
 
-const methods = [
-  { id: "wave", label: "Wave" },
-  { id: "orange", label: "Orange Money" },
-  { id: "free", label: "Free Money" },
-] as const;
-
-type Method = (typeof methods)[number]["id"];
 
 const links = [
   { icon: TicketCheck, label: "Historique des trajets", to: "/billets" as const },
@@ -156,13 +148,16 @@ function Profil() {
     ];
     const top = [];
     if (access?.isAdmin) {
-      top.push({ icon: Shield, label: "Espace Admin", hint: "Gérer la plateforme", to: "/admin" as const });
+      top.push({ icon: Shield, label: "Espace Super Admin", hint: "Gestion globale du système", to: "/admin" as const });
     }
-    if (access?.organizerId) {
-      top.push({ icon: Megaphone, label: "Espace Organisateur", hint: "Gérer vos caravanes", to: "/organizer" as const });
-    }
-    if (!access?.isAdmin && !access?.organizerId) {
-      top.push({ icon: Megaphone, label: "Devenir organisateur", hint: "Publiez vos caravanes" });
+    // Show King Bus portal only for admins or organizers
+    if (access?.isAdmin || access?.isOrganizer || access?.roles?.includes("organizer")) {
+      top.push({
+        icon: Bus,
+        label: "Portail Exploitation KING-BUS 2.0",
+        hint: "Départs Dakar ⇄ Ziguinchor, recettes, manifeste et scanner",
+        to: "/organizer/dashboard" as const,
+      });
     }
     return [...top, ...base];
   }, [access]);
@@ -280,7 +275,6 @@ function Profil() {
     return { seats, spent, destinations: dest.size };
   }, [bookings]);
 
-  const prefMethod = (profile?.preferred_payment ?? "wave") as Method;
 
   if (isLoading) {
     return (
@@ -440,100 +434,6 @@ function Profil() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
-          <div className="flex items-center gap-2">
-            <CreditCard className="size-4 text-primary-accent" />
-            <h2 className="text-sm font-bold tracking-tight">Moyen de paiement préféré</h2>
-          </div>
-          <ul className="mt-3 space-y-2">
-            {methods.map((m) => {
-              const active = prefMethod === m.id;
-              return (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => save.mutate({ preferred_payment: m.id })}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all",
-                      active
-                        ? "border-primary-accent bg-accent shadow-ambient"
-                        : "border-border/70 hover:border-primary-accent/50",
-                    )}
-                  >
-                    <PaymentMark method={m.id} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                      {m.label}
-                    </span>
-                    <span
-                      className={cn(
-                        "grid size-5 shrink-0 place-items-center rounded-full border-2",
-                        active ? "border-primary-accent" : "border-border",
-                      )}
-                    >
-                      {active && <span className="size-2.5 rounded-full bg-primary-accent" />}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <section className="rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
-          <div className="flex items-center gap-2">
-            <Bell className="size-4 text-primary-accent" />
-            <h2 className="text-sm font-bold tracking-tight">Notifications</h2>
-          </div>
-          <ul className="mt-2 divide-y divide-border">
-            {(
-              [
-                {
-                  key: "notify_departures",
-                  label: "Rappels de départ",
-                  hint: "2h avant le trajet",
-                },
-                {
-                  key: "notify_promos",
-                  label: "Bons plans et promos",
-                  hint: "Réductions étudiantes",
-                },
-                {
-                  key: "notify_whatsapp",
-                  label: "Alertes WhatsApp",
-                  hint: "Billet et changements",
-                },
-              ] as const
-            ).map(({ key, label, hint }) => {
-              const checked = Boolean(profile?.[key]);
-              return (
-                <li key={key} className="flex items-center gap-3 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{label}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{hint}</p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={checked}
-                    aria-label={label}
-                    onClick={() => save.mutate({ [key]: !checked })}
-                    className={cn(
-                      "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                      checked ? "bg-primary-accent" : "bg-muted",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-0.5 size-5 rounded-full bg-card shadow-ambient transition-all",
-                        checked ? "left-[22px]" : "left-0.5",
-                      )}
-                    />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
 
         <section className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-ambient">
           <ul className="divide-y divide-border">

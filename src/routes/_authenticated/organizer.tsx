@@ -41,25 +41,32 @@ function OrganizerLayout() {
     );
   }
 
-  const allowed = (Boolean(data?.organizerId) && data?.organizerStatus === "approved") || Boolean(data?.isAdmin);
+  const allowed = Boolean(
+    data?.isAdmin || data?.isOrganizer || data?.roles?.includes("organizer")
+  );
   if (!allowed) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6">
-        <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-lifted">
-          <ShieldAlert className="mx-auto size-8 text-warning" />
-          <h1 className="mt-4 text-lg font-extrabold tracking-tight">
-            Aucun espace organisateur
+        <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-lifted">
+          <img
+            src="/images/king-bus/logo.jpg"
+            alt="KING-BUS"
+            className="size-14 mx-auto rounded-2xl object-cover mb-2 border border-primary/40 shadow-sm"
+          />
+          <h1 className="mt-3 text-lg font-black tracking-tight text-foreground">
+            Portail Réservé aux Équipes King-Bus
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Votre compte n'est pas encore rattaché à une amicale. Demandez à l'administration
-            d'activer votre statut d'organisateur.
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Cet espace d'exploitation est strictement réservé à la direction, aux chefs d'agence de Dakar & Ziguinchor, et aux contrôleurs d'embarquement de King-Bus 2.0.
           </p>
-          <Link
-            to="/"
-            className="mt-6 inline-flex h-10 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"
-          >
-            Retour à l'accueil
-          </Link>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link
+              to="/"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-xs font-black text-black shadow-md hover:brightness-110"
+            >
+              Retour à l'accueil
+            </Link>
+          </div>
         </div>
       </div>
     );

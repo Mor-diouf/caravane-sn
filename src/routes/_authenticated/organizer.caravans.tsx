@@ -178,15 +178,15 @@ function CaravansPage() {
   return (
     <>
       <PageHeader
-        title="Mes caravanes"
-        subtitle="Créez, publiez et suivez chaque départ organisé par votre amicale."
+        title="Lignes & Départs de Bus"
+        subtitle="Programmez, publiez et gérez les trajets officiels King-Bus (Dakar ⇄ Ziguinchor, VIP Nuit, etc.)."
         actions={
           <button
             type="button"
             onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-ambient transition-transform active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-4 py-2.5 text-sm font-black text-black shadow-md hover:brightness-110 active:scale-[0.98]"
           >
-            <Plus className="size-4" /> Créer une caravane
+            <Plus className="size-4" /> Programmer un voyage bus
           </button>
         }
       />

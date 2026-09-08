@@ -52,43 +52,46 @@ type NavItem = {
 
 const navGroups: Array<{ title: string; items: NavItem[] }> = [
   {
-    title: "Pilotage",
+    title: "Direction & Lignes",
     items: [
-      { label: "Vue d'ensemble", icon: LayoutDashboard, to: "/organizer/dashboard" },
-      { label: "Mes caravanes", icon: Bus, to: "/organizer/caravans" },
+      { label: "Tableau de bord", icon: LayoutDashboard, to: "/organizer/dashboard" },
+      { label: "Lignes & Départs", icon: Bus, to: "/organizer/caravans" },
       { label: "Réservations", icon: Ticket, to: "/organizer/bookings" },
-      { label: "Passagers", icon: Users, to: "/organizer/passengers" },
+      { label: "Manifeste Passagers", icon: Users, to: "/organizer/passengers" },
     ],
   },
   {
-    title: "Opérations",
+    title: "Opérations & Gares",
     items: [
-      { label: "Paiements", icon: Wallet, to: "/organizer/payments" },
-      { label: "Scanner les billets", icon: QrCode, to: "/organizer/scanner" },
-      { label: "Avis & réputation", icon: Star, to: "/organizer/reputation" },
+      { label: "Scanner Embarquement", icon: QrCode, to: "/organizer/scanner" },
+      { label: "Recettes & Caisse", icon: Wallet, to: "/organizer/payments" },
+      { label: "Avis Voyageurs", icon: Star, to: "/organizer/reputation" },
+      { label: "Équipe & Contrôleurs", icon: UsersRound, to: "/organizer/team" },
     ],
   },
   {
-    title: "Compte",
+    title: "Configuration",
     items: [
-      { label: "Paramètres", icon: Settings, to: "/organizer/settings" },
+      { label: "Paramètres Agence", icon: Settings, to: "/organizer/settings" },
     ],
   },
 ];
 
 const mobileNav: NavItem[] = [
-  { label: "Vue", icon: LayoutDashboard, to: "/organizer/dashboard" },
-  { label: "Caravanes", icon: Bus, to: "/organizer/caravans" },
+  { label: "Bord", icon: LayoutDashboard, to: "/organizer/dashboard" },
+  { label: "Lignes", icon: Bus, to: "/organizer/caravans" },
   { label: "Scanner", icon: QrCode, to: "/organizer/scanner" },
-  { label: "Paiements", icon: Wallet, to: "/organizer/payments" },
-  { label: "Avis", icon: Star, to: "/organizer/reputation" },
+  { label: "Passagers", icon: Users, to: "/organizer/passengers" },
+  { label: "Caisse", icon: Wallet, to: "/organizer/payments" },
 ];
 
 function OrgLogo() {
   return (
-    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-foreground/10 text-[11px] font-black tracking-tight text-brand-foreground ring-1 ring-brand-foreground/15">
-      CH
-    </span>
+    <img
+      src="/images/king-bus/logo.jpg"
+      alt="KING-BUS 2.0"
+      className="size-9 shrink-0 rounded-xl object-cover bg-white border border-primary/40 shadow-sm"
+    />
   );
 }
 
@@ -139,12 +142,14 @@ function SidebarInner({ onNavigate }: { onNavigate?: (() => void) | undefined })
   const access = useQuery(accessQuery());
   return (
     <div className="flex h-full flex-col bg-brand text-brand-foreground">
-      <div className="flex items-center gap-3 px-5 py-5">
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-brand-foreground/10">
         <OrgLogo />
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold tracking-tight">CaravaneHub</p>
-          <p className="truncate text-[11px] text-brand-foreground/55">
-            {access.data?.organizerName ?? "Mon amicale"}
+          <p className="truncate text-sm font-black tracking-tight flex items-center gap-1.5">
+            KING-BUS <span className="text-primary text-[10px] font-bold px-1 rounded bg-primary/20">2.0</span>
+          </p>
+          <p className="truncate text-[11px] text-brand-foreground/60 font-semibold">
+            {access.data?.organizerName ?? "Portail Exploitation"}
           </p>
         </div>
       </div>

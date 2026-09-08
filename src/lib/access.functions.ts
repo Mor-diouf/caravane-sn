@@ -15,6 +15,8 @@ export const getMyAccess = createServerFn({ method: "GET" })
     if (rolesRes.error) throw new Error(rolesRes.error.message);
 
     const roles = (rolesRes.data ?? []).map((r) => r.role as AppRole);
+    const isOrganizerRole = roles.includes("organizer");
+    const isAdmin = roles.includes("admin");
     const organizerId = await findOrganizerId(supabase, context.userId);
 
     let organizerName: string | null = null;
@@ -31,13 +33,17 @@ export const getMyAccess = createServerFn({ method: "GET" })
       organizerIsPro = Boolean(data?.is_pro);
     }
 
+    if (isOrganizerRole || isAdmin) {
+      organizerStatus = organizerStatus || "approved";
+    }
+
     return {
       userId: context.userId,
       roles,
-      isAdmin: roles.includes("admin"),
-      isOrganizer: roles.includes("organizer") || Boolean(organizerId),
+      isAdmin,
+      isOrganizer: isOrganizerRole || Boolean(organizerId),
       organizerId,
-      organizerName,
+      organizerName: organizerName ?? "KING-BUS 2.0",
       organizerStatus,
       organizerIsPro,
       fullName: profileRes.data?.full_name ?? "",

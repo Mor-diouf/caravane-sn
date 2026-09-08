@@ -34,16 +34,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/billets")({
   head: () => ({
     meta: [
-      { title: "Mes billets électroniques — Caravane Étudiants" },
+      { title: "Mes billets officiels — KING-BUS 2.0" },
       {
         name: "description",
         content:
-          "Retrouvez vos billets électroniques de caravanes étudiantes avec QR code de validation à l'embarquement.",
+          "Retrouvez vos billets électroniques King-Bus 2.0 avec QR Code de validation pour l'embarquement Dakar ⇄ Ziguinchor.",
       },
-      { property: "og:title", content: "Mes billets — Caravane Étudiants" },
+      { property: "og:title", content: "Mes billets — KING-BUS 2.0" },
       {
         property: "og:description",
-        content: "Vos billets QR de caravanes universitaires, prêts pour l'embarquement.",
+        content: "Vos billets King-Bus avec QR Code sécurisé prêts pour l'embarquement.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -174,11 +174,16 @@ function Billets() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      <header className="bg-gradient-primary px-5 pb-12 pt-8 text-primary-foreground">
+      <header className="bg-gradient-to-r from-[#090d16] via-[#0f172a] to-[#0a0f1d] px-5 pb-12 pt-8 text-white border-b border-white/10">
         <div className="mx-auto max-w-3xl">
-          <h1 className="text-2xl font-extrabold tracking-tight">Mes billets</h1>
-          <p className="mt-1 text-sm text-primary-foreground/75">
-            Présentez le QR code au responsable de l'amicale lors de l'embarquement.
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-black text-primary uppercase tracking-wider">
+              King-Bus 2.0
+            </span>
+          </div>
+          <h1 className="text-2xl font-black tracking-tight text-white mt-1">Mes billets d'embarquement</h1>
+          <p className="mt-1 text-xs text-white/70">
+            Présentez le QR code au contrôleur King-Bus à l'embarquement à la gare de départ.
           </p>
         </div>
       </header>
@@ -186,7 +191,7 @@ function Billets() {
       <main className="mx-auto -mt-6 max-w-3xl space-y-6 px-4">
         {isLoading ? (
           <div className="grid place-items-center rounded-3xl border border-border/70 bg-card p-12 shadow-ambient">
-            <Loader2 className="size-5 animate-spin text-primary-accent" />
+            <Loader2 className="size-5 animate-spin text-primary" />
           </div>
         ) : isError ? (
           <p className="rounded-3xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
@@ -194,12 +199,13 @@ function Billets() {
           </p>
         ) : !bookings || bookings.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border bg-card p-10 text-center shadow-ambient">
-            <p className="text-sm text-muted-foreground">Vous n'avez pas encore de billet.</p>
+            <p className="text-sm font-bold text-foreground">Vous n'avez pas encore de billet King-Bus.</p>
+            <p className="text-xs text-muted-foreground mt-1">Réservez votre trajet Dakar ⇄ Ziguinchor dès maintenant.</p>
             <Link
               to="/"
-              className="mt-4 inline-block rounded-2xl bg-gradient-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lifted"
+              className="mt-4 inline-block rounded-2xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-6 py-3 text-xs font-black text-black shadow-md hover:brightness-110"
             >
-              Découvrir les caravanes
+              Découvrir les départs King-Bus
             </Link>
           </div>
         ) : (

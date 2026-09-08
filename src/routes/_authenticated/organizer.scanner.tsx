@@ -30,16 +30,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/organizer/scanner")({
   head: () => ({
     meta: [
-      { title: "Scanner les billets — CaravaneHub Organisateur" },
+      { title: "Scanner d'Embarquement — KING-BUS 2.0" },
       {
         name: "description",
         content:
-          "Validez l'embarquement des étudiants en scannant leur QR code : contrôle instantané, hors ligne compatible.",
+          "Validez l'embarquement des passagers King-Bus en scannant leur QR code : contrôle instantané et sécurisé.",
       },
-      { property: "og:title", content: "Scanner les billets — CaravaneHub" },
+      { property: "og:title", content: "Scanner d'Embarquement — KING-BUS 2.0" },
       {
         property: "og:description",
-        content: "Contrôle d'accès rapide au départ de chaque caravane.",
+        content: "Contrôle d'accès rapide au départ de chaque bus King-Bus.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -155,7 +155,10 @@ function ScannerPage() {
 
   useEffect(() => {
     if (activeCaravans.length > 0 && !selectedCaravanId) {
-      setSelectedCaravanId(activeCaravans[0].id);
+      const first = activeCaravans[0];
+      if (first) {
+        setSelectedCaravanId(first.id);
+      }
     }
   }, [activeCaravans, selectedCaravanId]);
 
@@ -277,7 +280,7 @@ function ScannerPage() {
           });
 
           // Play Pop-Pop chime + Speech Synthesis
-          playVoiceFeedback(`Embarquement validé. Je vous souhaite un bon voyage, ${studentName}`, "valid");
+          playVoiceFeedback(`Embarquement validé. King-Bus vous souhaite un bon voyage, ${studentName}`, "valid");
           toast.success(`Embarquement validé : ${studentName}`);
           queryClient.invalidateQueries({ queryKey: ["organizer"] });
         } else {

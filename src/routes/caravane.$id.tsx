@@ -44,10 +44,10 @@ export const Route = createFileRoute("/caravane/$id")({
   },
   head: ({ loaderData }) => {
     const c = loaderData?.caravane;
-    const title = c ? `${c.from} → ${c.to} — Caravane Étudiants` : "Caravane Étudiants";
+    const title = c ? `${c.from} ➔ ${c.to} — KING-BUS 2.0` : "KING-BUS 2.0";
     const description = c
-      ? `Caravane ${c.from} vers ${c.to} le ${c.date} à ${c.time} depuis ${c.pickup}. ${formatPrice(c.price)} FCFA, ${c.seatsLeft} places restantes.`
-      : "Détail de la caravane universitaire.";
+      ? `Départ King-Bus ${c.from} vers ${c.to} le ${c.date} à ${c.time} depuis ${c.pickup}. ${formatPrice(c.price)} FCFA, ${c.seatsLeft} places restantes. Confort, climatisation et sécurité assurée.`
+      : "Détail du départ officiel King-Bus 2.0.";
     return {
       meta: [
         { title },
@@ -386,9 +386,9 @@ function CaravaneDetail() {
             type="button"
             onClick={openPayment}
             disabled={caravane.seatsLeft === 0}
-            className="shrink-0 rounded-2xl bg-gradient-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="shrink-0 rounded-2xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-7 py-3.5 text-sm font-black text-black shadow-lg shadow-primary/20 hover:brightness-110 transition-transform active:scale-[0.98] disabled:opacity-60"
           >
-            {caravane.seatsLeft === 0 ? "Complet" : "Réserver une place"}
+            {caravane.seatsLeft === 0 ? "Complet" : "Réserver ma place"}
           </button>
         </div>
       </div>

@@ -27,16 +27,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/organizer/dashboard")({
   head: () => ({
     meta: [
-      { title: "Vue d'ensemble — CaravaneHub Organisateur" },
+      { title: "Tableau de Bord — KING-BUS 2.0" },
       {
         name: "description",
         content:
-          "Pilotez vos caravanes universitaires : réservations, revenus, remplissage et avis étudiants en temps réel.",
+          "Pilotez vos départs de bus Dakar ⇄ Ziguinchor : réservations, recettes, taux de remplissage et passagers en direct.",
       },
-      { property: "og:title", content: "Vue d'ensemble — CaravaneHub" },
+      { property: "og:title", content: "Tableau de Bord — KING-BUS 2.0" },
       {
         property: "og:description",
-        content: "Le centre de commande de votre activité de caravanes étudiantes.",
+        content: "Centre d'exploitation et de gestion de la flotte King-Bus 2.0.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -59,8 +59,9 @@ function DashboardPage() {
   const nextCaravan =
     caravans.find((c) => c.status === "published" && new Date(c.departureAt) > new Date()) ??
     caravans[0];
-  const capacity = nextCaravan?.capacity ?? 0;
-  const booked = nextCaravan?.booked ?? 0;
+
+  const booked = nextCaravan ? nextCaravan.totalSeats - nextCaravan.seatsLeft : 0;
+  const capacity = nextCaravan?.totalSeats ?? 0;
   const available = Math.max(0, capacity - booked);
   const occupancy = capacity ? Math.round((booked / capacity) * 100) : 0;
 
@@ -69,27 +70,27 @@ function DashboardPage() {
   return (
     <>
       <PageHeader
-        title={`Bonjour, ${overview?.organizer.name?.split(" ")[0] ?? "Organisateur"} 👋`}
-        subtitle="Voici la performance de votre activité aujourd'hui."
+        title={`Bonjour, ${overview?.organizer.name?.split(" ")[0] ?? "Direction"} 👋`}
+        subtitle="Centre d'exploitation et suivi de la flotte King-Bus en temps réel."
         actions={
           <>
             <Link
               to="/organizer/bookings"
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
             >
-              <Ticket className="size-4" /> Voir les réservations
+              <Ticket className="size-4" /> Réservations
             </Link>
             <Link
               to="/organizer/scanner"
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
             >
-              <QrCode className="size-4" /> Scanner un billet
+              <QrCode className="size-4 text-primary" /> Scanner un billet
             </Link>
             <Link
               to="/organizer/caravans"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-ambient transition-transform active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-4 py-2.5 text-sm font-black text-black shadow-md hover:brightness-110 active:scale-[0.98]"
             >
-              <Plus className="size-4" /> Créer une caravane
+              <Plus className="size-4" /> Nouveau départ bus
             </Link>
           </>
         }
@@ -101,29 +102,29 @@ function DashboardPage() {
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
-              title="Caravane active"
+              title="Prochain bus en départ"
               value={nextCaravan?.route.split("→")[1]?.trim() ?? "—"}
-              secondary={`${booked} / ${capacity} places`}
+              secondary={`${booked} / ${capacity} places vendues`}
               icon={Bus}
             />
             <KpiCard
-              title="Réservations"
+              title="Billets émis"
               value={String(overview?.kpis.bookings ?? 0)}
-              secondary={`${overview?.kpis.seatsSold ?? 0} places vendues`}
+              secondary={`${overview?.kpis.seatsSold ?? 0} passagers enregistrés`}
               icon={Ticket}
               accent="info"
             />
             <KpiCard
-              title="Revenus générés"
+              title="Recettes totales"
               value={fcfa(overview?.kpis.revenue ?? 0)}
-              secondary={`${overview?.kpis.reviews ?? 0} avis vérifiés`}
+              secondary="Wave, OM & Guichet"
               icon={Wallet}
               accent="mint"
             />
             <KpiCard
-              title="Note moyenne"
-              value={`${overview?.kpis.rating ?? 0}/5`}
-              secondary={`${overview?.kpis.reviews ?? 0} avis vérifiés`}
+              title="Satisfaction voyageurs"
+              value={`${overview?.kpis.rating ?? 5.0}/5`}
+              secondary={`${overview?.kpis.reviews ?? 0} avis passagers`}
               icon={Star}
               accent="warning"
             />
@@ -131,9 +132,9 @@ function DashboardPage() {
 
           <div className="mt-4">
             <InsightBanner
-              message={`Votre taux de remplissage global est de ${overview?.kpis.fillRate ?? 0}%. ${
+              message={`Taux de remplissage global de la flotte : ${overview?.kpis.fillRate ?? 0}%. ${
                 overview?.kpis.upcoming ?? 0
-              } caravane(s) à venir.`}
+              } départ(s) de bus programmé(s).`}
             />
           </div>
 

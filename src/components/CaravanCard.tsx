@@ -55,7 +55,7 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
           <div className="absolute bottom-3.5 left-4 right-4 text-white">
             <h3 className="text-xl sm:text-2xl font-black leading-tight tracking-tight flex items-center gap-2 drop-shadow-md">
               <span className="truncate">{caravane.from}</span>
-              <span className="text-[#1dc3ec] shrink-0 font-bold">➔</span>
+              <span className="text-primary shrink-0 font-black">➔</span>
               <span className="truncate">{caravane.to}</span>
             </h3>
           </div>
@@ -66,7 +66,7 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
           <div className="space-y-2.5">
             {/* Date & Time */}
             <div className="flex items-center gap-2.5 text-xs sm:text-sm text-foreground font-semibold">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
                 <Clock className="size-3.5" />
               </div>
               <span className="truncate">
@@ -77,10 +77,10 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
             {/* Pickup Location */}
             <div className="flex items-start gap-2.5 text-xs text-muted-foreground font-medium">
               <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground mt-0.5">
-                <MapPin className="size-3.5" />
+                <MapPin className="size-3.5 text-primary" />
               </div>
               <span className="line-clamp-2 leading-relaxed">
-                <strong className="text-foreground/80 font-semibold">Départ :</strong> {caravane.pickup}
+                <strong className="text-foreground/80 font-semibold">Gare départ :</strong> {caravane.pickup}
               </span>
             </div>
 
@@ -91,29 +91,28 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
                   <span className="text-[11px] font-bold">🏁</span>
                 </div>
                 <span className="line-clamp-1 leading-relaxed">
-                  <strong className="text-foreground/80 font-semibold">Arrivée :</strong> {caravane.dropoff}
+                  <strong className="text-foreground/80 font-semibold">Gare arrivée :</strong> {caravane.dropoff}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Organizer & Trust Badge */}
+          {/* King-Bus Official Trust Badge */}
           <div className="flex items-center justify-between pt-3 border-t border-border/60">
             <div className="flex items-center gap-2 min-w-0">
-              <OrganizerLogo
-                url={caravane.organizerLogoUrl}
-                name={caravane.organizer}
-                className="size-6 rounded-full"
-                iconClassName="size-3"
+              <img
+                src={caravane.organizerLogoUrl || "/images/king-bus/logo.jpg"}
+                alt="KING-BUS"
+                className="size-6 rounded-full object-cover border border-primary/40 bg-white"
               />
-              <span className="truncate text-xs font-bold text-foreground/90">
-                {caravane.organizer}
+              <span className="truncate text-xs font-black text-foreground/90">
+                {caravane.organizer || "KING-BUS 2.0"}
               </span>
-              <CheckCircle2 className="size-3.5 text-[#1dc3ec] shrink-0" />
+              <CheckCircle2 className="size-3.5 text-primary shrink-0" />
             </div>
 
-            <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
-              {caravane.rating ? `${caravane.rating} ⭐` : "Certifié"}
+            <span className="shrink-0 text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+              ⭐ 4.9 • Confort Assuré
             </span>
           </div>
 
@@ -130,8 +129,8 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-md transition-all group-hover:scale-[1.03] group-hover:shadow-lifted">
-                <span>{isFull ? "Détails" : "Réserver"}</span>
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-4 py-2.5 text-xs font-black text-black shadow-md transition-all group-hover:scale-[1.03] group-hover:shadow-lifted hover:brightness-110">
+                <span>{isFull ? "Complet" : "Réserver"}</span>
                 <ChevronRight className="size-3.5" />
               </span>
             </div>

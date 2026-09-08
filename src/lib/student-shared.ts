@@ -36,6 +36,7 @@ export type CaravanView = {
 };
 
 export const BUS_PRESET_IMAGES = [
+  "/images/king-bus/flyer.jpg",
   "/images/bus-1.jpg",
   "/images/bus-2.jpg",
   "/images/bus-3.jpg",
@@ -112,18 +113,16 @@ export function mapCaravan(row: RawCaravan): CaravanView {
     seatsLeft: row.seats_left,
     totalSeats: row.total_seats,
     image: row.image_url || fallbackImage(row.id),
-    organizer: row.organizers?.name ?? "Amicale étudiante",
+    organizer: row.organizers?.name ?? "KING-BUS 2.0",
     organizerId: row.organizer_id,
-    organizerPhone: row.organizers?.phone ?? null,
-    organizerLogoUrl: row.organizers?.logo_url ?? null,
-    organizerSlogan: row.organizers?.slogan ?? null,
-    organizerSupportPhone: row.organizers?.support_phone ?? null,
-    rating: Number(row.organizers?.rating ?? 0),
-    isPro: Boolean(row.organizers?.is_pro),
-    amenities: (row.amenities ?? []).filter((a): a is Amenity =>
-      ["wifi", "ac", "usb", "video"].includes(a),
-    ),
-    about: row.about ?? "",
+    organizerPhone: row.organizers?.phone ?? "+221 78 188 01 02",
+    organizerLogoUrl: row.organizers?.logo_url ?? "/images/king-bus/logo.jpg",
+    organizerSlogan: row.organizers?.slogan ?? "Voyagez avec confort, voyagez avec classe",
+    organizerSupportPhone: row.organizers?.support_phone ?? "+221 78 188 01 02",
+    rating: row.organizers?.rating ?? 4.9,
+    isPro: true,
+    amenities: (row.amenities as Amenity[]) ?? ["ac", "wifi", "usb"],
+    about: row.about ?? "Départ King-Bus 2.0. Confort maximal, sécurité et ponctualité.",
   };
 }
 
