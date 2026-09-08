@@ -31,12 +31,15 @@ import { useStudentFavorites } from "@/hooks/use-student-favorites";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { OrganizerLogo } from "@/components/OrganizerLogo";
 
 export const Route = createFileRoute("/caravane/$id")({
   loader: async ({ context, params }) => {
-    const caravane = await context.queryClient.ensureQueryData(caravanQuery(params.id));
+    const [caravane] = await Promise.all([
+      context.queryClient.ensureQueryData(caravanQuery(params.id)),
+      context.queryClient.ensureQueryData(universitiesQuery),
+    ]);
     if (!caravane) throw notFound();
-    await context.queryClient.ensureQueryData(universitiesQuery);
     return { caravane };
   },
   head: ({ loaderData }) => {
@@ -251,15 +254,12 @@ function CaravaneDetail() {
         </section>
 
         <section className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
-          {caravane.organizerLogoUrl ? (
-            <img
-              src={caravane.organizerLogoUrl}
-              alt={caravane.organizer}
-              className="size-12 rounded-2xl border border-border/60 bg-white object-contain p-1 shadow-sm"
-            />
-          ) : (
-            <UniversityMark abbr={caravane.from} showAbbr={false} className="size-12 shrink-0" />
-          )}
+          <OrganizerLogo
+            url={caravane.organizerLogoUrl}
+            name={caravane.organizer}
+            className="size-12 rounded-2xl p-1"
+            iconClassName="size-6"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-muted-foreground">Organisé par</p>
             <p className="truncate text-sm font-extrabold">{caravane.organizer}</p>

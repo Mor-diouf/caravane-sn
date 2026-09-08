@@ -20,6 +20,7 @@ export const Route = createFileRoute("/")({
     await Promise.all([
       context.queryClient.ensureQueryData(caravansQuery),
       context.queryClient.ensureQueryData(universitiesQuery),
+      context.queryClient.ensureQueryData(organizersQuery),
     ]);
   },
   head: () => ({
@@ -60,7 +61,10 @@ function Index() {
   const { data: universities } = useSuspenseQuery(universitiesQuery);
   const { data: organizers } = useSuspenseQuery(organizersQuery);
   const { user } = useAuth();
-  const { data: profile } = useQuery(profileQuery);
+  const { data: profile } = useQuery({
+    ...profileQuery,
+    enabled: !!user,
+  });
   const [activeUniversity, setActiveUniversity] = useState<string | null>(null);
   const [activeOrganizer, setActiveOrganizer] = useState<string | null>(null);
   const [activeDestination, setActiveDestination] = useState<string | null>(null);

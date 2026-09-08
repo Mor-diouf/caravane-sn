@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Bus, ChevronLeft, Star } from "lucide-react";
 import { organizersQuery } from "@/lib/student-queries";
 import { BottomNav } from "@/components/BottomNav";
+import { OrganizerLogo } from "@/components/OrganizerLogo";
 
 export const Route = createFileRoute("/organisateurs/")({
   head: () => ({
@@ -56,17 +57,12 @@ function OrganizersIndex() {
                 className="group flex flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-card p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-primary-accent/50 hover:shadow-lifted"
               >
                 <div className="flex items-center gap-4">
-                  {org.logoUrl ? (
-                    <img
-                      src={org.logoUrl}
-                      alt={org.name}
-                      className="size-14 shrink-0 rounded-2xl object-cover shadow-sm ring-1 ring-border"
-                    />
-                  ) : (
-                    <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20">
-                      <Bus className="size-6" />
-                    </div>
-                  )}
+                  <OrganizerLogo
+                    url={org.logoUrl}
+                    name={org.name}
+                    className="size-14 rounded-2xl"
+                    iconClassName="size-6"
+                  />
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate text-base font-extrabold tracking-tight group-hover:text-primary-accent transition-colors">
                       {org.name}

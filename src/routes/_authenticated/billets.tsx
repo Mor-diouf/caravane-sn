@@ -18,6 +18,7 @@ import { formatPrice } from "@/lib/student-shared";
 import { PaymentMark } from "@/components/PaymentMark";
 import { ticketsQuery, profileQuery } from "@/lib/student-queries";
 import { submitCaravanReview } from "@/lib/student.functions";
+import { OrganizerLogo } from "@/components/OrganizerLogo";
 import {
   Dialog,
   DialogContent,
@@ -228,17 +229,12 @@ function Billets() {
 
                   {/* ── Organizer Branding ── */}
                   <div className="flex flex-col items-center border-b border-border/50 bg-gradient-to-b from-muted/30 to-card px-5 py-5 text-center">
-                    {c.organizerLogoUrl ? (
-                      <img
-                        src={c.organizerLogoUrl}
-                        alt={c.organizer}
-                        className="size-20 rounded-2xl border border-border/60 bg-white object-contain p-1.5 shadow-sm"
-                      />
-                    ) : (
-                      <span className="grid size-20 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-sm">
-                        <Building2 className="size-8" />
-                      </span>
-                    )}
+                    <OrganizerLogo
+                      url={c.organizerLogoUrl}
+                      name={c.organizer}
+                      className="size-20 rounded-2xl p-1.5"
+                      iconClassName="size-8"
+                    />
                     <h3 className="mt-2.5 text-lg font-black text-foreground">{c.organizer}</h3>
                     {c.organizerSlogan && (
                       <p className="text-[11px] font-medium italic text-muted-foreground">

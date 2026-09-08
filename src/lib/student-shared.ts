@@ -1,8 +1,3 @@
-import bus1 from "@/assets/bus-1.jpg";
-import bus2 from "@/assets/bus-2.jpg";
-import bus3 from "@/assets/bus-3.jpg";
-import bus4 from "@/assets/bus-4.jpg";
-
 export type Amenity = "wifi" | "ac" | "usb" | "video";
 
 export type UniversityRow = {
@@ -40,7 +35,12 @@ export type CaravanView = {
   about: string;
 };
 
-export const BUS_PRESET_IMAGES = [bus1, bus2, bus3, bus4];
+export const BUS_PRESET_IMAGES = [
+  "/images/bus-1.jpg",
+  "/images/bus-2.jpg",
+  "/images/bus-3.jpg",
+  "/images/bus-4.jpg",
+];
 const fallbackImages = BUS_PRESET_IMAGES;
 
 export const formatPrice = (value: number) =>

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Clock, Heart, MapPin, ChevronRight, Bus, CheckCircle2, ShieldCheck } from "lucide-react";
 import { formatPrice, seatTone, type CaravanView } from "@/lib/student-shared";
+import { OrganizerLogo } from "@/components/OrganizerLogo";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -99,17 +100,12 @@ export function CaravanCard({ caravane, favorite, onToggleFavorite }: Props) {
           {/* Organizer & Trust Badge */}
           <div className="flex items-center justify-between pt-3 border-t border-border/60">
             <div className="flex items-center gap-2 min-w-0">
-              {caravane.organizerLogoUrl ? (
-                <img
-                  src={caravane.organizerLogoUrl}
-                  alt={caravane.organizer}
-                  className="size-6 shrink-0 rounded-full border border-border/80 bg-white object-contain shadow-xs"
-                />
-              ) : (
-                <div className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                  <Bus className="size-3" />
-                </div>
-              )}
+              <OrganizerLogo
+                url={caravane.organizerLogoUrl}
+                name={caravane.organizer}
+                className="size-6 rounded-full"
+                iconClassName="size-3"
+              />
               <span className="truncate text-xs font-bold text-foreground/90">
                 {caravane.organizer}
               </span>

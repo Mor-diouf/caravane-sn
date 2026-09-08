@@ -331,6 +331,9 @@ export type Database = {
           documents: Json
           id: string
           is_pro: boolean
+          logo_url: string | null
+          slogan: string | null
+          support_phone: string | null
           name: string
           owner_id: string | null
           phone: string | null
@@ -349,6 +352,9 @@ export type Database = {
           documents?: Json
           id?: string
           is_pro?: boolean
+          logo_url?: string | null
+          slogan?: string | null
+          support_phone?: string | null
           name: string
           owner_id?: string | null
           phone?: string | null
@@ -367,6 +373,9 @@ export type Database = {
           documents?: Json
           id?: string
           is_pro?: boolean
+          logo_url?: string | null
+          slogan?: string | null
+          support_phone?: string | null
           name?: string
           owner_id?: string | null
           phone?: string | null
@@ -438,6 +447,7 @@ export type Database = {
       payouts: {
         Row: {
           amount_fcfa: number
+          caravan_id: string | null
           id: string
           method: Database["public"]["Enums"]["payment_method"]
           organizer_id: string
@@ -448,6 +458,7 @@ export type Database = {
         }
         Insert: {
           amount_fcfa: number
+          caravan_id?: string | null
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           organizer_id: string
@@ -458,6 +469,7 @@ export type Database = {
         }
         Update: {
           amount_fcfa?: number
+          caravan_id?: string | null
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           organizer_id?: string

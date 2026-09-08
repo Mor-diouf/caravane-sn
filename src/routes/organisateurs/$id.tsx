@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Bus, ChevronLeft, Phone, Star, Info } from "lucide-react";
 import { organizerQuery } from "@/lib/student-queries";
 import { CaravanCard } from "@/components/CaravanCard";
+import { OrganizerLogo } from "@/components/OrganizerLogo";
 
 export const Route = createFileRoute("/organisateurs/$id")({
   head: ({ loaderData }) => ({
@@ -53,17 +54,12 @@ function OrganizerProfile() {
           <div className="absolute -right-16 -top-20 size-56 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
           
           <div className="relative flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-            {org.logoUrl ? (
-              <img
-                src={org.logoUrl}
-                alt={org.name}
-                className="size-24 shrink-0 rounded-[2rem] object-cover shadow-sm ring-1 ring-border"
-              />
-            ) : (
-              <div className="grid size-24 shrink-0 place-items-center rounded-[2rem] bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20">
-                <Bus className="size-10" />
-              </div>
-            )}
+            <OrganizerLogo
+              url={org.logoUrl}
+              name={org.name}
+              className="size-24 rounded-[2rem]"
+              iconClassName="size-10"
+            />
             
             <div className="flex-1 min-w-0 space-y-2">
               <h1 className="text-2xl font-extrabold tracking-tight">{org.name}</h1>

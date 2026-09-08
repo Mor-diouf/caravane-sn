@@ -7,21 +7,29 @@ import {
   type CaravanView,
   type UniversityRow,
 } from "@/lib/student-shared";
+import { getCached, setCached, invalidateCache } from "@/lib/server-cache";
 
 export const listUniversities = createServerFn({ method: "GET" }).handler(
   async (): Promise<UniversityRow[]> => {
+    const cached = getCached<UniversityRow[]>("universities");
+    if (cached) return cached;
+
     const { createPublicClient } = await import("@/lib/supabase-public.server");
     const { data, error } = await createPublicClient()
       .from("universities")
       .select("id, abbr, name, city")
       .order("abbr");
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const result = data ?? [];
+    return setCached("universities", result, 60 * 60 * 1000); // 1 hour
   },
 );
 
 export const listCaravans = createServerFn({ method: "GET" }).handler(
   async (): Promise<CaravanView[]> => {
+    const cached = getCached<CaravanView[]>("caravans:list");
+    if (cached) return cached;
+
     const { createPublicClient } = await import("@/lib/supabase-public.server");
     const { data, error } = await createPublicClient()
       .from("caravans")
@@ -30,13 +38,18 @@ export const listCaravans = createServerFn({ method: "GET" }).handler(
       .eq("is_hidden", false)
       .order("departure_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((row) => mapCaravan(row as never));
+    const result = (data ?? []).map((row) => mapCaravan(row as never));
+    return setCached("caravans:list", result, 30 * 1000); // 30 seconds
   },
 );
 
 export const getCaravan = createServerFn({ method: "GET" })
   .validator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }): Promise<CaravanView | null> => {
+    const cacheKey = `caravan:${data.id}`;
+    const cached = getCached<CaravanView | null>(cacheKey);
+    if (cached !== null) return cached;
+
     const { createPublicClient } = await import("@/lib/supabase-public.server");
     const { data: row, error } = await createPublicClient()
       .from("caravans")
@@ -46,7 +59,8 @@ export const getCaravan = createServerFn({ method: "GET" })
       .eq("is_hidden", false)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return row ? mapCaravan(row as never) : null;
+    const result = row ? mapCaravan(row as never) : null;
+    return setCached(cacheKey, result, 30 * 1000); // 30 seconds
   });
 
 export const getMyProfile = createServerFn({ method: "GET" })
@@ -284,6 +298,7 @@ export const createBooking = createServerFn({ method: "POST" })
     });
     if (ticketError) throw new Error(ticketError.message);
 
+    invalidateCache("caravan");
     return { bookingId: booking.id, reference: booking.reference };
   });
 
@@ -510,6 +525,9 @@ export const getCaravanReviews = createServerFn({ method: "GET" })
 
 export const listOrganizers = createServerFn({ method: "GET" }).handler(
   async () => {
+    const cached = getCached<any[]>("organizers:list");
+    if (cached) return cached;
+
     const { createPublicClient } = await import("@/lib/supabase-public.server");
     const { data, error } = await createPublicClient()
       .from("organizers")
@@ -522,8 +540,8 @@ export const listOrganizers = createServerFn({ method: "GET" }).handler(
 
     if (error) throw new Error(error.message);
 
-    return (data ?? []).map((org) => {
-      const activeCaravans = org.caravans?.filter(c => c.status === "published" && !c.is_hidden).length || 0;
+    const result = (data ?? []).map((org: any) => {
+      const activeCaravans = org.caravans?.filter((c: any) => c.status === "published" && !c.is_hidden).length || 0;
       return {
         id: org.id,
         name: org.name,
@@ -534,12 +552,17 @@ export const listOrganizers = createServerFn({ method: "GET" }).handler(
         activeCaravansCount: activeCaravans
       };
     });
+    return setCached("organizers:list", result, 5 * 60 * 1000); // 5 minutes
   }
 );
 
 export const getOrganizer = createServerFn({ method: "GET" })
   .validator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }) => {
+    const cacheKey = `organizer:${data.id}`;
+    const cached = getCached<any>(cacheKey);
+    if (cached !== null && cached !== undefined) return cached;
+
     const { createPublicClient } = await import("@/lib/supabase-public.server");
     const { data: org, error } = await createPublicClient()
       .from("organizers")
@@ -556,14 +579,14 @@ export const getOrganizer = createServerFn({ method: "GET" })
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    if (!org) return null;
+    if (!org) return setCached(cacheKey, null, 60 * 1000);
 
-    const caravans = (org.caravans ?? [])
+    const caravans = ((org as any).caravans ?? [])
       .filter((c: any) => c.status === "published" && !c.is_hidden)
       .map((c: any) => mapCaravan(c as never))
-      .sort((a, b) => new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime());
+      .sort((a: any, b: any) => new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime());
 
-    return {
+    const result = {
       id: org.id,
       name: org.name,
       description: org.description,
@@ -573,4 +596,5 @@ export const getOrganizer = createServerFn({ method: "GET" })
       rating: org.rating,
       caravans,
     };
+    return setCached(cacheKey, result, 5 * 60 * 1000); // 5 minutes
   });

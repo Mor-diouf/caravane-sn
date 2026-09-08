@@ -1,6 +1,6 @@
-import bus1 from "@/assets/bus-1.jpg";
-import bus2 from "@/assets/bus-2.jpg";
-import bus3 from "@/assets/bus-3.jpg";
+const bus1 = "/images/bus-1.jpg";
+const bus2 = "/images/bus-2.jpg";
+const bus3 = "/images/bus-3.jpg";
 
 export type University = {
   id: string;
