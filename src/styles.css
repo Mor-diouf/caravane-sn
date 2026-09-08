@@ -222,3 +222,24 @@
   }
 }
 
+/* ── Masquage définitif du badge Lovable ── */
+#lovable-badge,
+[id*="lovable-badge"],
+[id^="lovable"],
+[class*="lovable-badge"],
+[data-lovable-badge],
+a[href*="lovable.dev"],
+a[href*="lovable.app"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  z-index: -9999 !important;
+}
+
+

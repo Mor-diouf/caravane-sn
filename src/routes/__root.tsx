@@ -79,20 +79,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Caravane Étudiants — Transport universitaire au Sénégal" },
+      { title: "KING-BUS 2.0 — Plateforme Officielle de Réservation" },
       {
         name: "description",
         content:
-          "Réservez votre place dans les caravanes étudiantes du Sénégal et payez en toute sécurité via Wave Mobile Money.",
+          "Voyagez avec confort, voyagez avec classe. Réservez votre billet de bus Dakar ⇄ Ziguinchor en quelques clics. Paiement sécurisé Wave, Orange Money et CB.",
       },
-      { name: "author", content: "Caravane Étudiants" },
-      { property: "og:title", content: "Caravane Étudiants" },
+      { name: "author", content: "KING-BUS 2.0" },
+      { property: "og:site_name", content: "KING-BUS 2.0" },
+      { property: "og:title", content: "KING-BUS 2.0 — Voyagez avec confort et classe" },
       {
         property: "og:description",
-        content: "Caravanes universitaires, paiement Wave instantané et billet électronique QR.",
+        content:
+          "Départs quotidiens Dakar ⇄ Ziguinchor. Bus climatisés, confort maximal, sécurité assurée et billet électronique immédiat.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:image", content: "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+      { property: "og:image:secure_url", content: "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:width", content: "800" },
+      { property: "og:image:height", content: "800" },
+      { property: "og:image:alt", content: "Logo Officiel KING-BUS 2.0" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "KING-BUS 2.0 — Voyagez avec confort et classe" },
+      {
+        name: "twitter:description",
+        content:
+          "Départs quotidiens Dakar ⇄ Ziguinchor. Bus climatisés, confort maximal, sécurité assurée et billet électronique immédiat.",
+      },
+      { name: "twitter:image", content: "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
     ],
     links: [
       {
@@ -105,7 +120,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
       },
-      { rel: "icon", href: "/univoyage-logo.jpg", type: "image/jpeg" },
+      { rel: "icon", href: "/images/king-bus/logo.jpg", type: "image/jpeg" },
+      { rel: "apple-touch-icon", href: "/images/king-bus/logo.jpg" },
     ],
   }),
   shellComponent: RootShell,
@@ -128,9 +144,36 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Supprime activement le badge Lovable du DOM dès son injection
+  useEffect(() => {
+    const removeLovableElements = () => {
+      const selectors = [
+        "#lovable-badge",
+        '[id*="lovable-badge"]',
+        '[id^="lovable"]',
+        '[class*="lovable-badge"]',
+        '[data-lovable-badge]',
+        'a[href*="lovable.dev"]',
+        'a[href*="lovable.app"]',
+      ];
+      selectors.forEach((sel) => {
+        document.querySelectorAll(sel).forEach((el) => {
+          el.remove();
+        });
+      });
+    };
+
+    removeLovableElements();
+    const observer = new MutationObserver(removeLovableElements);
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -140,4 +183,5 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
 
