@@ -19,7 +19,7 @@ function OrganizerLayout() {
     );
   }
 
-  if (data?.organizerId && data.organizerStatus === "pending" && !data?.isAdmin) {
+  if (data?.organizerId && data.organizerStatus === "pending" && !data?.isAdmin && !data?.roles?.includes("organizer")) {
     return (
       <div className="grid min-h-screen place-items-center bg-background p-6">
         <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-lifted">

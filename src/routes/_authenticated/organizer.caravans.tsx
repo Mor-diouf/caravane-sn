@@ -171,7 +171,7 @@ function CaravansPage() {
       total_seats: Number(form.total_seats) || 1,
       amenities: form.amenities,
       about: form.about,
-      status: (!form.id || form.status === "draft") ? "pending" : form.status,
+      status: (!form.id || form.status === "draft") ? "published" : form.status,
     });
   };
 

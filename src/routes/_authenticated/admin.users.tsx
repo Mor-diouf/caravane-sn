@@ -194,7 +194,7 @@ function UsersPage() {
                     <td className="px-5 py-3 text-muted-foreground">{dateFr(u.joined)}</td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-2">
-                        {u.role === "student" ? (
+                        {u.role === "student" || u.role === "pending_organizer" ? (
                           <AdminButton
                             variant="ghost"
                             disabled={busy}
@@ -202,7 +202,7 @@ function UsersPage() {
                               roleMutation.mutate({ userId: u.id, role: "organizer", grant: true })
                             }
                           >
-                            <ShieldCheck className="size-3.5" /> Rendre organisateur
+                            <ShieldCheck className="size-3.5" /> {u.role === "pending_organizer" ? "Valider organisateur" : "Rendre organisateur"}
                           </AdminButton>
                         ) : u.role === "organizer" ? (
                           <AdminButton

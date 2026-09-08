@@ -202,15 +202,17 @@ export const adminSetOrganizerStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { assertAdmin } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const supabase = context.supabase;
     await assertAdmin(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
 
     const patch: Record<string, unknown> = { status: data.status };
     if (data.status === "approved") {
       patch['verified_at'] = new Date().toISOString();
       patch['verified_by'] = context.userId;
     }
-    const { data: org, error } = await supabase
+    const { data: org, error } = await client
       .from("organizers")
       .update(patch as never)
       .eq("id", data.organizerId)
@@ -221,21 +223,31 @@ export const adminSetOrganizerStatus = createServerFn({ method: "POST" })
     // Le statut d'organisateur suit la validation du dossier.
     if (org?.owner_id) {
       if (data.status === "approved") {
-        await supabase
+        await client
           .from("user_roles")
           .upsert({ user_id: org.owner_id, role: "organizer", granted_by: context.userId } as never, {
             onConflict: "user_id,role",
           });
+        await client
+          .from("organizer_members")
+          .upsert({ user_id: org.owner_id, organizer_id: data.organizerId, role: "manager" } as never, {
+            onConflict: "organizer_id,user_id",
+          });
       } else {
-        await supabase
+        await client
           .from("user_roles")
           .delete()
           .eq("user_id", org.owner_id)
           .eq("role", "organizer");
+        await client
+          .from("organizer_members")
+          .delete()
+          .eq("user_id", org.owner_id)
+          .eq("organizer_id", data.organizerId);
       }
     }
 
-    await supabase.from("audit_log").insert({
+    await client.from("audit_log").insert({
       actor_id: context.userId,
       action: `organizer.${data.status}`,
       entity: "organizers",
@@ -325,55 +337,76 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { assertAdmin } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const supabase = context.supabase;
     await assertAdmin(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
 
     if (data.grant) {
-      // Removed uniqueness check to allow multiple approved organizers
-
-      const { error } = await supabase
+      const { error } = await client
         .from("user_roles")
         .upsert({ user_id: data.userId, role: data.role, granted_by: context.userId } as never, {
           onConflict: "user_id,role",
         });
       if (error) throw new Error(error.message);
 
-      // If granting organizer role, associate the user with a shared approved organizer if one exists,
-      // otherwise create a new organizer record for this user.
       if (data.role === "organizer") {
-        // Look for an existing approved organizer
-        const { data: existingOrg, error: existingError } = await supabase
+        // 1. Check if user already owns an organizer
+        const { data: ownedOrg } = await client
           .from("organizers")
           .select("id")
-          .eq("status", "approved")
+          .eq("owner_id", data.userId)
           .maybeSingle();
-        if (existingError) throw new Error(existingError.message);
-        if (existingOrg && existingOrg.id) {
-          // Add the user as a member of the existing organizer
-          await supabase
-            .from("organizer_members")
-            .upsert({ user_id: data.userId, organizer_id: existingOrg.id } as never, {
-              onConflict: "user_id,organizer_id",
-            });
+
+        if (ownedOrg?.id) {
+          await client.from("organizers").update({ status: "approved" } as never).eq("id", ownedOrg.id);
+          await client.from("organizer_members").upsert({
+            user_id: data.userId,
+            organizer_id: ownedOrg.id,
+            role: "manager",
+          } as never, { onConflict: "organizer_id,user_id" });
         } else {
-          // No approved organizer yet – create one owned by this user
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", data.userId)
-            .single();
-          const organizerName = profile?.full_name ?? "Organisateur";
-          await supabase
+          // 2. Attach to existing approved organizer (e.g. King-Bus) or create one
+          const { data: existingOrg } = await client
             .from("organizers")
-            .upsert({ owner_id: data.userId, name: organizerName, status: "approved" } as never, {
-              onConflict: "owner_id",
-            });
+            .select("id")
+            .eq("status", "approved")
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingOrg?.id) {
+            await client
+              .from("organizer_members")
+              .upsert({ user_id: data.userId, organizer_id: existingOrg.id, role: "manager" } as never, {
+                onConflict: "organizer_id,user_id",
+              });
+          } else {
+            const { data: profile } = await client
+              .from("profiles")
+              .select("full_name")
+              .eq("id", data.userId)
+              .maybeSingle();
+            const organizerName = profile?.full_name ?? "KING-BUS 2.0";
+            const { data: newOrg } = await client
+              .from("organizers")
+              .insert({ owner_id: data.userId, name: organizerName, status: "approved" } as never)
+              .select("id")
+              .single();
+            if (newOrg?.id) {
+              await client.from("organizer_members").upsert({
+                user_id: data.userId,
+                organizer_id: newOrg.id,
+                role: "manager",
+              } as never, { onConflict: "organizer_id,user_id" });
+            }
+          }
         }
       }
     } else {
       if (data.role === "admin" && data.userId === context.userId)
         throw new Error("Vous ne pouvez pas retirer votre propre statut d'administrateur");
-      const { error } = await supabase
+      const { error } = await client
         .from("user_roles")
         .delete()
         .eq("user_id", data.userId)
@@ -381,7 +414,7 @@ export const adminSetUserRole = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
 
       if (data.role === "organizer") {
-        await supabase
+        await client
           .from("organizer_members")
           .delete()
           .eq("user_id", data.userId);

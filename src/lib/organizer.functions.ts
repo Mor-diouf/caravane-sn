@@ -140,28 +140,29 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { requireOrganizerId } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const supabase = context.supabase;
     const organizerId = await requireOrganizerId(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
     const { id, ...fields } = data;
 
-    if (fields.status === "published" || fields.status === "full") {
-      throw new Error("Seul un administrateur peut publier une caravane.");
-    }
+    const targetStatus = fields.status || "published";
 
     if (id) {
-      const { error } = await supabase
+      const { error } = await client
         .from("caravans")
-        .update(fields as never)
+        .update({ ...fields, status: targetStatus } as never)
         .eq("id", id)
         .eq("organizer_id", organizerId);
       if (error) throw new Error(error.message);
       return { id };
     }
 
-    const { data: row, error } = await supabase
+    const { data: row, error } = await client
       .from("caravans")
       .insert({
         ...fields,
+        status: targetStatus,
         organizer_id: organizerId,
         seats_left: fields.total_seats,
       } as never)
@@ -184,17 +185,16 @@ export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { requireOrganizerId } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const supabase = context.supabase;
     const organizerId = await requireOrganizerId(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
     const patch: Record<string, unknown> = {};
     if (data.status) {
-      if (data.status === "published" || data.status === "full") {
-        throw new Error("Seul un administrateur peut publier une caravane.");
-      }
       patch['status'] = data.status;
     }
     if (typeof data.hidden === "boolean") patch['is_hidden'] = data.hidden;
-    const { error } = await supabase
+    const { error } = await client
       .from("caravans")
       .update(patch as never)
       .eq("id", data.caravanId)

@@ -8,9 +8,12 @@ export const getMyAccess = createServerFn({ method: "GET" })
     const { findOrganizerId } = await import("@/lib/dash.server");
     const supabase = context.supabase;
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = supabaseAdmin || supabase;
+
     const [rolesRes, profileRes] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", context.userId),
-      supabase.from("profiles").select("full_name, email").eq("id", context.userId).maybeSingle(),
+      client.from("user_roles").select("role").eq("user_id", context.userId),
+      client.from("profiles").select("full_name, email").eq("id", context.userId).maybeSingle(),
     ]);
     if (rolesRes.error) throw new Error(rolesRes.error.message);
 
@@ -23,7 +26,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
     let organizerStatus: string | null = null;
     let organizerIsPro = false;
     if (organizerId) {
-      const { data } = await supabase
+      const { data } = await client
         .from("organizers")
         .select("name, status, is_pro")
         .eq("id", organizerId)
@@ -33,7 +36,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
       organizerIsPro = Boolean(data?.is_pro);
     }
 
-    if (isOrganizerRole || isAdmin) {
+    if (isOrganizerRole || isAdmin || organizerId) {
       organizerStatus = organizerStatus || "approved";
     }
 
