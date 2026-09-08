@@ -7,11 +7,17 @@ import {
   Check,
   Clock,
   Heart,
+  Info,
+  Loader2,
+  Lock,
+  Minus,
   Monitor,
   Plug,
+  Plus,
   ShieldCheck,
   Snowflake,
   Star,
+  User,
   Wifi,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -99,7 +105,7 @@ function CaravaneDetail() {
   const [forFriend, setForFriend] = useState(false);
   const [friendFirstName, setFriendFirstName] = useState("");
   const [friendLastName, setFriendLastName] = useState("");
-  const seats = 1;
+  const [seats, setSeats] = useState(1);
 
   const caravane = data!;
   const favorite = favorites.includes(caravane.id);
@@ -115,7 +121,7 @@ function CaravaneDetail() {
   const booking = useMutation({
     mutationFn: () => {
       const passengerName = forFriend ? `${friendFirstName.trim()} ${friendLastName.trim()}`.trim() : undefined;
-      return initiateWavePayment({ data: { caravanId: caravane.id, seats: 1, payerPhone, passengerName } });
+      return initiateWavePayment({ data: { caravanId: caravane.id, seats, payerPhone: payerPhone.replace(/\D/g, ""), passengerName } });
     },
     onSuccess: (res) => {
       setOpen(false);
@@ -137,6 +143,10 @@ function CaravaneDetail() {
       toast.info("Connectez-vous pour réserver votre place");
       navigate({ to: "/auth" });
       return;
+    }
+    if (!payerPhone && user?.user_metadata?.phone) {
+      const raw = String(user.user_metadata.phone).replace(/\+221/, '').trim();
+      setPayerPhone(raw);
     }
     setOpen(true);
   };
@@ -269,9 +279,9 @@ function CaravaneDetail() {
               </p>
             )}
           </div>
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-primary px-3 py-1.5 text-xs font-black text-primary-foreground shadow-sm">
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 text-xs font-black text-amber-700 dark:text-amber-400 shadow-sm">
             {avgRating.toFixed(1)}
-            <Star className="size-3.5 fill-current" />
+            <Star className="size-3.5 fill-amber-400 text-amber-400" />
           </span>
         </section>
 
@@ -394,128 +404,218 @@ function CaravaneDetail() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl sm:max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-extrabold">Confirmation de réservation</DialogTitle>
-            <DialogDescription>
-              {caravane.from} → {caravane.to} • {caravane.date}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="rounded-3xl sm:max-w-lg max-h-[92vh] overflow-y-auto p-0 border border-border/80 bg-card shadow-2xl">
+          {/* Header */}
+          <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 p-6 text-white border-b border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider">
+                Réservation Directe King-Bus
+              </span>
+              <span className="text-[10px] text-slate-400">• Billet instantané</span>
+            </div>
+            <h2 className="text-xl font-black tracking-tight text-white">
+              {caravane.from} <span className="text-amber-400">➔</span> {caravane.to}
+            </h2>
+            <p className="mt-1 text-xs text-slate-300 flex items-center gap-2 flex-wrap">
+              <span>📅 {caravane.date}</span>
+              <span>•</span>
+              <span>⏰ {caravane.time}</span>
+              <span>•</span>
+              <span className="truncate">📍 {caravane.pickup}</span>
+            </p>
+          </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-2xl bg-muted/60 p-3 text-sm">
-              <span className="font-medium">Place(s)</span>
-              <span className="font-bold">1 place</span>
+          <div className="p-6 space-y-4">
+            {/* Seat Selector */}
+            <div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4 border border-border/60">
+              <div>
+                <span className="text-xs font-black text-foreground block">Nombre de places</span>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {caravane.seatsLeft} place{caravane.seatsLeft > 1 ? "s" : ""} disponible{caravane.seatsLeft > 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  disabled={seats <= 1}
+                  onClick={() => setSeats((s) => Math.max(1, s - 1))}
+                  className="size-9 rounded-xl border border-border bg-card font-black text-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 transition-all active:scale-95 shadow-sm"
+                  aria-label="Diminuer les places"
+                >
+                  <Minus className="size-4" />
+                </button>
+                <span className="font-black text-base min-w-[24px] text-center">{seats}</span>
+                <button
+                  type="button"
+                  disabled={seats >= Math.min(caravane.seatsLeft, 6)}
+                  onClick={() => setSeats((s) => Math.min(Math.min(caravane.seatsLeft, 6), s + 1))}
+                  className="size-9 rounded-xl border border-border bg-card font-black text-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 transition-all active:scale-95 shadow-sm"
+                  aria-label="Augmenter les places"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
             </div>
 
-            <label className="flex items-center gap-3 rounded-xl border border-border p-3 text-sm font-medium cursor-pointer transition-colors hover:bg-muted/40">
-              <input 
-                type="checkbox" 
-                checked={forFriend} 
-                onChange={(e) => setForFriend(e.target.checked)}
-                className="size-4 rounded-sm border-border text-primary-accent focus:ring-primary-accent"
-              />
-              Réserver pour une autre personne
-            </label>
-
-            {forFriend && (
-              <div className="grid grid-cols-2 gap-3 rounded-2xl bg-muted/30 p-3 border border-border/50">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Prénom</label>
-                  <input
-                    type="text"
-                    placeholder="Moussa"
-                    value={friendFirstName}
-                    onChange={(e) => setFriendFirstName(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-accent"
-                  />
+            {/* Passenger Identity Toggle */}
+            <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <User className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">Titulaire du billet</p>
+                    <p className="text-[11px] text-muted-foreground truncate max-w-[210px]">
+                      {forFriend
+                        ? "Billet réservé pour un proche"
+                        : `Billet à mon nom (${user?.user_metadata?.full_name || "Moi"})`}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Nom</label>
-                  <input
-                    type="text"
-                    placeholder="Sarr"
-                    value={friendLastName}
-                    onChange={(e) => setFriendLastName(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-accent"
-                  />
+                <button
+                  type="button"
+                  onClick={() => setForFriend(!forFriend)}
+                  className={cn(
+                    "text-xs font-extrabold px-3 py-1.5 rounded-xl border transition-all",
+                    forFriend
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  {forFriend ? "Pour un proche" : "Pour moi"}
+                </button>
+              </div>
+
+              {forFriend && (
+                <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-border/50">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Prénom du voyageur
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Moussa"
+                      value={friendFirstName}
+                      onChange={(e) => setFriendFirstName(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Nom du voyageur
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Sarr"
+                      value={friendLastName}
+                      onChange={(e) => setFriendLastName(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Payment method */}
+            <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-4 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <PaymentMark method="wave" className="h-8" />
+                  <div>
+                    <p className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      Paiement Sécurisé Wave
+                      <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5">
+                        Instantané
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Génération immédiate du billet QR Code</p>
+                  </div>
+                </div>
+                <div className="size-6 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-black flex items-center justify-center shadow-sm">
+                  <Check className="size-3.5 stroke-[3]" />
                 </div>
               </div>
-            )}
 
-            <ul className="space-y-2">
-              {methods.map((m) => (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => setMethod(m.id)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors",
-                      method === m.id
-                        ? "border-primary-accent bg-accent"
-                        : "border-border/70 hover:border-primary-accent/50",
-                    )}
-                  >
-                    <PaymentMark method={m.id} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold leading-tight">
-                        {m.label}
-                      </span>
-                      <span className="block text-[11px] font-medium leading-tight text-muted-foreground">
-                        {m.hint}
-                      </span>
-                    </span>
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "grid size-5 shrink-0 place-items-center rounded-full border",
-                        method === m.id
-                          ? "border-primary-accent bg-primary-accent text-primary-foreground"
-                          : "border-border",
-                      )}
-                    >
-                      {method === m.id && <Check className="size-3" />}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+              {/* Informative Security Banner */}
+              <div className="rounded-xl bg-card/80 p-3 border border-border/70 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-2.5 shadow-xs">
+                <Info className="size-4 shrink-0 text-primary-accent mt-0.5" />
+                <span>
+                  Indiquez le numéro de votre compte Wave pour valider votre réservation en 1 clic et recevoir immédiatement votre e-billet.
+                </span>
+              </div>
 
-            {method === "wave" && (
-              <div className="space-y-3 pt-2">
-                <div className="rounded-xl bg-danger/10 p-3 text-xs font-medium text-danger border border-danger/20 leading-relaxed">
-                  <span className="font-bold">⚠️ ATTENTION :</span> Le numéro saisi ci-dessous DOIT être le numéro avec lequel vous allez effectuer le transfert sur Wave. Sinon, votre billet ne sera pas généré automatiquement.
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Numéro de téléphone Wave</label>
+              {/* Phone Input */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Numéro de téléphone Wave
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-bold text-muted-foreground select-none">
+                    🇸🇳 +221
+                  </span>
                   <input
                     type="tel"
                     placeholder="77 123 45 67"
                     value={payerPhone}
                     onChange={(e) => setPayerPhone(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-accent"
+                    className="w-full rounded-xl border border-border bg-card pl-20 pr-3 py-2.5 text-sm font-black tracking-wide outline-none focus:ring-2 focus:ring-primary shadow-xs"
                   />
                 </div>
               </div>
-            )}
-
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="text-sm font-medium text-muted-foreground">À payer</span>
-              <span className="text-lg font-extrabold text-primary-accent">
-                {formatPrice(total)} FCFA
-              </span>
             </div>
 
+            {/* Price breakdown */}
+            <div className="rounded-2xl bg-muted/40 p-4 space-y-2 border border-border/60 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>
+                  Billet King-Bus ({seats} place{seats > 1 ? "s" : ""})
+                </span>
+                <span className="font-bold text-foreground">{formatPrice(total)} FCFA</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Bagages en soute (jusqu'à 25 kg)</span>
+                <span className="font-bold text-emerald-600">Inclus (Gratuit)</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Climatisation & Prises USB</span>
+                <span className="font-bold text-emerald-600">Inclus</span>
+              </div>
+              <div className="border-t border-border/60 pt-2.5 flex items-center justify-between text-sm">
+                <span className="font-extrabold text-foreground">Total à régler</span>
+                <span className="text-xl font-black text-primary-accent">
+                  {formatPrice(total)} FCFA
+                </span>
+              </div>
+            </div>
+
+            {/* Action CTA Button */}
             <button
               type="button"
-              disabled={booking.isPending || (method === "wave" && payerPhone.length < 9) || (forFriend && (!friendFirstName || !friendLastName))}
+              disabled={
+                booking.isPending ||
+                payerPhone.replace(/\D/g, "").length < 9 ||
+                (forFriend && (!friendFirstName.trim() || !friendLastName.trim()))
+              }
               onClick={() => booking.mutate()}
-              className="w-full rounded-2xl bg-gradient-primary py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-50"
+              className="w-full rounded-2xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 py-4 text-sm font-black text-black shadow-lg shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {booking.isPending ? "Paiement en cours…" : "Continuer vers le paiement"}
+              {booking.isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Traitement du paiement en cours…</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="size-4" />
+                  <span>Confirmer et payer {formatPrice(total)} FCFA</span>
+                </>
+              )}
             </button>
-            <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
-              <ShieldCheck className="size-3.5" /> Transaction 100% sécurisée
+
+            <p className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+              <ShieldCheck className="size-3.5 text-emerald-500" />
+              Paiement sécurisé par Wave SN • Billet numérique garanti
             </p>
           </div>
         </DialogContent>
