@@ -19,6 +19,7 @@ import {
   Star,
   User,
   Wifi,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -116,11 +117,14 @@ function CaravaneDetail() {
   const [friendFirstName, setFriendFirstName] = useState("");
   const [friendLastName, setFriendLastName] = useState("");
   const [seats, setSeats] = useState(1);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
 
   const caravane = data!;
   const favorite = favorites.includes(caravane.id);
   const tone = seatTone(caravane.seatsLeft);
-  const total = caravane.price * seats;
+  const selectedStop = (caravane.stops || []).find((s) => s.id === selectedStopId) ?? null;
+  const unitPrice = selectedStop ? selectedStop.price_fcfa : caravane.price;
+  const total = unitPrice * seats;
   const university = universities.find((u) => u.id === caravane.universityId);
 
   const { data: reviewsData } = useQuery(caravanReviewsQuery(caravane.id));
@@ -131,7 +135,16 @@ function CaravaneDetail() {
   const booking = useMutation({
     mutationFn: () => {
       const passengerName = forFriend ? `${friendFirstName.trim()} ${friendLastName.trim()}`.trim() : undefined;
-      return initiateWavePayment({ data: { caravanId: caravane.id, seats, payerPhone: payerPhone.replace(/\D/g, ""), passengerName } });
+      return initiateWavePayment({
+        data: {
+          caravanId: caravane.id,
+          seats,
+          payerPhone: payerPhone.replace(/\D/g, ""),
+          ...(passengerName ? { passengerName } : {}),
+          ...(selectedStopId ? { stopId: selectedStopId } : {}),
+          ...(selectedStop ? { pickupStop: selectedStop.city } : {}),
+        },
+      });
     },
     onSuccess: (res) => {
       setOpen(false);
@@ -154,8 +167,8 @@ function CaravaneDetail() {
       navigate({ to: "/auth" });
       return;
     }
-    if (!payerPhone && user?.user_metadata?.phone) {
-      const raw = String(user.user_metadata.phone).replace(/\+221/, '').trim();
+    if (!payerPhone && user?.user_metadata?.['phone']) {
+      const raw = String(user.user_metadata['phone']).replace(/\+221/, '').trim();
       setPayerPhone(raw);
     }
     setOpen(true);
@@ -255,18 +268,47 @@ function CaravaneDetail() {
                 aria-hidden
                 className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-primary-accent ring-4 ring-card"
               />
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Départ
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Départ · {caravane.from}
+                </p>
+                <span className="text-xs font-black text-primary-accent">
+                  {formatPrice(caravane.price)} FCFA
+                </span>
+              </div>
               <p className="font-semibold leading-snug">{caravane.pickup}</p>
             </li>
+
+            {(caravane.stops || []).map((stop) => (
+              <li key={stop.id} className="relative">
+                <span
+                  aria-hidden
+                  className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-amber-500 ring-4 ring-card"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <span>Escale · {stop.city}</span>
+                    {stop.time_offset && (
+                      <span className="text-[10px] lowercase text-muted-foreground font-medium">
+                        ({stop.time_offset})
+                      </span>
+                    )}
+                  </p>
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-400">
+                    {formatPrice(stop.price_fcfa)} FCFA
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-muted-foreground">{stop.pickup}</p>
+              </li>
+            ))}
+
             <li className="relative">
               <span
                 aria-hidden
                 className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-muted-foreground/50 ring-4 ring-card"
               />
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Arrivée
+                Arrivée · {caravane.to}
               </p>
               <p className="font-semibold leading-snug">{caravane.dropoff}</p>
             </li>
@@ -399,7 +441,7 @@ function CaravaneDetail() {
               Total estimé · {caravane.time}
             </p>
             <p className="truncate text-lg font-extrabold">
-              {formatPrice(caravane.price)} <span className="text-xs">FCFA</span>
+              {formatPrice(unitPrice)} <span className="text-xs">FCFA</span>
             </p>
           </div>
           <button
@@ -467,6 +509,104 @@ function CaravaneDetail() {
               </div>
             </div>
 
+            {/* Boarding Point Selector (Intermediate Stops) */}
+            {caravane.stops && caravane.stops.length > 0 && (
+              <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                      <MapPin className="size-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Point d'embarquement (Montée)</p>
+                      <p className="text-[11px] text-muted-foreground">Sélectionnez la ville où vous prenez le bus</p>
+                    </div>
+                  </div>
+                  {selectedStop && (
+                    <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5 border border-emerald-500/30">
+                      Tarif réduit
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {/* Main departure option */}
+                  <label
+                    onClick={() => setSelectedStopId(null)}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                      selectedStopId === null
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-border/70 bg-muted/30 hover:bg-muted/60"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={cn(
+                          "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                          selectedStopId === null ? "border-primary bg-primary" : "border-muted-foreground"
+                        )}
+                      >
+                        {selectedStopId === null && <div className="size-1.5 rounded-full bg-white" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">
+                          {caravane.from} (Départ principal)
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">{caravane.pickup}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-extrabold text-foreground shrink-0 ml-2">
+                      {formatPrice(caravane.price)} FCFA
+                    </span>
+                  </label>
+
+                  {/* Intermediate stops */}
+                  {caravane.stops.map((stop) => {
+                    const isSelected = selectedStopId === stop.id;
+                    const diff = caravane.price - stop.price_fcfa;
+                    return (
+                      <label
+                        key={stop.id}
+                        onClick={() => setSelectedStopId(stop.id)}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                          isSelected
+                            ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30"
+                            : "border-border/70 bg-muted/30 hover:bg-muted/60"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={cn(
+                              "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                              isSelected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"
+                            )}
+                          >
+                            {isSelected && <div className="size-1.5 rounded-full bg-white" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-foreground truncate flex items-center gap-1.5">
+                              <span>{stop.city}</span>
+                              {diff > 0 && (
+                                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                  -{formatPrice(diff)} F
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">{stop.pickup}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 shrink-0 ml-2">
+                          {formatPrice(stop.price_fcfa)} FCFA
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Passenger Identity Toggle */}
             <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
@@ -479,7 +619,7 @@ function CaravaneDetail() {
                     <p className="text-[11px] text-muted-foreground truncate max-w-[210px]">
                       {forFriend
                         ? "Billet réservé pour un proche"
-                        : `Billet à mon nom (${user?.user_metadata?.full_name || "Moi"})`}
+                        : `Billet à mon nom (${user?.user_metadata?.['full_name'] || "Moi"})`}
                     </p>
                   </div>
                 </div>
@@ -580,6 +720,7 @@ function CaravaneDetail() {
               <div className="flex justify-between text-muted-foreground">
                 <span>
                   Billet King-Bus ({seats} place{seats > 1 ? "s" : ""})
+                  {selectedStop ? ` · Montée ${selectedStop.city}` : ` · ${caravane.from}`}
                 </span>
                 <span className="font-bold text-foreground">{formatPrice(total)} FCFA</span>
               </div>

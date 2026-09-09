@@ -300,14 +300,18 @@ function Billets() {
                     <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3.5">
                       <div className="min-w-0">
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">
-                          DÉPART
+                          {(b as any).pickup_stop ? "MONTÉE / EMBARQUEMENT" : "DÉPART"}
                         </span>
                         <h4 className="text-lg font-black text-foreground tracking-tight truncate">
-                          {c.from}
+                          {(b as any).pickup_stop || c.from}
                         </h4>
                         <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="size-3 shrink-0" />
-                          <span className="truncate">{c.pickup}</span>
+                          <span className="truncate">
+                            {(b as any).pickup_stop
+                              ? `Escale intermédiaire (${(b as any).pickup_stop})`
+                              : c.pickup}
+                          </span>
                         </p>
                       </div>
 
@@ -363,6 +367,11 @@ function Billets() {
                         <dd className="font-black text-foreground truncate mt-0.5">
                           {b.passenger_name || profile?.full_name || "Voyageur"}
                         </dd>
+                        {(b as any).pickup_stop && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded mt-1 w-fit">
+                            Montée : {(b as any).pickup_stop}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <dt className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">

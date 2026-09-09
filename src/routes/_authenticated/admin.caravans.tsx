@@ -1,6 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Bus, EyeOff, Eye, Loader2, Search, Edit2 } from "lucide-react";
+import {
+  Bus,
+  EyeOff,
+  Eye,
+  Loader2,
+  Search,
+  Edit2,
+  Link as LinkIcon,
+  ExternalLink,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -57,6 +71,8 @@ function AdminCaravans() {
   const { data, isLoading } = useQuery(adminCaravansQuery());
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  
+  // Edit Caravan details state
   const [editingCaravan, setEditingCaravan] = useState<any>(null);
   const [editForm, setEditForm] = useState({
     from_label: "",
@@ -65,6 +81,11 @@ function AdminCaravans() {
     price_fcfa: 0,
     total_seats: 1,
   });
+
+  // Validation & Payment Link state
+  const [validatingCaravan, setValidatingCaravan] = useState<any>(null);
+  const [validationLink, setValidationLink] = useState("");
+  const [linkError, setLinkError] = useState("");
 
   const queryClient = useQueryClient();
   const setHiddenFn = useServerFn(adminSetCaravanHidden);
@@ -80,10 +101,21 @@ function AdminCaravans() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: { caravanId: string; status?: CaravanStatus; payment_link?: string; from_label?: string; to_label?: string; departure_at?: string; price_fcfa?: number; total_seats?: number }) => updateCaravanFn({ data: payload }),
+    mutationFn: (payload: {
+      caravanId: string;
+      status?: CaravanStatus;
+      payment_link?: string;
+      from_label?: string;
+      to_label?: string;
+      departure_at?: string;
+      price_fcfa?: number;
+      total_seats?: number;
+    }) => updateCaravanFn({ data: payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.success("Caravane mise à jour avec succès.");
+      setEditingCaravan(null);
+      setValidatingCaravan(null);
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -98,10 +130,49 @@ function AdminCaravans() {
     return matchFilter && matchQuery;
   });
 
+  const pendingCount = all.filter((c) => c.status === "pending").length;
   const published = all.filter((c) => c.status === "published" && !c.hidden).length;
   const hiddenCount = all.filter((c) => c.hidden).length;
   const seats = all.reduce((a, c) => a + c.capacity, 0);
   const booked = all.reduce((a, c) => a + c.booked, 0);
+
+  const openValidationModal = (c: any) => {
+    setValidatingCaravan(c);
+    setValidationLink(c.paymentLink || "");
+    setLinkError("");
+  };
+
+  const handleValidateSubmit = (targetStatus?: "published" | "draft") => {
+    if (!validatingCaravan) return;
+    
+    // If validating to publish, link is required
+    const trimmedLink = validationLink.trim();
+    if (targetStatus === "published" || (!targetStatus && validatingCaravan.status === "pending")) {
+      if (!trimmedLink) {
+        setLinkError("Veuillez renseigner le lien Wave Business pour valider et mettre en ligne ce voyage.");
+        return;
+      }
+      if (!trimmedLink.startsWith("http://") && !trimmedLink.startsWith("https://")) {
+        setLinkError("Le lien doit être une URL valide (commençant par https://).");
+        return;
+      }
+    }
+
+    setLinkError("");
+    const payload: {
+      caravanId: string;
+      status?: CaravanStatus;
+      payment_link?: string;
+    } = {
+      caravanId: validatingCaravan.id,
+      payment_link: trimmedLink,
+    };
+    const resolvedStatus = targetStatus ?? (validatingCaravan.status === "pending" ? ("published" as CaravanStatus) : undefined);
+    if (resolvedStatus) {
+      payload.status = resolvedStatus;
+    }
+    updateMutation.mutate(payload);
+  };
 
   return (
     <>
@@ -122,12 +193,19 @@ function AdminCaravans() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Caravanes"
+          title="Total Départs"
           value={fmt(all.length)}
           secondary={`${published} en ligne`}
           icon={Bus}
+        />
+        <KpiCard
+          title="En attente de validation"
+          value={fmt(pendingCount)}
+          secondary={pendingCount > 0 ? "Nécessitent un lien Wave" : "Toutes traitées"}
+          icon={Clock}
+          {...(pendingCount > 0 ? { accent: "warning" as const } : {})}
         />
         <KpiCard
           title="Remplissage moyen"
@@ -139,9 +217,8 @@ function AdminCaravans() {
         <KpiCard
           title="Annonces masquées"
           value={fmt(hiddenCount)}
-          secondary="Retirées du catalogue étudiant"
+          secondary="Retirées du catalogue"
           icon={EyeOff}
-          accent="warning"
         />
       </div>
 
@@ -151,7 +228,10 @@ function AdminCaravans() {
           onChange={setFilter}
           options={[
             { value: "all", label: "Toutes" },
-            { value: "pending", label: "En attente" },
+            {
+              value: "pending",
+              label: pendingCount > 0 ? `En attente (${pendingCount})` : "En attente",
+            },
             { value: "published", label: "Publiées" },
             { value: "full", label: "Complètes" },
             { value: "completed", label: "Terminées" },
@@ -169,7 +249,7 @@ function AdminCaravans() {
           <EmptyState icon={Bus} message="Aucune caravane ne correspond à ces filtres." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-sm">
+            <table className="w-full min-w-[950px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3 font-bold">Itinéraire</th>
@@ -178,17 +258,18 @@ function AdminCaravans() {
                   <th className="px-5 py-3 font-bold">Remplissage</th>
                   <th className="px-5 py-3 font-bold">Revenus</th>
                   <th className="px-5 py-3 font-bold">Statut</th>
-                  <th className="px-5 py-3 text-right font-bold">Action</th>
+                  <th className="px-5 py-3 font-bold">Lien Paiement</th>
+                  <th className="px-5 py-3 text-right font-bold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {rows.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={c.status === "pending" ? "bg-amber-500/[0.03]" : undefined}>
                     <td className="px-5 py-3 font-semibold">{c.route}</td>
                     <td className="px-5 py-3 text-muted-foreground">{c.organizer}</td>
                     <td className="px-5 py-3 text-muted-foreground">{dateTimeFr(c.departureAt)}</td>
                     <td className="px-5 py-3">
-                      <div className="w-36">
+                      <div className="w-32">
                         <p className="text-xs font-semibold">
                           {c.booked}/{c.capacity} · {pct(c.booked, c.capacity)} %
                         </p>
@@ -204,21 +285,46 @@ function AdminCaravans() {
                       </TonePill>
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end gap-2">
-                        {c.status === "pending" && (
+                      {c.paymentLink ? (
+                        <a
+                          href={c.paymentLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                          title={c.paymentLink}
+                        >
+                          <LinkIcon className="size-3" />
+                          <span>Wave Actif</span>
+                          <ExternalLink className="size-2.5 opacity-70" />
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-500 font-medium">
+                          <AlertCircle className="size-3 shrink-0" /> Manquant
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex justify-end gap-2 items-center">
+                        {c.status === "pending" ? (
                           <AdminButton
                             variant="primary"
                             disabled={updateMutation.isPending}
-                            onClick={() => {
-                              const link = prompt("Entrez le lien de paiement Wave Business généré pour cette caravane :");
-                              if (link !== null) {
-                                updateMutation.mutate({ caravanId: c.id, status: "published", payment_link: link });
-                              }
-                            }}
+                            onClick={() => openValidationModal(c)}
+                            className="bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-sm"
                           >
-                            <Eye className="size-3.5" /> Valider & Lien
+                            <ShieldCheck className="size-3.5" /> Valider & Lien
                           </AdminButton>
+                        ) : (
+                          <span title="Consulter ou modifier le lien Wave">
+                            <AdminButton
+                              variant="ghost"
+                              onClick={() => openValidationModal(c)}
+                            >
+                              <LinkIcon className="size-3.5" /> Lien
+                            </AdminButton>
+                          </span>
                         )}
+
                         <AdminButton
                           variant="ghost"
                           onClick={() => {
@@ -234,6 +340,7 @@ function AdminCaravans() {
                         >
                           <Edit2 className="size-3.5" /> Éditer
                         </AdminButton>
+
                         <AdminButton
                           variant={c.hidden ? "success" : "ghost"}
                           disabled={mutation.isPending}
@@ -261,6 +368,135 @@ function AdminCaravans() {
         )}
       </Panel>
 
+      {/* Modal: Validation & Ajout du lien de paiement */}
+      {validatingCaravan && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="mb-4 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-500">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">
+                    {validatingCaravan.status === "pending"
+                      ? "Valider la caravane et associer le lien"
+                      : "Lien de paiement Wave"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Attribution du lien de paiement Wave Business Merchant
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setValidatingCaravan(null)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Recap info */}
+            <div className="mb-4 rounded-xl border border-border bg-muted/40 p-3.5 text-xs space-y-1.5">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-semibold">Trajet :</span>
+                <span className="font-bold text-foreground">{validatingCaravan.route}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-semibold">Organisateur :</span>
+                <span className="font-medium text-foreground">{validatingCaravan.organizer}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-semibold">Départ :</span>
+                <span className="font-medium text-foreground">{dateTimeFr(validatingCaravan.departureAt)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-semibold">Tarif & Places :</span>
+                <span className="font-medium text-foreground">
+                  {fcfa(validatingCaravan.price)} · {validatingCaravan.capacity} places
+                </span>
+              </div>
+            </div>
+
+            {validatingCaravan.status === "pending" && (
+              <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+                <span className="font-bold">Information :</span> En validant, le statut du voyage passera à{" "}
+                <span className="font-bold underline">Publiée</span> et il sera immédiatement visible dans le catalogue étudiant avec redirection Wave.
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-foreground">
+                  Lien de paiement Wave Business <span className="text-destructive">*</span>
+                </label>
+                <div className="relative flex items-center">
+                  <LinkIcon className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+                  <input
+                    type="url"
+                    value={validationLink}
+                    onChange={(e) => {
+                      setValidationLink(e.target.value);
+                      if (linkError) setLinkError("");
+                    }}
+                    placeholder="https://pay.wave.com/m/M_..."
+                    className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/40 font-mono"
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Renseignez le lien de paiement généré depuis l'espace Wave Business Merchant King-Bus.
+                </p>
+                {linkError && (
+                  <p className="mt-1 text-xs font-semibold text-destructive">{linkError}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+              <div className="flex gap-2">
+                <AdminButton variant="ghost" onClick={() => setValidatingCaravan(null)}>
+                  Annuler
+                </AdminButton>
+                {validatingCaravan.status === "pending" && (
+                  <span title="Renvoyer à l'organisateur en brouillon">
+                    <AdminButton
+                      variant="ghost"
+                      disabled={updateMutation.isPending}
+                      onClick={() => handleValidateSubmit("draft")}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      Renvoyer en brouillon
+                    </AdminButton>
+                  </span>
+                )}
+              </div>
+              <AdminButton
+                variant="primary"
+                disabled={updateMutation.isPending}
+                onClick={() => handleValidateSubmit()}
+                className="bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-md"
+              >
+                {updateMutation.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Enregistrement…
+                  </>
+                ) : validatingCaravan.status === "pending" ? (
+                  <>
+                    <ShieldCheck className="size-4" /> Valider & Publier
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="size-4" /> Mettre à jour le lien
+                  </>
+                )}
+              </AdminButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Édition basique des informations */}
       {editingCaravan && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
@@ -324,15 +560,24 @@ function AdminCaravans() {
                 variant="primary"
                 disabled={updateMutation.isPending}
                 onClick={() => {
-                  updateMutation.mutate({
+                  const payload: {
+                    caravanId: string;
+                    from_label: string;
+                    to_label: string;
+                    price_fcfa: number;
+                    total_seats: number;
+                    departure_at?: string;
+                  } = {
                     caravanId: editingCaravan.id,
                     from_label: editForm.from_label,
                     to_label: editForm.to_label,
-                    departure_at: editForm.departure_at ? new Date(editForm.departure_at).toISOString() : undefined,
                     price_fcfa: editForm.price_fcfa,
                     total_seats: editForm.total_seats,
-                  });
-                  setEditingCaravan(null);
+                  };
+                  if (editForm.departure_at) {
+                    payload.departure_at = new Date(editForm.departure_at).toISOString();
+                  }
+                  updateMutation.mutate(payload);
                 }}
               >
                 Enregistrer

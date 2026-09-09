@@ -7,6 +7,85 @@ export type UniversityRow = {
   city: string;
 };
 
+export type IntermediateStop = {
+  id: string;
+  city: string;
+  pickup: string;
+  price_fcfa: number;
+  time_offset?: string | undefined;
+};
+
+const STOPS_MARKER_START = "<!-- STOPS_DATA:";
+const STOPS_MARKER_END = ":STOPS_DATA -->";
+
+export function parseStops(stopsField: unknown, aboutField?: string | null): IntermediateStop[] {
+  if (Array.isArray(stopsField) && stopsField.length > 0) {
+    return stopsField.map((s: any, idx) => ({
+      id: String(s.id || `stop-${idx}`),
+      city: String(s.city || ""),
+      pickup: String(s.pickup || ""),
+      price_fcfa: Number(s.price_fcfa || 0),
+      ...(s.time_offset ? { time_offset: String(s.time_offset) } : {}),
+    }));
+  }
+  if (aboutField && aboutField.includes(STOPS_MARKER_START)) {
+    try {
+      const start = aboutField.indexOf(STOPS_MARKER_START) + STOPS_MARKER_START.length;
+      const end = aboutField.indexOf(STOPS_MARKER_END, start);
+      if (start > -1 && end > -1) {
+        const jsonStr = aboutField.slice(start, end).trim();
+        const parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed)) {
+          return parsed.map((s: any, idx) => ({
+            id: String(s.id || `stop-${idx}`),
+            city: String(s.city || ""),
+            pickup: String(s.pickup || ""),
+            price_fcfa: Number(s.price_fcfa || 0),
+            ...(s.time_offset ? { time_offset: String(s.time_offset) } : {}),
+          }));
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+  return [];
+}
+
+export function stripStopsFromAbout(about?: string | null): string {
+  if (!about) return "";
+  if (!about.includes(STOPS_MARKER_START)) return about.trim();
+  const start = about.indexOf(STOPS_MARKER_START);
+  const end = about.indexOf(STOPS_MARKER_END, start);
+  if (start > -1 && end > -1) {
+    const before = about.slice(0, start);
+    const after = about.slice(end + STOPS_MARKER_END.length);
+    return `${before} ${after}`.trim();
+  }
+  return about.trim();
+}
+
+export function embedStopsInAbout(about: string, stops: IntermediateStop[]): string {
+  const clean = stripStopsFromAbout(about);
+  if (!stops || stops.length === 0) return clean;
+  return `${clean}\n\n${STOPS_MARKER_START} ${JSON.stringify(stops)} ${STOPS_MARKER_END}`;
+}
+
+export function parsePassengerBoarding(rawName: string | null | undefined): { name: string; pickupStop?: string | undefined } {
+  if (!rawName) return { name: "Passager" };
+  const match = rawName.match(/^(.*?)\s*\[Montée:\s*([^\]]+)\]$/i);
+  if (match && match[2]?.trim()) {
+    return { name: match[1]?.trim() || "Passager", pickupStop: match[2].trim() };
+  }
+  return { name: rawName.trim() };
+}
+
+export function formatPassengerWithBoarding(name: string, pickupStop?: string): string {
+  const trimmed = name.trim();
+  if (!pickupStop || !pickupStop.trim()) return trimmed;
+  return `${trimmed} [Montée: ${pickupStop.trim()}]`;
+}
+
 /** Caravan shape returned by the public server functions. */
 export type CaravanView = {
   id: string;
@@ -33,6 +112,7 @@ export type CaravanView = {
   isPro: boolean;
   amenities: Amenity[];
   about: string;
+  stops: IntermediateStop[];
 };
 
 export const BUS_PRESET_IMAGES = [
@@ -85,6 +165,7 @@ type RawCaravan = {
   image_url: string | null;
   amenities: string[] | null;
   about: string | null;
+  stops?: unknown;
   organizer_id: string;
   organizers?: {
     name: string | null;
@@ -99,6 +180,9 @@ type RawCaravan = {
 
 export function mapCaravan(row: RawCaravan): CaravanView {
   const departure = new Date(row.departure_at);
+  const stops = parseStops(row.stops, row.about);
+  const cleanAbout = stripStopsFromAbout(row.about);
+
   return {
     id: row.id,
     universityId: row.university_id,
@@ -122,7 +206,8 @@ export function mapCaravan(row: RawCaravan): CaravanView {
     rating: row.organizers?.rating ?? 4.9,
     isPro: true,
     amenities: (row.amenities as Amenity[]) ?? ["ac", "wifi", "usb"],
-    about: row.about ?? "Départ King-Bus 2.0. Confort maximal, sécurité et ponctualité.",
+    about: cleanAbout || "Départ King-Bus 2.0. Confort maximal, sécurité et ponctualité.",
+    stops,
   };
 }
 

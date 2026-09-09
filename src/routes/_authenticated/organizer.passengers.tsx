@@ -131,7 +131,7 @@ function PassengersPage() {
       organizerName: "Espace Organisateur",
       caravanTitle: selectedCaravan ? `${selectedCaravan.from_label} ➔ ${selectedCaravan.to_label}` : undefined,
       departureDate: selectedCaravan?.departure_at ? new Date(selectedCaravan.departure_at).toLocaleString("fr-FR") : undefined,
-      pickupLocation: selectedCaravan?.pickup_label,
+      pickupLocation: selectedCaravan?.pickup,
       passengers: rows,
     });
 
@@ -179,7 +179,7 @@ function PassengersPage() {
 
         {selectedCaravan && (
           <span className="text-xs font-bold text-primary">
-            📍 Ramassage : {selectedCaravan.pickup_label || "Non spécifié"}
+            📍 Ramassage : {selectedCaravan.pickup || "Non spécifié"}
           </span>
         )}
       </div>

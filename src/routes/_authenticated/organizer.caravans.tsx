@@ -2,7 +2,23 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bus, MapPin, Plus, Search, Monitor, Plug, Snowflake, Wifi, FileText, Download } from "lucide-react";
+import {
+  Bus,
+  MapPin,
+  Plus,
+  Search,
+  Monitor,
+  Plug,
+  Snowflake,
+  Wifi,
+  FileText,
+  Download,
+  Clock,
+  AlertCircle,
+  Trash2,
+  Sparkles,
+  Navigation,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -18,6 +34,7 @@ import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, pct } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 import { exportPassengerManifestPdf } from "@/lib/pdf-export";
+import type { IntermediateStop } from "@/lib/student-shared";
 
 export const Route = createFileRoute("/_authenticated/organizer/caravans")({
   head: () => ({
@@ -44,15 +61,15 @@ type CaravanStatus = "draft" | "pending" | "published" | "full" | "completed" | 
 
 const filters = [
   { id: "all", label: "Toutes" },
-  { id: "draft", label: "Brouillons" },
   { id: "pending", label: "En attente" },
   { id: "published", label: "Publiées" },
+  { id: "draft", label: "Brouillons" },
   { id: "cancelled", label: "Annulées" },
 ] as const;
 
 const statusClass: Record<CaravanStatus, string> = {
   draft: "bg-neutral-800 text-neutral-400",
-  pending: "bg-warning/10 text-warning",
+  pending: "bg-warning/15 text-warning border border-warning/30",
   published: "bg-success/10 text-success",
   full: "bg-warning/12 text-warning",
   completed: "bg-info/10 text-info",
@@ -61,7 +78,7 @@ const statusClass: Record<CaravanStatus, string> = {
 
 const statusLabel: Record<CaravanStatus, string> = {
   draft: "Brouillon",
-  pending: "En attente",
+  pending: "En attente de validation",
   published: "Publiée",
   full: "Complète",
   completed: "Terminée",
@@ -86,7 +103,8 @@ const emptyForm = {
   total_seats: "",
   amenities: [] as string[],
   about: "",
-  status: "draft" as CaravanStatus,
+  status: "pending" as CaravanStatus,
+  stops: [] as IntermediateStop[],
 };
 
 function CaravansPage() {
@@ -102,11 +120,28 @@ function CaravansPage() {
   const [form, setForm] = useState(emptyForm);
 
   const saveMutation = useMutation({
-    mutationFn: (data: { id?: string | undefined; from_label: string; to_label: string; departure_at: string; pickup: string; dropoff: string; price_fcfa: number; total_seats: number; amenities?: string[] | undefined; about?: string | undefined; image_url?: string | undefined; status?: "draft" | "pending" | "published" | "full" | "completed" | "cancelled" }) =>
-      saveCaravanFn({ data }),
+    mutationFn: (data: {
+      id?: string | undefined;
+      from_label: string;
+      to_label: string;
+      departure_at: string;
+      pickup: string;
+      dropoff: string;
+      price_fcfa: number;
+      total_seats: number;
+      amenities?: string[] | undefined;
+      about?: string | undefined;
+      image_url?: string | undefined;
+      status?: "draft" | "pending" | "published" | "full" | "completed" | "cancelled";
+      stops?: IntermediateStop[];
+    }) => saveCaravanFn({ data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
-      toast.success("Caravane enregistrée");
+      toast.success(
+        form.status === "draft"
+          ? "Brouillon enregistré"
+          : "Voyage soumis avec succès pour validation par le super admin"
+      );
       setOpen(false);
     },
     onError: (error: Error) => toast.error(error.message),
@@ -148,18 +183,23 @@ function CaravansPage() {
       price_fcfa: String(c.price_fcfa ?? ""),
       total_seats: String(c.total_seats ?? ""),
       amenities: c.amenities ?? [],
-      about: c.about ?? "",
+      about: (c as any).cleanAbout ?? c.about ?? "",
       status: c.status as CaravanStatus,
+      stops: ((c as any).stops || []) as IntermediateStop[],
     });
     setOpen(true);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent, targetStatus?: "draft" | "pending") => {
     e.preventDefault();
     if (!form.from_label || !form.to_label || !form.departure_at) {
       toast.error("Merci de compléter les champs obligatoires");
       return;
     }
+    const resolvedStatus =
+      targetStatus ??
+      ((!form.id || form.status === "draft") ? "pending" : form.status);
+
     saveMutation.mutate({
       id: form.id,
       from_label: form.from_label,
@@ -171,7 +211,8 @@ function CaravansPage() {
       total_seats: Number(form.total_seats) || 1,
       amenities: form.amenities,
       about: form.about,
-      status: (!form.id || form.status === "draft") ? "published" : form.status,
+      status: resolvedStatus,
+      stops: form.stops,
     });
   };
 
@@ -271,6 +312,12 @@ function CaravansPage() {
                             <span className="block text-[11px] text-muted-foreground">
                               Réf. {c.id.slice(0, 8).toUpperCase()}
                             </span>
+                            {(c as any).stops && (c as any).stops.length > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full mt-1 w-fit">
+                                <Navigation className="size-2.5" />
+                                {(c as any).stops.length} escale{(c as any).stops.length > 1 ? "s" : ""} ({(c as any).stops.map((s: any) => s.city).join(", ")})
+                              </span>
+                            )}
                           </span>
                         </span>
                       </td>
@@ -286,17 +333,25 @@ function CaravansPage() {
                       </td>
                       <td className="px-5 py-4 font-semibold">{fcfa(c.price_fcfa)}</td>
                       <td className="px-5 py-4">
-                        <span
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-[11px] font-bold",
-                            statusClass[c.status as CaravanStatus],
+                        <span className="flex flex-col gap-0.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold w-fit",
+                              statusClass[c.status as CaravanStatus],
+                            )}
+                          >
+                            {c.status === "pending" && <Clock className="size-3" />}
+                            {statusLabel[c.status as CaravanStatus]}
+                          </span>
+                          {c.status === "pending" && (
+                            <span className="text-[10px] font-medium text-amber-500">
+                              Lien de paiement en attente
+                            </span>
                           )}
-                        >
-                          {statusLabel[c.status as CaravanStatus]}
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {c.status === "draft" ? (
                             <button
                               type="button"
@@ -308,7 +363,13 @@ function CaravansPage() {
                               Soumettre
                             </button>
                           ) : c.status === "pending" ? (
-                            <span className="text-xs font-bold text-warning">En attente d'admin</span>
+                            <button
+                              type="button"
+                              onClick={() => openEdit(c)}
+                              className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
+                            >
+                              Modifier
+                            </button>
                           ) : c.status === "published" ? (
                             <button
                               type="button"
@@ -336,11 +397,12 @@ function CaravansPage() {
                                 organizerName: "Espace Organisateur",
                                 caravanTitle: `${c.from_label} ➔ ${c.to_label}`,
                                 departureDate: dateTimeFr(c.departure_at),
-                                pickupLocation: c.pickup_label,
+                                pickupLocation: c.pickup,
                                 passengers: caravanBookings.map((b) => ({
                                   name: b.student || "Étudiant",
                                   phone: b.phone || "—",
                                   university: b.university || "—",
+                                  pickupStop: (b as any).pickupStop || undefined,
                                   reference: b.reference,
                                   seats: b.seats,
                                   amount: b.amount,
@@ -372,12 +434,20 @@ function CaravansPage() {
         <DialogContent className="max-h-[85vh] overflow-y-auto rounded-2xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-extrabold">
-              {form.id ? "Modifier la caravane" : "Créer une caravane"}
+              {form.id ? "Modifier le voyage" : "Programmer un nouveau voyage"}
             </DialogTitle>
             <DialogDescription>
-              Renseignez les informations du départ. Vous pourrez publier une fois prêt.
+              Renseignez les informations du trajet. Votre voyage sera transmis à l'administration pour validation et association du lien de paiement officiel Wave Business.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400 flex items-start gap-2.5">
+            <Clock className="size-4 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">Circuit de validation :</span> Tout voyage créé doit être validé par le super administrateur avec l'attribution du lien de paiement Wave avant d'apparaître publiquement sur la plateforme.
+            </div>
+          </div>
+
           <form className="space-y-4" onSubmit={submit}>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -445,8 +515,173 @@ function CaravansPage() {
                   className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
                 />
               </label>
-
             </div>
+
+            {/* ── Escales & Tarifs par tronçon ── */}
+            <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 space-y-3.5 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
+                    <Navigation className="size-4 text-amber-500" />
+                    Escales & Tarifs par tronçon (Optionnel)
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Permettez aux passagers de monter en cours de route avec un tarif adapté (ex: Fatick à 9 000 FCFA pour Dakar ➔ Ziguinchor).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newStop: IntermediateStop = {
+                      id: `stop-${Date.now()}`,
+                      city: "",
+                      pickup: "",
+                      price_fcfa: Math.max(0, (Number(form.price_fcfa) || 10000) - 2000),
+                    };
+                    setForm((f) => ({ ...f, stops: [...f.stops, newStop] }));
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all"
+                >
+                  <Plus className="size-3.5" />
+                  Ajouter une escale
+                </button>
+              </div>
+
+              {/* Quick Presets for Senegal */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="size-3 text-amber-500" /> Raccourcis Sénégal :
+                </span>
+                {[
+                  { city: "Fatick", pickup: "Rond-point Fatick / Station", price_fcfa: 9000 },
+                  { city: "Kaolack", pickup: "Garage Nioro / Station Total", price_fcfa: 8000 },
+                  { city: "Mbour", pickup: "Croisement Saly / Mbour", price_fcfa: 10500 },
+                ].map((preset) => (
+                  <button
+                    key={preset.city}
+                    type="button"
+                    onClick={() => {
+                      if (form.stops.some((s) => s.city.toLowerCase() === preset.city.toLowerCase())) {
+                        toast.info(`L'escale ${preset.city} est déjà ajoutée.`);
+                        return;
+                      }
+                      setForm((f) => ({
+                        ...f,
+                        stops: [
+                          ...f.stops,
+                          {
+                            id: `stop-${Date.now()}-${preset.city.toLowerCase()}`,
+                            city: preset.city,
+                            pickup: preset.pickup,
+                            price_fcfa: preset.price_fcfa,
+                          },
+                        ],
+                      }));
+                      toast.success(`Escale ${preset.city} (${preset.price_fcfa.toLocaleString("fr-FR")} F) ajoutée !`);
+                    }}
+                    className="text-[11px] font-medium rounded-lg border border-border bg-card px-2.5 py-1 hover:border-amber-500/60 hover:text-amber-600 transition-all"
+                  >
+                    + {preset.city} ({preset.price_fcfa.toLocaleString("fr-FR")} F)
+                  </button>
+                ))}
+              </div>
+
+              {/* Configured stops list */}
+              {form.stops.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border/70 p-3.5 text-center text-xs text-muted-foreground">
+                  Aucune escale intermédiaire configurée pour ce départ. Les passagers paieront le tarif plein ({form.price_fcfa || "0"} FCFA).
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {form.stops.map((stop, index) => (
+                    <div
+                      key={stop.id}
+                      className="rounded-xl border border-border bg-card p-3 space-y-2.5 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <MapPin className="size-3.5" />
+                          Escale #{index + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              stops: f.stops.filter((s) => s.id !== stop.id),
+                            }))
+                          }
+                          className="text-xs text-danger hover:underline flex items-center gap-1 font-medium"
+                          title="Supprimer cette escale"
+                        >
+                          <Trash2 className="size-3" /> Supprimer
+                        </button>
+                      </div>
+
+                      <div className="grid gap-2.5 sm:grid-cols-3">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                            Ville étape
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Fatick"
+                            value={stop.city}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setForm((f) => ({
+                                ...f,
+                                stops: f.stops.map((s) => (s.id === stop.id ? { ...s, city: val } : s)),
+                              }));
+                            }}
+                            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                            Lieu de montée
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Rond-point Fatick"
+                            value={stop.pickup}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setForm((f) => ({
+                                ...f,
+                                stops: f.stops.map((s) => (s.id === stop.id ? { ...s, pickup: val } : s)),
+                              }));
+                            }}
+                            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                            Tarif depuis cet arrêt (FCFA)
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="Ex: 9000"
+                            value={stop.price_fcfa || ""}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              setForm((f) => ({
+                                ...f,
+                                stops: f.stops.map((s) => (s.id === stop.id ? { ...s, price_fcfa: val } : s)),
+                              }));
+                            }}
+                            className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="block">
               <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">
                 Équipements
@@ -491,21 +726,39 @@ function CaravansPage() {
                 className="w-full rounded-xl border border-border bg-card p-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
               />
             </label>
-            <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold"
+                className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted"
               >
                 Annuler
               </button>
-              <button
-                type="submit"
-                disabled={saveMutation.isPending}
-                className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
-              >
-                {saveMutation.isPending ? "Traitement…" : (!form.id || form.status === "draft" ? "Soumettre" : "Enregistrer")}
-              </button>
+              <div className="flex items-center gap-2">
+                {(!form.id || form.status === "draft") && (
+                  <button
+                    type="button"
+                    disabled={saveMutation.isPending}
+                    onClick={(e) => submit(e, "draft")}
+                    className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted"
+                  >
+                    Enregistrer en brouillon
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={saveMutation.isPending}
+                  className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-md hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {saveMutation.isPending
+                    ? "Traitement…"
+                    : (!form.id || form.status === "draft"
+                      ? "Soumettre pour validation"
+                      : form.status === "pending"
+                        ? "Mettre à jour la demande"
+                        : "Enregistrer les modifications")}
+                </button>
+              </div>
             </div>
           </form>
         </DialogContent>

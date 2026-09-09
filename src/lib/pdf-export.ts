@@ -6,6 +6,7 @@ export interface PassengerExportItem {
   name: string;
   phone: string;
   university: string;
+  pickupStop?: string;
   trips?: number;
   seats?: number;
   spent?: number;
@@ -18,11 +19,11 @@ export interface PassengerExportItem {
 }
 
 export interface ExportPdfOptions {
-  organizerName?: string;
-  caravanTitle?: string;
-  departureDate?: string;
-  pickupLocation?: string;
-  dropoffLocation?: string;
+  organizerName?: string | undefined;
+  caravanTitle?: string | undefined;
+  departureDate?: string | undefined;
+  pickupLocation?: string | undefined;
+  dropoffLocation?: string | undefined;
   passengers: PassengerExportItem[];
 }
 
@@ -163,14 +164,15 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
   let tableData: string[][];
 
   if (isCaravanSpecific) {
-    headers = [["#", "Nom du Passager", "Téléphone", "Université", "Réf / Billet", "Places", "Paiement"]];
+    headers = [["#", "Nom du Passager", "Téléphone", "Lieu de montée", "Réf / Billet", "Places", "Montant", "Paiement"]];
     tableData = options.passengers.map((p, index) => [
       (index + 1).toString(),
       p.name,
       p.phone || "—",
-      p.university || "—",
+      p.pickupStop || "Départ initial",
       p.reference || "—",
       `${p.seats || p.trips || 1}`,
+      `${(p.amount || p.spent || 0).toLocaleString("fr-FR")} F`,
       p.paymentStatus === "paid" || p.status === "confirmed" ? "Payé (Wave)" : "En attente",
     ]);
   } else {

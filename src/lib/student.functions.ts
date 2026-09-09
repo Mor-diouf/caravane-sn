@@ -6,6 +6,9 @@ import {
   mapCaravan,
   type CaravanView,
   type UniversityRow,
+  parseStops,
+  parsePassengerBoarding,
+  formatPassengerWithBoarding,
 } from "@/lib/student-shared";
 import { getCached, setCached, invalidateCache } from "@/lib/server-cache";
 
@@ -166,20 +169,24 @@ export const getMyTickets = createServerFn({ method: "GET" })
           .in("caravan_id", caravanIds)
       : { data: [] };
 
-    return (data ?? []).map((b) => ({
-      id: b.id,
-      caravanId: b.caravan_id,
-      seats: b.seats,
-      amount: b.amount_fcfa,
-      reference: b.reference,
-      status: b.status,
-      passenger_name: b.passenger_name,
-      createdAt: b.created_at,
-      caravan: b.caravans ? mapCaravan(b.caravans as never) : null,
-      ticket: (b.tickets ?? [])[0] ?? null,
-      payment: (b.payments ?? [])[0] ?? null,
-      review: (reviews ?? []).find((r) => r.caravan_id === b.caravan_id) ?? null,
-    }));
+    return (data ?? []).map((b) => {
+      const boardingInfo = parsePassengerBoarding(b.passenger_name);
+      return {
+        id: b.id,
+        caravanId: b.caravan_id,
+        seats: b.seats,
+        amount: b.amount_fcfa,
+        reference: b.reference,
+        status: b.status,
+        passenger_name: boardingInfo.name,
+        pickup_stop: boardingInfo.pickupStop ?? null,
+        createdAt: b.created_at,
+        caravan: b.caravans ? mapCaravan(b.caravans as never) : null,
+        ticket: (b.tickets ?? [])[0] ?? null,
+        payment: (b.payments ?? [])[0] ?? null,
+        review: (reviews ?? []).find((r) => r.caravan_id === b.caravan_id) ?? null,
+      };
+    });
   });
 
 export const initiateWavePayment = createServerFn({ method: "POST" })
@@ -191,6 +198,8 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
         seats: z.number().int().min(1).max(6),
         payerPhone: z.string().min(9),
         passengerName: z.string().optional(),
+        stopId: z.string().optional(),
+        pickupStop: z.string().optional(),
       })
       .parse(data),
   )
@@ -198,7 +207,7 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
     // 1. Fetch Caravan and its payment_link
     const { data: caravan, error: caravanError } = await context.supabase
       .from("caravans")
-      .select("id, price_fcfa, seats_left, payment_link")
+      .select("id, price_fcfa, seats_left, payment_link, about")
       .eq("id", data.caravanId)
       .maybeSingle();
 
@@ -208,24 +217,60 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
     if (!caravan.payment_link)
       throw new Error("Paiement non disponible pour cette caravane (Lien manquant)");
 
-    const amount = caravan.price_fcfa * data.seats;
+    // Compute price: check if an intermediate stop is selected
+    const stops = parseStops((caravan as any)?.stops, caravan?.about);
+    let unitPrice = caravan.price_fcfa;
+    let selectedStopName = data.pickupStop;
+
+    if (data.stopId) {
+      const foundStop = stops.find((s) => s.id === data.stopId);
+      if (foundStop) {
+        unitPrice = foundStop.price_fcfa;
+        selectedStopName = foundStop.city;
+      }
+    }
+
+    const amount = unitPrice * data.seats;
     const ref = `BK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
+    // Embed boarding point inside passenger_name for universal compatibility
+    const basePassengerName = data.passengerName?.trim() || "Voyageur";
+    const passengerNameWithBoarding = selectedStopName
+      ? formatPassengerWithBoarding(basePassengerName, selectedStopName)
+      : basePassengerName;
+
     // 2. Create Pending Booking with payer_phone
-    const { data: booking, error: bookingError } = await context.supabase
+    const insertPayload: Record<string, unknown> = {
+      user_id: context.userId,
+      caravan_id: data.caravanId,
+      seats: data.seats,
+      amount_fcfa: amount,
+      reference: ref,
+      status: "pending",
+      payer_phone: data.payerPhone.replace(/\s/g, ""),
+      passenger_name: passengerNameWithBoarding,
+    };
+    if (selectedStopName) {
+      insertPayload['pickup_stop'] = selectedStopName;
+    }
+
+    let { data: booking, error: bookingError } = await context.supabase
       .from("bookings")
-      .insert({
-        user_id: context.userId,
-        caravan_id: data.caravanId,
-        seats: data.seats,
-        amount_fcfa: amount,
-        reference: ref,
-        status: "pending",
-        payer_phone: data.payerPhone.replace(/\s/g, ""),
-        passenger_name: data.passengerName || null,
-      })
+      .insert(insertPayload as never)
       .select("id")
       .single();
+
+    if (bookingError && insertPayload['pickup_stop']) {
+      // Column pickup_stop might not exist yet if migration has not been applied
+      delete insertPayload['pickup_stop'];
+      const retry = await context.supabase
+        .from("bookings")
+        .insert(insertPayload as never)
+        .select("id")
+        .single();
+      booking = retry.data;
+      bookingError = retry.error;
+    }
 
     if (bookingError || !booking)
       throw new Error(bookingError?.message || "Erreur lors de la création de la réservation");

@@ -103,6 +103,7 @@ export const adminOverview = createServerFn({ method: "GET" })
         activeCaravans: (caravans.data ?? []).filter(
           (c) => c.status === "published" && !c.is_hidden,
         ).length,
+        pendingCaravans: (caravans.data ?? []).filter((c) => c.status === "pending").length,
         bookings: (bookings.data ?? []).length,
         fillRate: seatsTotal ? Math.round((seatsSold / seatsTotal) * 100) : 0,
         disputes: (disputes.data ?? []).filter((d) => d.status !== "resolved" && d.status !== "rejected")
@@ -455,7 +456,7 @@ export const adminListCaravans = createServerFn({ method: "GET" })
       .from("caravans")
       .select(
         `id, from_label, to_label, departure_at, price_fcfa, total_seats, seats_left, status,
-         is_hidden, created_at, organizers(id, name), universities(abbr)`,
+         payment_link, is_hidden, created_at, organizers(id, name), universities(abbr)`,
       )
       .order("departure_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -471,6 +472,7 @@ export const adminListCaravans = createServerFn({ method: "GET" })
       revenue: c.price_fcfa * (c.total_seats - c.seats_left),
       status: c.status,
       hidden: c.is_hidden,
+      paymentLink: c.payment_link ?? null,
       organizer: c.organizers?.name ?? "—",
       organizerId: c.organizers?.id ?? null,
       university: c.universities?.abbr ?? "—",

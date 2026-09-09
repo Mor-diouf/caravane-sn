@@ -99,6 +99,13 @@ export const organizerOverview = createServerFn({ method: "GET" })
     };
   });
 
+import {
+  parseStops,
+  stripStopsFromAbout,
+  embedStopsInAbout,
+  parsePassengerBoarding,
+} from "@/lib/student-shared";
+
 export const organizerListCaravans = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -114,7 +121,12 @@ export const organizerListCaravans = createServerFn({ method: "GET" })
       .eq("organizer_id", organizerId)
       .order("departure_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const list = data ?? [];
+    return list.map((c) => ({
+      ...c,
+      stops: parseStops((c as any).stops, c.about),
+      cleanAbout: stripStopsFromAbout(c.about),
+    }));
   });
 
 export const organizerSaveCaravan = createServerFn({ method: "POST" })
@@ -135,6 +147,17 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
         image_url: z.string().url().optional(),
         university_id: z.string().max(40).optional(),
         status: z.enum(["draft", "pending", "published", "full", "completed", "cancelled"]).default("draft"),
+        stops: z
+          .array(
+            z.object({
+              id: z.string(),
+              city: z.string().min(1),
+              pickup: z.string().min(1),
+              price_fcfa: z.number().int().min(0),
+              time_offset: z.string().optional(),
+            }),
+          )
+          .optional(),
       })
       .parse(d),
   )
@@ -144,32 +167,89 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
     const supabase = context.supabase;
     const organizerId = await requireOrganizerId(supabase, context.userId);
     const client = supabaseAdmin || supabase;
-    const { id, ...fields } = data;
+    const { id, stops, ...fields } = data;
 
-    const targetStatus = fields.status || "published";
+    const rawAbout = fields.about ? stripStopsFromAbout(fields.about) : "";
+    const encodedAbout = stops && stops.length > 0 ? embedStopsInAbout(rawAbout, stops) : rawAbout;
 
     if (id) {
-      const { error } = await client
+      const { data: existing } = await client
         .from("caravans")
-        .update({ ...fields, status: targetStatus } as never)
+        .select("status")
+        .eq("id", id)
+        .eq("organizer_id", organizerId)
+        .maybeSingle();
+
+      let targetStatus = fields.status;
+      // An organizer cannot directly self-publish unless it was already published
+      if (!existing || existing.status !== "published") {
+        if (targetStatus === "published") {
+          targetStatus = "pending";
+        }
+      }
+      if (!targetStatus) {
+        targetStatus = existing?.status ?? "pending";
+      }
+
+      const updateData: Record<string, unknown> = {
+        ...fields,
+        about: encodedAbout,
+        status: targetStatus,
+      };
+      if (stops !== undefined) {
+        updateData['stops'] = stops;
+      }
+
+      let updateResult = await client
+        .from("caravans")
+        .update(updateData as never)
         .eq("id", id)
         .eq("organizer_id", organizerId);
-      if (error) throw new Error(error.message);
+
+      if (updateResult.error) {
+        delete updateData['stops'];
+        updateResult = await client
+          .from("caravans")
+          .update(updateData as never)
+          .eq("id", id)
+          .eq("organizer_id", organizerId);
+      }
+
+      if (updateResult.error) throw new Error(updateResult.error.message);
       return { id };
     }
 
-    const { data: row, error } = await client
+    // Creating a new caravan: status must be "draft" or "pending" (submitted for admin approval)
+    const targetStatus = fields.status === "draft" ? "draft" : "pending";
+
+    const insertData: Record<string, unknown> = {
+      ...fields,
+      about: encodedAbout,
+      status: targetStatus,
+      organizer_id: organizerId,
+      seats_left: fields.total_seats,
+    };
+    if (stops !== undefined) {
+      insertData['stops'] = stops;
+    }
+
+    let insertResult = await client
       .from("caravans")
-      .insert({
-        ...fields,
-        status: targetStatus,
-        organizer_id: organizerId,
-        seats_left: fields.total_seats,
-      } as never)
+      .insert(insertData as never)
       .select("id")
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    return { id: row?.id ?? null };
+
+    if (insertResult.error) {
+      delete insertData['stops'];
+      insertResult = await client
+        .from("caravans")
+        .insert(insertData as never)
+        .select("id")
+        .maybeSingle();
+    }
+
+    if (insertResult.error) throw new Error(insertResult.error.message);
+    return { id: insertResult.data?.id ?? null };
   });
 
 export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
@@ -191,6 +271,9 @@ export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
     const client = supabaseAdmin || supabase;
     const patch: Record<string, unknown> = {};
     if (data.status) {
+      if (data.status === "published") {
+        throw new Error("Seul l'administrateur peut valider et publier une caravane avec son lien officiel.");
+      }
       patch['status'] = data.status;
     }
     if (typeof data.hidden === "boolean") patch['is_hidden'] = data.hidden;
@@ -250,11 +333,13 @@ export const organizerListBookings = createServerFn({ method: "GET" })
       const payment = (payments.data ?? []).find((p) => p.booking_id === b.id);
       
       const uniName = (profile?.universities as any)?.abbr || (profile?.universities as any)?.name || (caravan?.universities as any)?.abbr || caravan?.from_label || "—";
+      const boardingInfo = parsePassengerBoarding(b.passenger_name || profile?.full_name);
 
       return {
         id: b.id,
         reference: b.reference,
-        student: b.passenger_name || profile?.full_name || "Étudiant",
+        student: boardingInfo.name || "Étudiant",
+        pickupStop: boardingInfo.pickupStop ?? null,
         phone: b.payer_phone || profile?.phone || "—",
         email: profile?.email ?? "—",
         university: uniName,
@@ -291,6 +376,172 @@ export const organizerSetBookingStatus = createServerFn({ method: "POST" })
       .update({ status: data.status } as never)
       .eq("id", data.bookingId);
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const organizerConfirmBookingManual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) =>
+    z
+      .object({
+        bookingId: z.string().uuid(),
+        method: z.enum(["wave", "orange", "free"]).default("wave"),
+        note: z.string().max(200).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { requireOrganizerId } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabase = context.supabase;
+    const organizerId = await requireOrganizerId(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
+
+    // 1. Fetch booking and check organizer ownership
+    const { data: booking, error: bError } = await client
+      .from("bookings")
+      .select("id, caravan_id, user_id, amount_fcfa, seats, status, reference, passenger_name, payer_phone, caravans(id, organizer_id, from_label, to_label, organizers(commission_rate))")
+      .eq("id", data.bookingId)
+      .maybeSingle();
+
+    if (bError || !booking) throw new Error("Réservation introuvable");
+    
+    // Check caravan organizer
+    const caravan = booking.caravans as { id: string; organizer_id: string; from_label: string; to_label: string; organizers?: { commission_rate?: number } } | null;
+    if (!caravan || caravan.organizer_id !== organizerId) {
+      throw new Error("Vous n'êtes pas autorisé à gérer cette réservation");
+    }
+
+    if (booking.status === "cancelled" || booking.status === "refunded") {
+      throw new Error(`Impossible de valider une réservation au statut "${booking.status}"`);
+    }
+
+    // 2. Mark booking as confirmed
+    const { error: updateError } = await client
+      .from("bookings")
+      .update({ status: "confirmed" } as never)
+      .eq("id", booking.id);
+    if (updateError) throw new Error(updateError.message);
+
+    // 3. Upsert or Insert Payment record
+    const { data: existingPayment } = await client
+      .from("payments")
+      .select("id")
+      .eq("booking_id", booking.id)
+      .maybeSingle();
+
+    const commissionRate = Number(caravan.organizers?.commission_rate ?? 0.08);
+    const commissionFcfa = Math.round(booking.amount_fcfa * commissionRate);
+
+    if (existingPayment?.id) {
+      await client
+        .from("payments")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          method: data.method,
+          commission_fcfa: commissionFcfa,
+        } as never)
+        .eq("id", existingPayment.id);
+    } else {
+      await client
+        .from("payments")
+        .insert({
+          booking_id: booking.id,
+          user_id: booking.user_id,
+          method: data.method,
+          amount_fcfa: booking.amount_fcfa,
+          commission_fcfa: commissionFcfa,
+          status: "paid",
+          paid_at: new Date().toISOString(),
+        } as never);
+    }
+
+    // 4. Generate tickets if not already created
+    const { data: existingTickets } = await client
+      .from("tickets")
+      .select("id")
+      .eq("booking_id", booking.id);
+
+    if (!existingTickets || existingTickets.length === 0) {
+      const generateQrCode = () => {
+        if (typeof globalThis.crypto?.randomUUID === "function") {
+          return globalThis.crypto.randomUUID().toLowerCase();
+        }
+        return `kb-${Math.random().toString(36).substring(2, 10)}-${Date.now().toString(36)}`;
+      };
+
+      const ticketsToInsert = Array.from({ length: booking.seats }).map(() => ({
+        booking_id: booking.id,
+        qr_code: generateQrCode(),
+        status: "valid" as const,
+      }));
+
+      const { error: ticketError } = await client.from("tickets").insert(ticketsToInsert as never);
+      if (ticketError) {
+        console.error("Erreur lors de la création des billets :", ticketError);
+      }
+    }
+
+    // 5. Audit log
+    await client.from("audit_log").insert({
+      actor_id: context.userId,
+      action: "booking.confirmed_manual",
+      entity: "bookings",
+      entity_id: booking.id,
+      meta: {
+        reference: booking.reference,
+        amount: booking.amount_fcfa,
+        seats: booking.seats,
+        method: data.method,
+        note: data.note ?? null,
+      },
+    } as never);
+
+    return { ok: true, bookingId: booking.id };
+  });
+
+export const organizerCancelBookingManual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) =>
+    z
+      .object({
+        bookingId: z.string().uuid(),
+        reason: z.string().max(200).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { requireOrganizerId } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabase = context.supabase;
+    const organizerId = await requireOrganizerId(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
+
+    const { data: booking, error: bError } = await client
+      .from("bookings")
+      .select("id, caravan_id, status, reference, caravans(organizer_id)")
+      .eq("id", data.bookingId)
+      .maybeSingle();
+
+    if (bError || !booking) throw new Error("Réservation introuvable");
+    const caravan = booking.caravans as { organizer_id: string } | null;
+    if (!caravan || caravan.organizer_id !== organizerId) {
+      throw new Error("Non autorisé à gérer cette réservation");
+    }
+
+    const { error: updateError } = await client
+      .from("bookings")
+      .update({ status: "cancelled" } as never)
+      .eq("id", booking.id);
+    if (updateError) throw new Error(updateError.message);
+
+    // Cancel existing tickets if any
+    await client
+      .from("tickets")
+      .update({ status: "cancelled" } as never)
+      .eq("booking_id", booking.id);
+
     return { ok: true };
   });
 
