@@ -333,12 +333,16 @@ export const organizerListBookings = createServerFn({ method: "GET" })
       const payment = (payments.data ?? []).find((p) => p.booking_id === b.id);
       
       const uniName = (profile?.universities as any)?.abbr || (profile?.universities as any)?.name || (caravan?.universities as any)?.abbr || caravan?.from_label || "—";
-      const boardingInfo = parsePassengerBoarding(b.passenger_name || profile?.full_name);
+      const boardingInfo = parsePassengerBoarding(b.passenger_name);
+      const studentName =
+        boardingInfo.name && !["Voyageur", "Passager", "Étudiant"].includes(boardingInfo.name.trim())
+          ? boardingInfo.name
+          : profile?.full_name?.trim() || boardingInfo.name || "Étudiant";
 
       return {
         id: b.id,
         reference: b.reference,
-        student: boardingInfo.name || "Étudiant",
+        student: studentName,
         pickupStop: boardingInfo.pickupStop ?? null,
         phone: b.payer_phone || profile?.phone || "—",
         email: profile?.email ?? "—",
@@ -619,9 +623,15 @@ export const organizerScanTicket = createServerFn({ method: "POST" })
           .data
       : null;
 
+    const boardingInfo = parsePassengerBoarding(booking?.passenger_name);
+    const studentName =
+      boardingInfo.name && !["Voyageur", "Passager", "Étudiant"].includes(boardingInfo.name.trim())
+        ? boardingInfo.name
+        : profile?.full_name?.trim() || boardingInfo.name || "Étudiant";
+
     const info = {
       reference: booking?.reference ?? "—",
-      student: booking?.passenger_name || profile?.full_name || "Étudiant",
+      student: studentName,
       seats: booking?.seats ?? 1,
       route: booking?.caravans
         ? `${booking.caravans.from_label} → ${booking.caravans.to_label}`

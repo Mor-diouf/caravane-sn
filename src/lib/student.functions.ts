@@ -169,8 +169,20 @@ export const getMyTickets = createServerFn({ method: "GET" })
           .in("caravan_id", caravanIds)
       : { data: [] };
 
+    // Fetch user profile for passenger name fallback if generic
+    const { data: userProfile } = await context.supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", context.userId)
+      .maybeSingle();
+
     return (data ?? []).map((b) => {
       const boardingInfo = parsePassengerBoarding(b.passenger_name);
+      const resolvedName =
+        boardingInfo.name && !["Voyageur", "Passager", "Étudiant"].includes(boardingInfo.name.trim())
+          ? boardingInfo.name
+          : userProfile?.full_name?.trim() || boardingInfo.name || "Voyageur";
+
       return {
         id: b.id,
         caravanId: b.caravan_id,
@@ -178,7 +190,7 @@ export const getMyTickets = createServerFn({ method: "GET" })
         amount: b.amount_fcfa,
         reference: b.reference,
         status: b.status,
-        passenger_name: boardingInfo.name,
+        passenger_name: resolvedName,
         pickup_stop: boardingInfo.pickupStop ?? null,
         createdAt: b.created_at,
         caravan: b.caravans ? mapCaravan(b.caravans as never) : null,
@@ -234,7 +246,15 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
     const ref = `BK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
     // Embed boarding point inside passenger_name for universal compatibility
-    const basePassengerName = data.passengerName?.trim() || "Voyageur";
+    let basePassengerName = data.passengerName?.trim();
+    if (!basePassengerName || ["Voyageur", "Passager", "Étudiant"].includes(basePassengerName)) {
+      const { data: userProfile } = await context.supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", context.userId)
+        .maybeSingle();
+      basePassengerName = userProfile?.full_name?.trim() || basePassengerName || "Voyageur";
+    }
     const passengerNameWithBoarding = selectedStopName
       ? formatPassengerWithBoarding(basePassengerName, selectedStopName)
       : basePassengerName;
@@ -309,6 +329,16 @@ export const createBooking = createServerFn({ method: "POST" })
     const rate = Number(caravan.organizers?.commission_rate ?? 0.05);
     const reference = `CE-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
+    let basePassengerName = data.passengerName?.trim();
+    if (!basePassengerName || ["Voyageur", "Passager", "Étudiant"].includes(basePassengerName)) {
+      const { data: userProfile } = await context.supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", context.userId)
+        .maybeSingle();
+      basePassengerName = userProfile?.full_name?.trim() || basePassengerName || null;
+    }
+
     const { data: booking, error: bookingError } = await context.supabase
       .from("bookings")
       .insert({
@@ -318,7 +348,7 @@ export const createBooking = createServerFn({ method: "POST" })
         amount_fcfa: amount,
         reference,
         status: "confirmed",
-        passenger_name: data.passengerName || null,
+        passenger_name: basePassengerName || null,
       })
       .select("id, reference")
       .single();

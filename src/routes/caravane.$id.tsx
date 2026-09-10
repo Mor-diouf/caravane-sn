@@ -32,7 +32,7 @@ import {
 import { PaymentMark } from "@/components/PaymentMark";
 import { UniversityMark } from "@/components/UniversityMark";
 import { formatPrice, seatTone } from "@/lib/student-shared";
-import { caravanQuery, caravanReviewsQuery, universitiesQuery } from "@/lib/student-queries";
+import { caravanQuery, caravanReviewsQuery, universitiesQuery, profileQuery } from "@/lib/student-queries";
 import { createBooking, initiateWavePayment } from "@/lib/student.functions";
 import { useStudentFavorites } from "@/hooks/use-student-favorites";
 import { useAuth } from "@/hooks/use-auth";
@@ -110,6 +110,14 @@ function CaravaneDetail() {
   const queryClient = useQueryClient();
   const { favorites, toggle } = useStudentFavorites();
   const { user } = useAuth();
+  
+  const { data: profile } = useQuery({
+    ...profileQuery,
+    enabled: !!user,
+  });
+  
+  const myName = profile?.full_name || user?.user_metadata?.['full_name'] || user?.user_metadata?.name || "";
+  
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<Method>("wave");
   const [payerPhone, setPayerPhone] = useState("");
@@ -134,7 +142,15 @@ function CaravaneDetail() {
 
   const booking = useMutation({
     mutationFn: () => {
-      const passengerName = forFriend ? `${friendFirstName.trim()} ${friendLastName.trim()}`.trim() : undefined;
+      const needsNameInput = !forFriend && !myName;
+      const passengerName = forFriend || needsNameInput
+        ? `${friendFirstName.trim()} ${friendLastName.trim()}`.trim()
+        : myName.trim() || undefined;
+
+      if ((forFriend || needsNameInput) && !passengerName) {
+        throw new Error("Veuillez saisir le prénom et le nom du voyageur");
+      }
+
       return initiateWavePayment({
         data: {
           caravanId: caravane.id,
@@ -619,7 +635,9 @@ function CaravaneDetail() {
                     <p className="text-[11px] text-muted-foreground truncate max-w-[210px]">
                       {forFriend
                         ? "Billet réservé pour un proche"
-                        : `Billet à mon nom (${user?.user_metadata?.['full_name'] || "Moi"})`}
+                        : myName
+                          ? `Billet à mon nom (${myName})`
+                          : "Veuillez saisir votre nom"}
                     </p>
                   </div>
                 </div>
@@ -637,7 +655,7 @@ function CaravaneDetail() {
                 </button>
               </div>
 
-              {forFriend && (
+              {(forFriend || (!forFriend && !myName)) && (
                 <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-border/50">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

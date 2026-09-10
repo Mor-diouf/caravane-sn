@@ -48,15 +48,15 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, pageWidth, 30, "F");
 
-  // Cyan brand accent bar
-  doc.setFillColor(29, 195, 236); // #1dc3ec Wave/Ride Cyan
+  // Orange brand accent bar (King-Bus)
+  doc.setFillColor(249, 115, 22); // #f97316 orange-500
   doc.rect(0, 30, pageWidth, 2, "F");
 
   // App Title
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(15);
   doc.setFont("helvetica", "bold");
-  doc.text("RIDE ROUTE SÉNÉGAL", 14, 13);
+  doc.text("KING-BUS 2.0", 14, 13);
 
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
@@ -67,7 +67,7 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
   const isCaravanSpecific = Boolean(options.caravanTitle);
   doc.setFontSize(10.5);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(29, 195, 236);
+  doc.setTextColor(249, 115, 22); // orange-500
   doc.text(
     isCaravanSpecific ? "MANIFESTE DU BUS" : "LISTE DES PASSAGERS",
     pageWidth - 14,
@@ -93,7 +93,7 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
 
   if (isCaravanSpecific) {
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(2, 132, 199); // sky-600
+    doc.setTextColor(234, 88, 12); // orange-600
     doc.text(`Caravane : ${options.caravanTitle}`, 18, currentY + 12);
 
     doc.setFont("helvetica", "normal");
@@ -194,7 +194,7 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
     body: tableData,
     theme: "striped",
     headStyles: {
-      fillColor: [15, 23, 42],
+      fillColor: [249, 115, 22], // orange-500
       textColor: [255, 255, 255],
       fontSize: 8,
       fontStyle: "bold",
@@ -211,13 +211,12 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
       fillColor: [248, 250, 252],
     },
     columnStyles: {
-      0: { cellWidth: 8, halign: "center" },
-      1: { cellWidth: 46, fontStyle: "bold" },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 26 },
-      4: { cellWidth: 26, halign: "center" },
-      5: { cellWidth: 22, halign: "center" },
-      6: { cellWidth: 22, halign: "right", fontStyle: "bold" },
+      0: { halign: "center" },
+      1: { fontStyle: "bold" },
+      4: { halign: "center" },
+      5: { halign: "center" },
+      6: { halign: "right", fontStyle: "bold" },
+      7: { halign: "right" },
     },
     margin: { left: 14, right: 14 },
     didDrawPage: (data) => {
