@@ -530,6 +530,48 @@ export const adminUpdateCaravan = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const adminDeleteCaravan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ caravanId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { assertAdmin } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertAdmin(context.supabase, context.userId);
+    const client = supabaseAdmin || context.supabase;
+
+    // Check caravan exists
+    const { data: caravan, error: fetchErr } = await client
+      .from("caravans")
+      .select("id, from_label, to_label")
+      .eq("id", data.caravanId)
+      .maybeSingle();
+
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!caravan) throw new Error("Caravane introuvable.");
+
+    // Record audit log
+    await client.from("audit_log").insert({
+      action: "caravan_cancelled",
+      entity: "caravan",
+      entity_id: data.caravanId,
+      actor_id: context.userId,
+      meta: { name: `${caravan.from_label} → ${caravan.to_label}`, deleted: true },
+    } as never);
+
+    const { error: deleteErr } = await client
+      .from("caravans")
+      .delete()
+      .eq("id", data.caravanId);
+
+    if (deleteErr) throw new Error(deleteErr.message);
+
+    const { invalidateCache } = await import("@/lib/server-cache");
+    invalidateCache("caravan");
+    invalidateCache("organizer");
+
+    return { ok: true, id: data.caravanId };
+  });
+
 export const adminFinance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

@@ -287,6 +287,43 @@ export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const organizerDeleteCaravan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ caravanId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { requireOrganizerId } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabase = context.supabase;
+    const organizerId = await requireOrganizerId(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
+
+    // Check caravan exists and belongs to this organizer
+    const { data: caravan, error: fetchErr } = await client
+      .from("caravans")
+      .select("id, from_label, to_label")
+      .eq("id", data.caravanId)
+      .eq("organizer_id", organizerId)
+      .maybeSingle();
+
+    if (fetchErr) throw new Error(fetchErr.message);
+    if (!caravan) throw new Error("Caravane introuvable ou non autorisée.");
+
+    // Delete caravan (cascade will delete associated bookings, tickets, payments, reviews, favorites)
+    const { error: deleteErr } = await client
+      .from("caravans")
+      .delete()
+      .eq("id", data.caravanId)
+      .eq("organizer_id", organizerId);
+
+    if (deleteErr) throw new Error(deleteErr.message);
+
+    const { invalidateCache } = await import("@/lib/server-cache");
+    invalidateCache("caravan");
+    invalidateCache("organizer");
+
+    return { ok: true, id: data.caravanId };
+  });
+
 export const organizerListBookings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

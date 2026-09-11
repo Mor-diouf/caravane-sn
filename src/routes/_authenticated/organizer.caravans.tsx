@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
 import { orgCaravansQuery, orgBookingsQuery } from "@/lib/dash-queries";
-import { organizerSaveCaravan, organizerSetCaravanStatus } from "@/lib/organizer.functions";
+import { organizerSaveCaravan, organizerSetCaravanStatus, organizerDeleteCaravan } from "@/lib/organizer.functions";
 import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, pct } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
@@ -113,11 +113,24 @@ function CaravansPage() {
   const { data: dbBookings } = useQuery(orgBookingsQuery());
   const saveCaravanFn = useServerFn(organizerSaveCaravan);
   const setStatusFn = useServerFn(organizerSetCaravanStatus);
+  const deleteCaravanFn = useServerFn(organizerDeleteCaravan);
 
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [deletingCaravan, setDeletingCaravan] = useState<NonNullable<typeof caravans>[number] | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (caravanId: string) => deleteCaravanFn({ data: { caravanId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Voyage supprimé définitivement avec succès");
+      setDeletingCaravan(null);
+      setOpen(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const saveMutation = useMutation({
     mutationFn: (data: {
@@ -425,6 +438,15 @@ function CaravansPage() {
                             className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-xs font-bold text-foreground shadow-2xs hover:bg-muted"
                           >
                             <FileText className="size-3 text-primary" /> PDF
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDeletingCaravan(c)}
+                            title="Supprimer définitivement ce voyage"
+                            className="inline-flex items-center gap-1 rounded-lg border border-danger/30 bg-danger/5 px-2 py-1 text-xs font-bold text-danger hover:bg-danger/15 transition-colors"
+                          >
+                            <Trash2 className="size-3" /> Supprimer
                           </button>
                         </div>
                       </td>
@@ -763,13 +785,29 @@ function CaravansPage() {
               />
             </label>
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted"
-              >
-                Annuler
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted"
+                >
+                  Annuler
+                </button>
+                {form.id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const found = caravans?.find((c) => c.id === form.id);
+                      if (found) {
+                        setDeletingCaravan(found);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-sm font-bold text-danger hover:bg-danger/20 transition-colors"
+                  >
+                    <Trash2 className="size-4" /> Supprimer ce voyage
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 {(!form.id || form.status === "draft") && (
                   <button
@@ -797,6 +835,96 @@ function CaravansPage() {
               </div>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Boîte de confirmation de suppression d'un voyage */}
+      <Dialog open={!!deletingCaravan} onOpenChange={(isOpen) => !isOpen && setDeletingCaravan(null)}>
+        <DialogContent className="max-w-md rounded-2xl p-6">
+          <DialogHeader className="space-y-2 text-left">
+            <div className="flex items-center gap-3">
+              <div className="grid size-11 place-items-center rounded-2xl bg-danger/10 text-danger shrink-0">
+                <Trash2 className="size-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-black text-foreground">
+                  Supprimer ce voyage ?
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Cette action est définitive et irréversible.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {deletingCaravan && (
+            <div className="my-2 space-y-3">
+              <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Trajet :</span>
+                  <span className="font-bold text-foreground">
+                    {deletingCaravan.from_label} → {deletingCaravan.to_label}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Départ :</span>
+                  <span className="font-medium text-foreground">
+                    {dateTimeFr(deletingCaravan.departure_at)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Référence :</span>
+                  <span className="font-mono text-muted-foreground">
+                    {deletingCaravan.id.slice(0, 8).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              {deletingCaravan.total_seats - deletingCaravan.seats_left > 0 && (
+                <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertCircle className="size-4 shrink-0" />
+                    Attention : Réservations actives !
+                  </div>
+                  <p className="leading-relaxed text-[11px] text-danger/90">
+                    Ce voyage compte actuellement{" "}
+                    <strong className="underline">
+                      {deletingCaravan.total_seats - deletingCaravan.seats_left} passager(s) inscrit(s)
+                    </strong>
+                    . La suppression effacera définitivement ce départ ainsi que tous les billets associés.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Êtes-vous absolument sûr de vouloir supprimer cette caravane de l'espace King-Bus ?
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
+            <button
+              type="button"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeletingCaravan(null)}
+              className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={deleteMutation.isPending || !deletingCaravan}
+              onClick={() => {
+                if (deletingCaravan) {
+                  deleteMutation.mutate(deletingCaravan.id);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-danger px-4 py-2 text-xs font-bold text-white hover:bg-danger/90 active:scale-95 disabled:opacity-60 transition-all shadow-sm"
+            >
+              <Trash2 className="size-3.5" />
+              {deleteMutation.isPending ? "Suppression en cours…" : "Supprimer définitivement"}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

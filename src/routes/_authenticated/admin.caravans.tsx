@@ -14,6 +14,7 @@ import {
   AlertCircle,
   X,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,7 +22,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { EmptyState, KpiCard, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
 import { AdminButton, Tabs, TonePill, type Tone } from "@/components/admin/ui";
 import { adminCaravansQuery } from "@/lib/dash-queries";
-import { adminSetCaravanHidden, adminUpdateCaravan } from "@/lib/admin.functions";
+import { adminSetCaravanHidden, adminUpdateCaravan, adminDeleteCaravan } from "@/lib/admin.functions";
 import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, fmt, pct } from "@/lib/organizer";
 
@@ -90,6 +91,20 @@ function AdminCaravans() {
   const queryClient = useQueryClient();
   const setHiddenFn = useServerFn(adminSetCaravanHidden);
   const updateCaravanFn = useServerFn(adminUpdateCaravan);
+  const deleteCaravanFn = useServerFn(adminDeleteCaravan);
+
+  const [deletingCaravan, setDeletingCaravan] = useState<any | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (caravanId: string) => deleteCaravanFn({ data: { caravanId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      toast.success("Voyage supprimé définitivement avec succès");
+      setDeletingCaravan(null);
+      setEditingCaravan(null);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
   
   const mutation = useMutation({
     mutationFn: (payload: { caravanId: string; hidden: boolean }) => setHiddenFn({ data: payload }),
@@ -358,6 +373,14 @@ function AdminCaravans() {
                             </>
                           )}
                         </AdminButton>
+
+                        <AdminButton
+                          variant="danger"
+                          title="Supprimer définitivement ce voyage"
+                          onClick={() => setDeletingCaravan(c)}
+                        >
+                          <Trash2 className="size-3.5" /> Supprimer
+                        </AdminButton>
                       </div>
                     </td>
                   </tr>
@@ -552,35 +575,135 @@ function AdminCaravans() {
                 </div>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-3">
-              <AdminButton variant="ghost" onClick={() => setEditingCaravan(null)}>
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <AdminButton
+                variant="danger"
+                onClick={() => {
+                  setDeletingCaravan(editingCaravan);
+                }}
+              >
+                <Trash2 className="size-3.5" /> Supprimer ce voyage
+              </AdminButton>
+              <div className="flex items-center gap-3">
+                <AdminButton variant="ghost" onClick={() => setEditingCaravan(null)}>
+                  Annuler
+                </AdminButton>
+                <AdminButton
+                  variant="primary"
+                  disabled={updateMutation.isPending}
+                  onClick={() => {
+                    const payload: {
+                      caravanId: string;
+                      from_label: string;
+                      to_label: string;
+                      price_fcfa: number;
+                      total_seats: number;
+                      departure_at?: string;
+                    } = {
+                      caravanId: editingCaravan.id,
+                      from_label: editForm.from_label,
+                      to_label: editForm.to_label,
+                      price_fcfa: editForm.price_fcfa,
+                      total_seats: editForm.total_seats,
+                    };
+                    if (editForm.departure_at) {
+                      payload.departure_at = new Date(editForm.departure_at).toISOString();
+                    }
+                    updateMutation.mutate(payload);
+                  }}
+                >
+                  Enregistrer
+                </AdminButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmation de suppression définitive admin */}
+      {deletingCaravan && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="grid size-11 place-items-center rounded-2xl bg-danger/10 text-danger shrink-0">
+                <Trash2 className="size-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-foreground">
+                  Supprimer ce voyage ?
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Cette action est irréversible et supprimera le voyage pour tout le monde.
+                </p>
+              </div>
+            </div>
+
+            <div className="my-3 space-y-3">
+              <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Trajet :</span>
+                  <span className="font-bold text-foreground">
+                    {deletingCaravan.route || `${deletingCaravan.fromLabel || deletingCaravan.from_label} → ${deletingCaravan.toLabel || deletingCaravan.to_label}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Organisateur :</span>
+                  <span className="font-medium text-foreground">{deletingCaravan.organizer}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Départ :</span>
+                  <span className="font-medium text-foreground">
+                    {dateTimeFr(deletingCaravan.departureAt || deletingCaravan.departure_at)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-muted-foreground">Identifiant :</span>
+                  <span className="font-mono text-muted-foreground">
+                    {deletingCaravan.id.slice(0, 8).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              {(deletingCaravan.booked > 0 || (deletingCaravan.capacity - deletingCaravan.seatsLeft > 0)) && (
+                <div className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <AlertCircle className="size-4 shrink-0" />
+                    Attention : Réservations enregistrées !
+                  </div>
+                  <p className="leading-relaxed text-[11px] text-danger/90">
+                    Ce voyage compte actuellement{" "}
+                    <strong className="underline">
+                      {deletingCaravan.booked || (deletingCaravan.capacity - deletingCaravan.seatsLeft)} place(s) réservée(s)
+                    </strong>
+                    . La suppression supprimera également tous les billets et paiements liés, et sera consignée dans le journal d'audit.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Confirmez-vous la suppression définitive de ce voyage de la base de données ?
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2.5 pt-3 border-t border-border">
+              <AdminButton
+                variant="ghost"
+                disabled={deleteMutation.isPending}
+                onClick={() => setDeletingCaravan(null)}
+              >
                 Annuler
               </AdminButton>
               <AdminButton
-                variant="primary"
-                disabled={updateMutation.isPending}
+                variant="danger"
+                disabled={deleteMutation.isPending}
                 onClick={() => {
-                  const payload: {
-                    caravanId: string;
-                    from_label: string;
-                    to_label: string;
-                    price_fcfa: number;
-                    total_seats: number;
-                    departure_at?: string;
-                  } = {
-                    caravanId: editingCaravan.id,
-                    from_label: editForm.from_label,
-                    to_label: editForm.to_label,
-                    price_fcfa: editForm.price_fcfa,
-                    total_seats: editForm.total_seats,
-                  };
-                  if (editForm.departure_at) {
-                    payload.departure_at = new Date(editForm.departure_at).toISOString();
+                  if (deletingCaravan) {
+                    deleteMutation.mutate(deletingCaravan.id);
                   }
-                  updateMutation.mutate(payload);
                 }}
               >
-                Enregistrer
+                <Trash2 className="size-3.5" />
+                {deleteMutation.isPending ? "Suppression en cours…" : "Supprimer définitivement"}
               </AdminButton>
             </div>
           </div>

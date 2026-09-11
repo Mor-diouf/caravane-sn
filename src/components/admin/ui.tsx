@@ -28,6 +28,7 @@ export function AdminButton({
   className,
   disabled,
   type = "button",
+  title,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -35,12 +36,14 @@ export function AdminButton({
   className?: string;
   disabled?: boolean;
   type?: "button" | "submit";
+  title?: string;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:pointer-events-none disabled:opacity-60",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90",
