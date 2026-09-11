@@ -329,7 +329,7 @@ export const createBooking = createServerFn({ method: "POST" })
     const rate = Number(caravan.organizers?.commission_rate ?? 0.05);
     const reference = `CE-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    let basePassengerName = data.passengerName?.trim();
+    let basePassengerName: string | null = data.passengerName?.trim() || null;
     if (!basePassengerName || ["Voyageur", "Passager", "Étudiant"].includes(basePassengerName)) {
       const { data: userProfile } = await context.supabase
         .from("profiles")

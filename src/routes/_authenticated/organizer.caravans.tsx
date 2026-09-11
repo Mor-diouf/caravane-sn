@@ -34,7 +34,7 @@ import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, pct } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
 import { exportPassengerManifestPdf } from "@/lib/pdf-export";
-import type { IntermediateStop } from "@/lib/student-shared";
+import { type IntermediateStop, findStopForBoarding } from "@/lib/student-shared";
 
 export const Route = createFileRoute("/_authenticated/organizer/caravans")({
   head: () => ({
@@ -398,17 +398,24 @@ function CaravansPage() {
                                 caravanTitle: `${c.from_label} ➔ ${c.to_label}`,
                                 departureDate: dateTimeFr(c.departure_at),
                                 pickupLocation: c.pickup,
-                                passengers: caravanBookings.map((b) => ({
-                                  name: b.student || "Étudiant",
-                                  phone: b.phone || "—",
-                                  university: b.university || "—",
-                                  pickupStop: (b as any).pickupStop || undefined,
-                                  reference: b.reference,
-                                  seats: b.seats,
-                                  amount: b.amount,
-                                  paymentStatus: b.paymentStatus,
-                                  status: b.status,
-                                })),
+                                passengers: caravanBookings.map((b) => {
+                                  const rawStop = (b as any).pickupStop;
+                                  const matchedStop = findStopForBoarding((c as any).stops, rawStop);
+                                  const formattedStop = matchedStop
+                                    ? `${matchedStop.city} (${matchedStop.pickup}${matchedStop.time_offset ? ` · ⏰ Passage: ${matchedStop.time_offset}` : ""})`
+                                    : rawStop || undefined;
+                                  return {
+                                    name: b.student || "Étudiant",
+                                    phone: b.phone || "—",
+                                    university: b.university || "—",
+                                    pickupStop: formattedStop,
+                                    reference: b.reference,
+                                    seats: b.seats,
+                                    amount: b.amount,
+                                    paymentStatus: b.paymentStatus,
+                                    status: b.status,
+                                  };
+                                }),
                               });
                               toast.success("Manifeste PDF généré !", {
                                 description: `${caravanBookings.length} passagers exportés pour ${c.from_label} ➔ ${c.to_label}.`,
@@ -537,6 +544,7 @@ function CaravansPage() {
                       city: "",
                       pickup: "",
                       price_fcfa: Math.max(0, (Number(form.price_fcfa) || 10000) - 2000),
+                      time_offset: "",
                     };
                     setForm((f) => ({ ...f, stops: [...f.stops, newStop] }));
                   }}
@@ -547,15 +555,23 @@ function CaravansPage() {
                 </button>
               </div>
 
+              {/* Notice explicative King-Bus */}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                <Clock className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <span>
+                  <strong>Heure d'embarquement aux escales :</strong> L'heure approximative indiquée pour chaque escale apparaîtra <strong>directement sur le billet du voyageur</strong>. Cela lui permet d'arriver à l'heure précise du passage du car et non à l'heure du départ initial de la gare.
+                </span>
+              </div>
+
               {/* Quick Presets for Senegal */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                   <Sparkles className="size-3 text-amber-500" /> Raccourcis Sénégal :
                 </span>
                 {[
-                  { city: "Fatick", pickup: "Rond-point Fatick / Station", price_fcfa: 9000 },
-                  { city: "Kaolack", pickup: "Garage Nioro / Station Total", price_fcfa: 8000 },
-                  { city: "Mbour", pickup: "Croisement Saly / Mbour", price_fcfa: 10500 },
+                  { city: "Fatick", pickup: "Rond-point Fatick / Station", price_fcfa: 9000, time_offset: "09:30" },
+                  { city: "Kaolack", pickup: "Garage Nioro / Station Total", price_fcfa: 8000, time_offset: "10:30" },
+                  { city: "Mbour", pickup: "Croisement Saly / Mbour", price_fcfa: 10500, time_offset: "08:15" },
                 ].map((preset) => (
                   <button
                     key={preset.city}
@@ -574,14 +590,15 @@ function CaravansPage() {
                             city: preset.city,
                             pickup: preset.pickup,
                             price_fcfa: preset.price_fcfa,
+                            time_offset: preset.time_offset,
                           },
                         ],
                       }));
-                      toast.success(`Escale ${preset.city} (${preset.price_fcfa.toLocaleString("fr-FR")} F) ajoutée !`);
+                      toast.success(`Escale ${preset.city} (${preset.price_fcfa.toLocaleString("fr-FR")} F · ~${preset.time_offset}) ajoutée !`);
                     }}
                     className="text-[11px] font-medium rounded-lg border border-border bg-card px-2.5 py-1 hover:border-amber-500/60 hover:text-amber-600 transition-all"
                   >
-                    + {preset.city} ({preset.price_fcfa.toLocaleString("fr-FR")} F)
+                    + {preset.city} ({preset.price_fcfa.toLocaleString("fr-FR")} F · ~{preset.time_offset})
                   </button>
                 ))}
               </div>
@@ -618,7 +635,7 @@ function CaravansPage() {
                         </button>
                       </div>
 
-                      <div className="grid gap-2.5 sm:grid-cols-3">
+                      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                         <div>
                           <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                             Ville étape
@@ -654,6 +671,25 @@ function CaravansPage() {
                               }));
                             }}
                             className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
+                            <Clock className="size-3" /> Heure estimée de passage
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: 09:30"
+                            value={stop.time_offset || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setForm((f) => ({
+                                ...f,
+                                stops: f.stops.map((s) => (s.id === stop.id ? { ...s, time_offset: val } : s)),
+                              }));
+                            }}
+                            className="h-9 w-full rounded-lg border border-amber-500/40 bg-amber-500/5 px-2.5 text-xs font-bold text-foreground outline-none focus:ring-2 focus:ring-amber-500"
                           />
                         </div>
 

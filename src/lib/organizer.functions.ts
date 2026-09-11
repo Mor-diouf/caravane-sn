@@ -104,6 +104,7 @@ import {
   stripStopsFromAbout,
   embedStopsInAbout,
   parsePassengerBoarding,
+  findStopForBoarding,
 } from "@/lib/student-shared";
 
 export const organizerListCaravans = createServerFn({ method: "GET" })
@@ -295,7 +296,7 @@ export const organizerListBookings = createServerFn({ method: "GET" })
 
     const caravans = await supabase
       .from("caravans")
-      .select("id, from_label, to_label, departure_at, university_id, universities(name, abbr)")
+      .select("id, from_label, to_label, departure_at, university_id, about, universities(name, abbr)")
       .eq("organizer_id", organizerId);
     if (caravans.error) throw new Error(caravans.error.message);
     const ids = (caravans.data ?? []).map((c) => c.id);
@@ -339,11 +340,17 @@ export const organizerListBookings = createServerFn({ method: "GET" })
           ? boardingInfo.name
           : profile?.full_name?.trim() || boardingInfo.name || "Étudiant";
 
+      const parsedStops = caravan ? parseStops((caravan as any).stops, caravan.about) : [];
+      const matchedStop = findStopForBoarding(parsedStops, boardingInfo.pickupStop);
+      const formattedPickupStop = matchedStop
+        ? `${matchedStop.city} (${matchedStop.pickup}${matchedStop.time_offset ? ` · ⏰ ${matchedStop.time_offset}` : ""})`
+        : boardingInfo.pickupStop ?? null;
+
       return {
         id: b.id,
         reference: b.reference,
         student: studentName,
-        pickupStop: boardingInfo.pickupStop ?? null,
+        pickupStop: formattedPickupStop,
         phone: b.payer_phone || profile?.phone || "—",
         email: profile?.email ?? "—",
         university: uniName,

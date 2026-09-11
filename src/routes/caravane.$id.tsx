@@ -116,7 +116,7 @@ function CaravaneDetail() {
     enabled: !!user,
   });
   
-  const myName = profile?.full_name || user?.user_metadata?.['full_name'] || user?.user_metadata?.name || "";
+  const myName = profile?.full_name || user?.user_metadata?.['full_name'] || user?.user_metadata?.['name'] || "";
   
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<Method>("wave");
@@ -302,11 +302,11 @@ function CaravaneDetail() {
                   className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-amber-500 ring-4 ring-card"
                 />
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 flex items-center gap-1.5 flex-wrap">
                     <span>Escale · {stop.city}</span>
                     {stop.time_offset && (
-                      <span className="text-[10px] lowercase text-muted-foreground font-medium">
-                        ({stop.time_offset})
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300">
+                        <Clock className="size-2.5" /> Passage ~{stop.time_offset}
                       </span>
                     )}
                   </p>
@@ -602,8 +602,13 @@ function CaravaneDetail() {
                             {isSelected && <div className="size-1.5 rounded-full bg-white" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-foreground truncate flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-foreground truncate flex items-center gap-1.5 flex-wrap">
                               <span>{stop.city}</span>
+                              {stop.time_offset && (
+                                <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black px-1.5 py-0.5 border border-amber-500/30">
+                                  <Clock className="size-2.5" /> Passage ~{stop.time_offset}
+                                </span>
+                              )}
                               {diff > 0 && (
                                 <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
                                   -{formatPrice(diff)} F
@@ -620,6 +625,20 @@ function CaravaneDetail() {
                     );
                   })}
                 </div>
+
+                {selectedStop && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2 mt-2">
+                    <Clock className="size-3.5 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">Embarquement à {selectedStop.city} :</span>{" "}
+                      {selectedStop.time_offset ? (
+                        <>Heure de passage estimée : <strong>{selectedStop.time_offset}</strong> (au lieu du départ de {caravane.from} à {caravane.time}).</>
+                      ) : (
+                        <>Prévoyez d'être au point de montée ({selectedStop.pickup}) avant le passage du bus.</>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -738,7 +757,7 @@ function CaravaneDetail() {
               <div className="flex justify-between text-muted-foreground">
                 <span>
                   Billet King-Bus ({seats} place{seats > 1 ? "s" : ""})
-                  {selectedStop ? ` · Montée ${selectedStop.city}` : ` · ${caravane.from}`}
+                  {selectedStop ? ` · Montée ${selectedStop.city} (${selectedStop.time_offset ? `~${selectedStop.time_offset}` : "Escale"})` : ` · ${caravane.from}`}
                 </span>
                 <span className="font-bold text-foreground">{formatPrice(total)} FCFA</span>
               </div>

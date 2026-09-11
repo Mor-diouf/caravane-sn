@@ -86,6 +86,54 @@ export function formatPassengerWithBoarding(name: string, pickupStop?: string): 
   return `${trimmed} [Montée: ${pickupStop.trim()}]`;
 }
 
+/**
+ * Retrouve l'escale correspondante pour un passager en fonction du libellé de montée enregistré.
+ */
+export function findStopForBoarding(
+  stops: IntermediateStop[] | undefined | null,
+  pickupStopName: string | null | undefined
+): IntermediateStop | null {
+  if (!stops || stops.length === 0 || !pickupStopName) return null;
+  const cleanTarget = pickupStopName.trim().toLowerCase();
+
+  // 1. Recherche par correspondance exacte ou inclusion de la ville
+  const match = stops.find((s) => {
+    const city = s.city.trim().toLowerCase();
+    return cleanTarget === city || cleanTarget.includes(city) || city.includes(cleanTarget);
+  });
+  if (match) return match;
+
+  // 2. Recherche par le lieu de prise en charge (pickup)
+  return (
+    stops.find((s) => {
+      const pickup = s.pickup.trim().toLowerCase();
+      return pickup && (cleanTarget.includes(pickup) || pickup.includes(cleanTarget));
+    }) ?? null
+  );
+}
+
+/**
+ * Détermine l'heure d'embarquement à afficher pour un passager (escale prioritaire ou départ général).
+ */
+export function getPassengerBoardingTime(
+  generalDepartureTime: string,
+  stop: IntermediateStop | null | undefined
+): { time: string; isEscale: boolean; label: string } {
+  if (stop?.time_offset && stop.time_offset.trim()) {
+    return {
+      time: stop.time_offset.trim(),
+      isEscale: true,
+      label: "Heure estimée de passage",
+    };
+  }
+  return {
+    time: generalDepartureTime,
+    isEscale: false,
+    label: "Heure de départ",
+  };
+}
+
+
 /** Caravan shape returned by the public server functions. */
 export type CaravanView = {
   id: string;

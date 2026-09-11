@@ -2,6 +2,8 @@ const bus1 = "/images/bus-1.jpg";
 const bus2 = "/images/bus-2.jpg";
 const bus3 = "/images/bus-3.jpg";
 
+import type { IntermediateStop } from "@/lib/student-shared";
+
 export type University = {
   id: string;
   abbr: string;
@@ -26,6 +28,7 @@ export type Caravane = {
   rating: number;
   amenities: Array<"wifi" | "ac" | "usb" | "video">;
   about: string;
+  stops?: IntermediateStop[];
 };
 
 export const universities: University[] = [
@@ -55,6 +58,29 @@ export const caravanes: Caravane[] = [
     amenities: ["ac", "wifi", "usb", "video"],
     about:
       "Ligne régulière quotidienne Dakar ⇄ Ziguinchor. Bus grand confort climatisé, suspension pneumatique, prises de recharge USB et bagages autorisés inclus. Arrivez 30 minutes avant l'embarquement avec votre billet électronique ou QR Code.",
+    stops: [
+      {
+        id: "stop-mbour",
+        city: "Mbour",
+        pickup: "Croisement Saly / Station Shell Mbour",
+        price_fcfa: 10500,
+        time_offset: "08:15",
+      },
+      {
+        id: "stop-fatick",
+        city: "Fatick",
+        pickup: "Rond-point Fatick / Station Total",
+        price_fcfa: 9000,
+        time_offset: "09:30",
+      },
+      {
+        id: "stop-kaolack",
+        city: "Kaolack",
+        pickup: "Garage Nioro / Rond-point Kaolack",
+        price_fcfa: 8000,
+        time_offset: "10:30",
+      },
+    ],
   },
   {
     id: "kb-zig-dkr-02",

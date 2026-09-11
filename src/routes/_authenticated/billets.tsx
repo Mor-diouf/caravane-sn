@@ -20,7 +20,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { QrCode } from "@/components/QrCode";
-import { formatPrice } from "@/lib/student-shared";
+import { formatPrice, findStopForBoarding } from "@/lib/student-shared";
 import { PaymentMark } from "@/components/PaymentMark";
 import { ticketsQuery, profileQuery } from "@/lib/student-queries";
 import { submitCaravanReview } from "@/lib/student.functions";
@@ -236,6 +236,8 @@ function Billets() {
             if (!c) return null;
             const used = b.ticket?.status === "used";
             const existingReview = (b as any).review;
+            const pickupStop = (b as any).pickup_stop;
+            const matchedStop = findStopForBoarding(c.stops, pickupStop);
 
             return (
               <div key={b.id} className="mx-auto max-w-[380px]">
@@ -300,17 +302,19 @@ function Billets() {
                     <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3.5">
                       <div className="min-w-0">
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">
-                          {(b as any).pickup_stop ? "MONTÉE / EMBARQUEMENT" : "DÉPART"}
+                          {matchedStop ? "POINT DE MONTÉE (ESCALE)" : pickupStop ? "MONTÉE / EMBARQUEMENT" : "DÉPART"}
                         </span>
                         <h4 className="text-lg font-black text-foreground tracking-tight truncate">
-                          {(b as any).pickup_stop || c.from}
+                          {matchedStop ? matchedStop.city : pickupStop || c.from}
                         </h4>
                         <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="size-3 shrink-0" />
                           <span className="truncate">
-                            {(b as any).pickup_stop
-                              ? `Escale intermédiaire (${(b as any).pickup_stop})`
-                              : c.pickup}
+                            {matchedStop
+                              ? matchedStop.pickup
+                              : pickupStop
+                                ? `Escale intermédiaire (${pickupStop})`
+                                : c.pickup}
                           </span>
                         </p>
                       </div>
@@ -320,7 +324,7 @@ function Billets() {
                           <Bus className="size-4" />
                         </div>
                         <span className="text-[9px] font-extrabold uppercase tracking-wider text-muted-foreground mt-0.5">
-                          Direct
+                          {matchedStop ? "Escale" : "Direct"}
                         </span>
                       </div>
 
@@ -332,7 +336,7 @@ function Billets() {
                           {c.to}
                         </h4>
                         <p className="text-[11px] font-bold text-muted-foreground mt-0.5">
-                          Gare terminus
+                          {c.dropoff || "Gare terminus"}
                         </p>
                       </div>
                     </div>
@@ -344,10 +348,36 @@ function Billets() {
                         <span>{c.date}</span>
                       </div>
                       <div className="flex items-center gap-1.5 font-black text-foreground">
-                        <Clock className="size-3.5 text-primary-accent" />
-                        <span>{c.time}</span>
+                        <Clock className={cn("size-3.5", matchedStop?.time_offset ? "text-amber-500" : "text-primary-accent")} />
+                        {matchedStop?.time_offset ? (
+                          <span className="flex items-center gap-1">
+                            <span className="text-amber-600 dark:text-amber-400 font-extrabold">
+                              ~{matchedStop.time_offset}
+                            </span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                              Montée
+                            </span>
+                          </span>
+                        ) : (
+                          <span>{c.time}</span>
+                        )}
                       </div>
                     </div>
+
+                    {/* Notice spécifique escale avec heure approximative pour le passager */}
+                    {matchedStop && (
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2 shadow-xs">
+                        <Clock className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="space-y-0.5 leading-snug">
+                          <p className="font-bold text-amber-900 dark:text-amber-100">
+                            Heure estimée de passage à {matchedStop.city} : {matchedStop.time_offset ? `${matchedStop.time_offset}` : "En cours de route"}
+                          </p>
+                          <p className="text-[10px] text-amber-700 dark:text-amber-300">
+                            Le car part de {c.from} à <strong>{c.time}</strong>. Rendez-vous à l'arrêt <strong>{matchedStop.pickup}</strong> 15 minutes avant l'heure de passage estimée.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Scalloped Cutout & Ticket Tear Perforation ── */}
@@ -367,9 +397,9 @@ function Billets() {
                         <dd className="font-black text-foreground truncate mt-0.5">
                           {b.passenger_name || profile?.full_name || "Voyageur"}
                         </dd>
-                        {(b as any).pickup_stop && (
+                        {(matchedStop || (b as any).pickup_stop) && (
                           <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded mt-1 w-fit">
-                            Montée : {(b as any).pickup_stop}
+                            Montée : {matchedStop ? `${matchedStop.city} (~${matchedStop.time_offset || c.time})` : (b as any).pickup_stop}
                           </span>
                         )}
                       </div>
@@ -475,13 +505,12 @@ function Billets() {
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() =>
-                        shareTicket(
-                          b.id,
-                          b.reference,
-                          `Mon billet King-Bus 2.0 ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`
-                        )
-                      }
+                      onClick={() => {
+                        const shareMsg = matchedStop
+                          ? `Mon billet King-Bus 2.0 ${b.reference} : Embarquement à ${matchedStop.city} (${matchedStop.pickup}) le ${c.date} vers ${matchedStop.time_offset || c.time}. Trajet ${c.from} → ${c.to} (Départ initial de ${c.from} à ${c.time}).`
+                          : `Mon billet King-Bus 2.0 ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`;
+                        shareTicket(b.id, b.reference, shareMsg);
+                      }}
                       className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-400 transition-colors hover:bg-emerald-500/20 active:scale-[0.98] cursor-pointer"
                     >
                       <Share2 className="size-4 text-emerald-500" /> Partager WhatsApp
