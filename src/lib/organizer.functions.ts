@@ -118,7 +118,7 @@ export const organizerListCaravans = createServerFn({ method: "GET" })
       .from("caravans")
       .select(
         `id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, total_seats,
-         seats_left, status, is_hidden, image_url, amenities, about, university_id, created_at, layout`,
+         seats_left, status, is_hidden, image_url, amenities, about, university_id, created_at, layout, payment_link`,
       )
       .eq("organizer_id", organizerId)
       .order("departure_at", { ascending: false });
@@ -149,6 +149,7 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
         image_url: z.string().url().optional(),
         university_id: z.string().max(40).optional(),
         layout: z.any().optional(),
+        payment_link: z.string().url().or(z.literal("")).optional(),
         status: z.enum(["draft", "pending", "published", "full", "completed", "cancelled"]).default("draft"),
         stops: z
           .array(
@@ -184,12 +185,6 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
         .maybeSingle();
 
       let targetStatus = fields.status;
-      // An organizer cannot directly self-publish unless it was already published
-      if (!existing || existing.status !== "published") {
-        if (targetStatus === "published") {
-          targetStatus = "pending";
-        }
-      }
       if (!targetStatus) {
         targetStatus = existing?.status ?? "pending";
       }
@@ -197,6 +192,7 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
       const updateData: Record<string, unknown> = {
         ...fields,
         about: encodedAbout,
+        payment_link: fields.payment_link === "" ? null : fields.payment_link,
         status: targetStatus,
       };
       if (fields.layout && (fields.layout as any).seats) {
@@ -225,12 +221,13 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
       return { id };
     }
 
-    // Creating a new caravan: status must be "draft" or "pending" (submitted for admin approval)
-    const targetStatus = fields.status === "draft" ? "draft" : "pending";
+    // Creating a new caravan: status can be set directly by the organizer
+    const targetStatus = fields.status || "draft";
 
     const insertData: Record<string, unknown> = {
       ...fields,
       about: encodedAbout,
+      payment_link: fields.payment_link === "" ? null : fields.payment_link,
       status: targetStatus,
       organizer_id: organizerId,
       seats_left: fields.total_seats,
@@ -281,9 +278,6 @@ export const organizerSetCaravanStatus = createServerFn({ method: "POST" })
     const client = supabaseAdmin || supabase;
     const patch: Record<string, unknown> = {};
     if (data.status) {
-      if (data.status === "published") {
-        throw new Error("Seul l'administrateur peut valider et publier une caravane avec son lien officiel.");
-      }
       patch['status'] = data.status;
     }
     if (typeof data.hidden === "boolean") patch['is_hidden'] = data.hidden;

@@ -227,16 +227,18 @@ function Index() {
               )}
 
               {/* Bouton de test Studio Bus */}
-              <button
-                type="button"
-                onClick={() => setShowBusStudio(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-xs font-black text-slate-950 shadow-md hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer"
-                title="Tester le Studio de configuration de bus"
-              >
-                <Armchair className="size-3.5 text-slate-950" />
-                <span className="hidden sm:inline">Studio Bus</span>
-                <span className="sm:hidden">Studio</span>
-              </button>
+              {canAccessKingBus && (
+                <button
+                  type="button"
+                  onClick={() => setShowBusStudio(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-xs font-black text-slate-950 shadow-md hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer"
+                  title="Tester le Studio de configuration de bus"
+                >
+                  <Armchair className="size-3.5 text-slate-950" />
+                  <span className="hidden sm:inline">Studio Bus</span>
+                  <span className="sm:hidden">Studio</span>
+                </button>
+              )}
 
               {user ? (
                 <Link
@@ -492,14 +494,16 @@ function Index() {
       </main>
 
       {/* Bouton Flottant d'accès rapide au Studio de configuration */}
-      <button
-        type="button"
-        onClick={() => setShowBusStudio(true)}
-        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-xs font-black text-slate-950 shadow-2xl border-2 border-amber-400/80 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-      >
-        <Armchair className="size-4 text-slate-950" />
-        <span>Studio KING-BUS</span>
-      </button>
+      {canAccessKingBus && (
+        <button
+          type="button"
+          onClick={() => setShowBusStudio(true)}
+          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-xs font-black text-slate-950 shadow-2xl border-2 border-amber-400/80 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <Armchair className="size-4 text-slate-950" />
+          <span>Studio KING-BUS</span>
+        </button>
+      )}
 
       <BottomNav />
     </div>
