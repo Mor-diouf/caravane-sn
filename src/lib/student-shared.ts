@@ -161,14 +161,17 @@ export type CaravanView = {
   amenities: Amenity[];
   about: string;
   stops: IntermediateStop[];
+  layout?: any;
+  reservedSeats?: string[];
 };
 
 export const BUS_PRESET_IMAGES = [
-  "/images/king-bus/flyer.jpg",
   "/images/bus-1.jpg",
   "/images/bus-2.jpg",
   "/images/bus-3.jpg",
   "/images/bus-4.jpg",
+  "/images/bus-5.jpg",
+  "/images/bus-6.jpg",
 ];
 const fallbackImages = BUS_PRESET_IMAGES;
 
@@ -224,6 +227,8 @@ type RawCaravan = {
     slogan: string | null;
     support_phone: string | null;
   } | null;
+  layout?: any;
+  reservedSeats?: string[];
 };
 
 export function mapCaravan(row: RawCaravan): CaravanView {
@@ -251,16 +256,18 @@ export function mapCaravan(row: RawCaravan): CaravanView {
     organizerLogoUrl: row.organizers?.logo_url ?? "/images/king-bus/logo.jpg",
     organizerSlogan: row.organizers?.slogan ?? "Voyagez avec confort, voyagez avec classe",
     organizerSupportPhone: row.organizers?.support_phone ?? "+221 78 188 01 02",
-    rating: row.organizers?.rating ?? 4.9,
-    isPro: true,
-    amenities: (row.amenities as Amenity[]) ?? ["ac", "wifi", "usb"],
-    about: cleanAbout || "Départ King-Bus 2.0. Confort maximal, sécurité et ponctualité.",
+    rating: row.organizers?.rating ?? 4.8,
+    isPro: row.organizers?.is_pro ?? true,
+    amenities: (row.amenities as Amenity[]) || ["ac", "wifi"],
+    about: cleanAbout,
     stops,
+    layout: row.layout,
+    reservedSeats: row.reservedSeats || [],
   };
 }
 
 export const CARAVAN_SELECT =
-  "id, university_id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, seats_left, total_seats, image_url, amenities, about, organizer_id, organizers(name, rating, is_pro, phone, logo_url, slogan, support_phone)";
+  "id, university_id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, seats_left, total_seats, image_url, amenities, about, layout, organizer_id, organizers(name, rating, is_pro, phone, logo_url, slogan, support_phone)";
 
 export const paymentLabels: Record<string, string> = {
   wave: "Wave",

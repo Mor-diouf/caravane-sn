@@ -53,7 +53,7 @@ serve(async (req) => {
     // Note: We check payer_phone which should be saved when student initiates payment
     const { data: bookings, error: findError } = await supabaseAdmin
       .from("bookings")
-      .select("id, amount_fcfa, user_id, seats, caravan_id")
+      .select("id, amount_fcfa, user_id, seats, caravan_id, selected_seats")
       .eq("status", "pending")
       .eq("payer_phone", phoneStr)
       .eq("amount_fcfa", amount)
@@ -98,11 +98,18 @@ serve(async (req) => {
     }
 
     // Create tickets based on seats
-    const ticketsToInsert = Array.from({ length: booking.seats }).map(() => ({
-      booking_id: booking.id,
-      qr_code: crypto.randomUUID(),
-      status: "valid",
-    }));
+    const ticketsToInsert = booking.selected_seats?.length === booking.seats
+      ? booking.selected_seats.map((seatNumber: string) => ({
+          booking_id: booking.id,
+          seat_number: seatNumber,
+          qr_code: crypto.randomUUID(),
+          status: "valid",
+        }))
+      : Array.from({ length: booking.seats }).map(() => ({
+          booking_id: booking.id,
+          qr_code: crypto.randomUUID(),
+          status: "valid",
+        }));
 
     const { error: ticketError } = await supabaseAdmin
       .from("tickets")

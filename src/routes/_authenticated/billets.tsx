@@ -408,7 +408,10 @@ function Billets() {
                           Place(s)
                         </dt>
                         <dd className="font-black text-foreground mt-0.5">
-                          {b.seats} place{b.seats > 1 ? "s" : ""} réservée{b.seats > 1 ? "s" : ""}
+                          {(b as any).tickets && (b as any).tickets.some((t: any) => t.seat_number) 
+                            ? `Siège(s): ${(b as any).tickets.map((t: any) => t.seat_number).filter(Boolean).join(", ")}`
+                            : `${b.seats} place${b.seats > 1 ? "s" : ""} réservée${b.seats > 1 ? "s" : ""}`
+                          }
                         </dd>
                       </div>
                       <div>

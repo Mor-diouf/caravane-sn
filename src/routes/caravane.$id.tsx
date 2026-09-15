@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import {
   User,
   Wifi,
   MapPin,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,6 +40,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { OrganizerLogo } from "@/components/OrganizerLogo";
+import { BusCanvas } from "@/features/bus-configurator";
 
 export const Route = createFileRoute("/caravane/$id")({
   loader: async ({ context, params }) => {
@@ -102,6 +104,141 @@ const methods = [
 
 type Method = (typeof methods)[number]["id"];
 
+function ZoomableBusCanvas({ layout, children }: { layout: any, children: React.ReactNode }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [baseScale, setBaseScale] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+
+  const busW = layout?.width || 430;
+  const busH = layout?.height || 980;
+  // Marges latérales pour roues et effets 3D
+  const extraPaddingX = 32;
+  const extraPaddingY = 32;
+  const totalBusW = busW + extraPaddingX;
+  const totalBusH = busH + extraPaddingY;
+
+  useEffect(() => {
+    if (!containerRef.current || !layout) return;
+
+    const computeScale = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const clientW = el.clientWidth;
+      if (clientW <= 0) return;
+
+      // Sur mobile (< 480px) : adapter à la largeur de l'écran pour des sièges bien grands et lisibles
+      // Sur écran large : échelle 1.0 (ou 1.05) pour un grand confort visuel
+      if (clientW < totalBusW + 16) {
+        const fitScale = (clientW - 16) / totalBusW;
+        setBaseScale(Math.max(0.65, fitScale));
+      } else {
+        setBaseScale(1.0);
+      }
+    };
+
+    computeScale();
+    const timer = setTimeout(computeScale, 50);
+    const observer = new ResizeObserver(computeScale);
+    observer.observe(containerRef.current);
+    window.addEventListener("resize", computeScale);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+      window.removeEventListener("resize", computeScale);
+    };
+  }, [layout, totalBusW]);
+
+  const effectiveScale = baseScale * zoomLevel;
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 w-full min-h-0 relative overflow-y-auto overflow-x-hidden bg-[#07090D] flex flex-col items-center select-none"
+      style={{
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "contain",
+      }}
+    >
+      {/* Barre d'aide flottante : indication scroll vertical & boutons de zoom */}
+      <div className="sticky top-2.5 z-30 mb-2 flex items-center justify-between w-full max-w-lg px-4 pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0B0F17]/90 border border-white/10 shadow-lg backdrop-blur-md text-[11px] text-slate-300 font-medium">
+          <span className="text-amber-400 font-bold text-xs">↕</span>
+          <span>Faites défiler pour voir tous les sièges</span>
+        </div>
+
+        <div className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full bg-[#0B0F17]/90 border border-white/10 shadow-lg backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setZoomLevel((z) => Math.max(0.7, Number((z - 0.15).toFixed(2))))}
+            className="size-6 rounded-full hover:bg-white/10 text-white font-black flex items-center justify-center text-xs transition-colors"
+            title="Dézoomer"
+            aria-label="Dézoomer"
+          >
+            -
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoomLevel(1)}
+            className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-amber-400 hover:bg-white/10 transition-colors min-w-[36px] text-center"
+            title="Réinitialiser zoom"
+          >
+            {Math.round(effectiveScale * 100)}%
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoomLevel((z) => Math.min(1.5, Number((z + 0.15).toFixed(2))))}
+            className="size-6 rounded-full hover:bg-white/10 text-white font-black flex items-center justify-center text-xs transition-colors"
+            title="Zoomer"
+            aria-label="Zoomer"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Légende rapide et discrète */}
+      <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 mb-3 shrink-0">
+        <div className="flex items-center gap-1.5">
+          <span className="size-3 rounded-[4px] bg-[#121620] border border-slate-600 inline-block" />
+          <span>Libre</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="size-3 rounded-[4px] bg-[#FF5722] border border-[#FFA000] inline-block shadow-xs shadow-orange-500/50" />
+          <span className="text-amber-300 font-bold">Sélectionné</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="size-3 rounded-[4px] bg-[#1E2430] border border-slate-700 opacity-60 inline-block" />
+          <span>Occupé</span>
+        </div>
+      </div>
+
+      {/* Wrapper du bus calculé au pixel près pour un scroll fluide sans débordement horizontal */}
+      <div
+        style={{
+          width: Math.round(totalBusW * effectiveScale),
+          height: Math.round(totalBusH * effectiveScale),
+        }}
+        className="relative shrink-0 mx-auto mb-12 transition-[width,height] duration-150 ease-out"
+      >
+        <div
+          style={{
+            width: totalBusW,
+            height: totalBusH,
+            transform: `scale(${effectiveScale})`,
+            transformOrigin: "top left",
+            paddingLeft: extraPaddingX / 2,
+            paddingTop: extraPaddingY / 2,
+          }}
+          className="relative"
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CaravaneDetail() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(caravanQuery(id));
@@ -119,20 +256,24 @@ function CaravaneDetail() {
   const myName = profile?.full_name || user?.user_metadata?.['full_name'] || user?.user_metadata?.['name'] || "";
   
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"seats" | "payment">("seats");
   const [method, setMethod] = useState<Method>("wave");
   const [payerPhone, setPayerPhone] = useState("");
   const [forFriend, setForFriend] = useState(false);
   const [friendFirstName, setFriendFirstName] = useState("");
   const [friendLastName, setFriendLastName] = useState("");
   const [seats, setSeats] = useState(1);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
 
   const caravane = data!;
+  const isLayoutAvailable = !!caravane.layout && Array.isArray((caravane.layout as any).seats) && (caravane.layout as any).seats.length > 0;
+  const seatsCount = isLayoutAvailable ? selectedSeats.length : seats;
   const favorite = favorites.includes(caravane.id);
   const tone = seatTone(caravane.seatsLeft);
   const selectedStop = (caravane.stops || []).find((s) => s.id === selectedStopId) ?? null;
   const unitPrice = selectedStop ? selectedStop.price_fcfa : caravane.price;
-  const total = unitPrice * seats;
+  const total = unitPrice * seatsCount;
   const university = universities.find((u) => u.id === caravane.universityId);
 
   const { data: reviewsData } = useQuery(caravanReviewsQuery(caravane.id));
@@ -154,7 +295,9 @@ function CaravaneDetail() {
       return initiateWavePayment({
         data: {
           caravanId: caravane.id,
-          seats,
+          seats: seatsCount,
+          selectedSeats: isLayoutAvailable ? selectedSeats : [],
+          method,
           payerPhone: payerPhone.replace(/\D/g, ""),
           ...(passengerName ? { passengerName } : {}),
           ...(selectedStopId ? { stopId: selectedStopId } : {}),
@@ -177,6 +320,11 @@ function CaravaneDetail() {
       }),
   });
 
+  const getSeatLabel = (id: string) => {
+    const s = (caravane.layout as any)?.seats?.find((item: any) => item.id === id);
+    return s?.number ? String(s.number) : id;
+  };
+
   const openPayment = () => {
     if (!user) {
       toast.info("Connectez-vous pour réserver votre place");
@@ -187,6 +335,7 @@ function CaravaneDetail() {
       const raw = String(user.user_metadata['phone']).replace(/\+221/, '').trim();
       setPayerPhone(raw);
     }
+    setStep(isLayoutAvailable ? "seats" : "payment");
     setOpen(true);
   };
 
@@ -471,124 +620,203 @@ function CaravaneDetail() {
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-3xl sm:max-w-lg max-h-[92vh] overflow-y-auto p-0 border border-border/80 bg-card shadow-2xl">
-          {/* Header */}
-          <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 p-6 text-white border-b border-white/10">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider">
-                Réservation Directe King-Bus
-              </span>
-              <span className="text-[10px] text-slate-400">• Billet instantané</span>
-            </div>
-            <h2 className="text-xl font-black tracking-tight text-white">
-              {caravane.from} <span className="text-amber-400">➔</span> {caravane.to}
-            </h2>
-            <p className="mt-1 text-xs text-slate-300 flex items-center gap-2 flex-wrap">
-              <span>📅 {caravane.date}</span>
-              <span>•</span>
-              <span>⏰ {caravane.time}</span>
-              <span>•</span>
-              <span className="truncate">📍 {caravane.pickup}</span>
-            </p>
-          </div>
+      <Dialog open={open} onOpenChange={(val) => { if (!val) setOpen(false); }}>
+        <DialogContent 
+          style={step === "seats" && isLayoutAvailable ? {
+            position: 'fixed',
+            inset: 0,
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            transform: 'none',
+            width: '100vw',
+            height: '100dvh',
+            maxWidth: 'none',
+            margin: 0,
+            padding: 0,
+            zIndex: 50,
+          } : undefined}
+          className={cn(
+            "p-0 border transition-all duration-300 gap-0",
+            step === "seats" && isLayoutAvailable
+              ? "!fixed !inset-0 !left-0 !top-0 !translate-x-0 !translate-y-0 !transform-none !w-screen !h-screen !h-[100dvh] !max-w-none !rounded-none !border-0 !m-0 !p-0 !bg-[#07090D] !flex !flex-col overflow-hidden z-50 [&>button]:text-white [&>button]:hover:text-amber-400 [&>button]:z-50 [&>button]:top-3.5 [&>button]:right-4"
+              : "sm:max-w-lg w-full max-h-[92vh] bg-card border-border/80 flex flex-col overflow-hidden rounded-3xl"
+          )}
+        >
+          {step === "seats" && isLayoutAvailable ? (
+            /* ÉTAPE 1 : SÉLECTION DU SIÈGE (PLEIN ÉCRAN) */
+            <div className="flex-1 flex flex-col min-h-0 h-full w-full overflow-hidden bg-[#07090D]">
+              {/* Header compact : "zig → dakar" en haut + compteur discret "X/6 sélectionné" */}
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 bg-[#0B0F17]/90 backdrop-blur-md shrink-0 z-20">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="size-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+                    title="Fermer"
+                  >
+                    <ArrowLeft className="size-4" />
+                  </button>
+                  <h2 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+                    {caravane.from} <span className="text-amber-400">➔</span> {caravane.to}
+                  </h2>
+                </div>
 
-          <div className="p-6 space-y-4">
-            {/* Seat Selector */}
-            <div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4 border border-border/60">
-              <div>
-                <span className="text-xs font-black text-foreground block">Nombre de places</span>
-                <span className="text-[11px] text-muted-foreground font-medium">
-                  {caravane.seatsLeft} place{caravane.seatsLeft > 1 ? "s" : ""} disponible{caravane.seatsLeft > 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={seats <= 1}
-                  onClick={() => setSeats((s) => Math.max(1, s - 1))}
-                  className="size-9 rounded-xl border border-border bg-card font-black text-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 transition-all active:scale-95 shadow-sm"
-                  aria-label="Diminuer les places"
-                >
-                  <Minus className="size-4" />
-                </button>
-                <span className="font-black text-base min-w-[24px] text-center">{seats}</span>
-                <button
-                  type="button"
-                  disabled={seats >= Math.min(caravane.seatsLeft, 6)}
-                  onClick={() => setSeats((s) => Math.min(Math.min(caravane.seatsLeft, 6), s + 1))}
-                  className="size-9 rounded-xl border border-border bg-card font-black text-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 transition-all active:scale-95 shadow-sm"
-                  aria-label="Augmenter les places"
-                >
-                  <Plus className="size-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Boarding Point Selector (Intermediate Stops) */}
-            {caravane.stops && caravane.stops.length > 0 && (
-              <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                      <MapPin className="size-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">Point d'embarquement (Montée)</p>
-                      <p className="text-[11px] text-muted-foreground">Sélectionnez la ville où vous prenez le bus</p>
-                    </div>
+                {/* Compteur discret : "1/6 sélectionné" */}
+                <div className="flex items-center gap-3 pr-8">
+                  <div className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold">
+                    {selectedSeats.length}/6 sélectionné{selectedSeats.length > 1 ? "s" : ""}
                   </div>
-                  {selectedStop && (
-                    <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5 border border-emerald-500/30">
-                      Tarif réduit
+                </div>
+              </div>
+
+              {/* Le plan du bus en grand avec scroll vertical fluide et zoom */}
+              <ZoomableBusCanvas layout={caravane.layout}>
+                <BusCanvas 
+                  layout={caravane.layout} 
+                  mode="preview"
+                  selectedSeatIds={selectedSeats}
+                  occupiedSeatIds={caravane.reservedSeats || []}
+                  onSeatClick={(seat) => {
+                    if (caravane.reservedSeats?.includes(seat.id)) return;
+                    setSelectedSeats(prev => 
+                      prev.includes(seat.id) 
+                        ? prev.filter(id => id !== seat.id)
+                        : prev.length < 6 ? [...prev, seat.id] : prev
+                    );
+                  }}
+                />
+              </ZoomableBusCanvas>
+
+              {/* CTA sticky en bas, désactivé tant qu'aucun siège n'est choisi */}
+              <div className="px-4 sm:px-6 py-3 sm:py-3.5 border-t border-white/10 bg-[#0B0F17]/95 backdrop-blur-md shrink-0 flex items-center justify-between gap-4 z-20">
+                <div className="text-xs sm:text-sm font-semibold text-slate-300">
+                  {selectedSeats.length > 0 ? (
+                    <span>
+                      <strong className="text-white font-black">{selectedSeats.length} place{selectedSeats.length > 1 ? "s" : ""}</strong>
+                      <span className="mx-2 text-slate-500">·</span>
+                      <strong className="text-amber-400 font-black">{formatPrice(unitPrice * selectedSeats.length)} FCFA</strong>
                     </span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">Veuillez choisir au moins 1 siège</span>
                   )}
                 </div>
 
-                <div className="space-y-2 pt-1">
-                  {/* Main departure option */}
-                  <label
-                    onClick={() => setSelectedStopId(null)}
-                    className={cn(
-                      "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                      selectedStopId === null
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                        : "border-border/70 bg-muted/30 hover:bg-muted/60"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className={cn(
-                          "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                          selectedStopId === null ? "border-primary bg-primary" : "border-muted-foreground"
-                        )}
-                      >
-                        {selectedStopId === null && <div className="size-1.5 rounded-full bg-white" />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">
-                          {caravane.from} (Départ principal)
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate">{caravane.pickup}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-extrabold text-foreground shrink-0 ml-2">
-                      {formatPrice(caravane.price)} FCFA
+                <button
+                  type="button"
+                  disabled={selectedSeats.length === 0}
+                  onClick={() => setStep("payment")}
+                  className="rounded-2xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-6 sm:px-9 py-3 text-xs sm:text-sm font-black text-black shadow-lg shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
+                >
+                  <span>Continuer vers le paiement</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ÉTAPE 2 : RÉCAPITULATIF + PAIEMENT */
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+              {/* Header : bouton retour (←) vers l'étape 1 pour changer de siège si besoin */}
+              <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 p-5 text-white border-b border-white/10 shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider">
+                      Réservation King-Bus
                     </span>
-                  </label>
+                    <span className="text-[10px] text-slate-400">• Étape 2 sur 2</span>
+                  </div>
+                  {isLayoutAvailable && (
+                    <button
+                      type="button"
+                      onClick={() => setStep("seats")}
+                      className="flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors pr-6"
+                    >
+                      <ArrowLeft className="size-3.5" /> Changer de siège
+                    </button>
+                  )}
+                </div>
+                <h2 className="text-xl font-black tracking-tight text-white">
+                  {caravane.from} <span className="text-amber-400">➔</span> {caravane.to}
+                </h2>
+                <p className="mt-1 text-xs text-slate-300 flex items-center gap-2 flex-wrap">
+                  <span>📅 {caravane.date}</span>
+                  <span>•</span>
+                  <span>⏰ {caravane.time}</span>
+                  <span>•</span>
+                  <span className="truncate">📍 {caravane.pickup}</span>
+                </p>
+                {isLayoutAvailable && selectedSeats.length > 0 && (
+                  <div className="mt-2.5 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-slate-200">
+                    <span className="text-amber-300 font-bold">Siège(s) choisi(s) :</span>
+                    <span className="font-extrabold text-white">
+                      {selectedSeats.map(getSeatLabel).join(", ")}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-                  {/* Intermediate stops */}
-                  {caravane.stops.map((stop) => {
-                    const isSelected = selectedStopId === stop.id;
-                    const diff = caravane.price - stop.price_fcfa;
-                    return (
+              <div className="p-5 space-y-4">
+                {/* Si pas de plan de bus 2D/3D disponible, sélecteur de nombre de places classique */}
+                {!isLayoutAvailable && (
+                  <div className="flex items-center justify-between rounded-2xl border border-border/70 p-4 bg-card shadow-sm">
+                    <div>
+                      <span className="text-xs font-black text-foreground block">Nombre de places</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        {caravane.seatsLeft} place{caravane.seatsLeft > 1 ? "s" : ""} disponible{caravane.seatsLeft > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={seats <= 1}
+                        onClick={() => setSeats((s) => Math.max(1, s - 1))}
+                        className="size-9 rounded-xl border border-border bg-card font-black text-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 transition-all active:scale-95 shadow-sm"
+                        aria-label="Diminuer les places"
+                      >
+                        <Minus className="size-4" />
+                      </button>
+                      <span className="font-black text-base min-w-[24px] text-center">{seats}</span>
+                      <button
+                        type="button"
+                        disabled={seats >= Math.min(caravane.seatsLeft, 6)}
+                        onClick={() => setSeats((s) => Math.min(Math.min(caravane.seatsLeft, 6), s + 1))}
+                        className="size-9 rounded-xl border border-border bg-card font-black text-lg flex items-center justify-center hover:bg-accent disabled:opacity-30 transition-all active:scale-95 shadow-sm"
+                        aria-label="Augmenter les places"
+                      >
+                        <Plus className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Point d'embarquement (Montée) */}
+                {caravane.stops && caravane.stops.length > 0 && (
+                  <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                          <MapPin className="size-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-foreground">Point d'embarquement (Montée)</p>
+                          <p className="text-[11px] text-muted-foreground">Où prenez-vous le bus ?</p>
+                        </div>
+                      </div>
+                      {selectedStop && (
+                        <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5 border border-emerald-500/30">
+                          Tarif réduit
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pt-1">
                       <label
-                        key={stop.id}
-                        onClick={() => setSelectedStopId(stop.id)}
+                        onClick={() => setSelectedStopId(null)}
                         className={cn(
                           "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                          isSelected
-                            ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30"
+                          selectedStopId === null
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                             : "border-border/70 bg-muted/30 hover:bg-muted/60"
                         )}
                       >
@@ -596,216 +824,236 @@ function CaravaneDetail() {
                           <div
                             className={cn(
                               "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                              isSelected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"
+                              selectedStopId === null ? "border-primary bg-primary" : "border-muted-foreground"
                             )}
                           >
-                            {isSelected && <div className="size-1.5 rounded-full bg-white" />}
+                            {selectedStopId === null && <div className="size-1.5 rounded-full bg-white" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-foreground truncate flex items-center gap-1.5 flex-wrap">
-                              <span>{stop.city}</span>
-                              {stop.time_offset && (
-                                <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black px-1.5 py-0.5 border border-amber-500/30">
-                                  <Clock className="size-2.5" /> Passage ~{stop.time_offset}
-                                </span>
-                              )}
-                              {diff > 0 && (
-                                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                  -{formatPrice(diff)} F
-                                </span>
-                              )}
+                            <p className="text-xs font-bold text-foreground truncate">
+                              {caravane.from} (Départ principal)
                             </p>
-                            <p className="text-[11px] text-muted-foreground truncate">{stop.pickup}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{caravane.pickup}</p>
                           </div>
                         </div>
-                        <span className="text-xs font-black text-amber-600 dark:text-amber-400 shrink-0 ml-2">
-                          {formatPrice(stop.price_fcfa)} FCFA
+                        <span className="text-xs font-extrabold text-foreground shrink-0 ml-2">
+                          {formatPrice(caravane.price)} FCFA
                         </span>
                       </label>
-                    );
-                  })}
-                </div>
 
-                {selectedStop && (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2 mt-2">
-                    <Clock className="size-3.5 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold">Embarquement à {selectedStop.city} :</span>{" "}
-                      {selectedStop.time_offset ? (
-                        <>Heure de passage estimée : <strong>{selectedStop.time_offset}</strong> (au lieu du départ de {caravane.from} à {caravane.time}).</>
-                      ) : (
-                        <>Prévoyez d'être au point de montée ({selectedStop.pickup}) avant le passage du bus.</>
-                      )}
+                      {caravane.stops.map((stop) => {
+                        const isSelected = selectedStopId === stop.id;
+                        const diff = caravane.price - stop.price_fcfa;
+                        return (
+                          <label
+                            key={stop.id}
+                            onClick={() => setSelectedStopId(stop.id)}
+                            className={cn(
+                              "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                              isSelected
+                                ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30"
+                                : "border-border/70 bg-muted/30 hover:bg-muted/60"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={cn(
+                                  "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                                  isSelected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"
+                                )}
+                              >
+                                {isSelected && <div className="size-1.5 rounded-full bg-white" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate flex items-center gap-1.5 flex-wrap">
+                                  <span>{stop.city}</span>
+                                  {stop.time_offset && (
+                                    <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black px-1.5 py-0.5 border border-amber-500/30">
+                                      <Clock className="size-2.5" /> Passage ~{stop.time_offset}
+                                    </span>
+                                  )}
+                                  {diff > 0 && (
+                                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                      -{formatPrice(diff)} F
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground truncate">{stop.pickup}</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-amber-600 dark:text-amber-400 shrink-0 ml-2">
+                              {formatPrice(stop.price_fcfa)} FCFA
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Passenger Identity Toggle */}
-            <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                    <User className="size-4" />
+                {/* Titulaire du billet (Pour moi / Pour un proche) */}
+                <div className="rounded-2xl border border-border/70 p-4 bg-card space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <User className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-foreground">Titulaire du billet</p>
+                        <p className="text-[11px] text-muted-foreground truncate max-w-[210px]">
+                          {forFriend
+                            ? "Billet réservé pour un proche"
+                            : myName
+                              ? `Billet à mon nom (${myName})`
+                              : "Veuillez saisir votre nom"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForFriend(!forFriend)}
+                      className={cn(
+                        "text-xs font-extrabold px-3 py-1.5 rounded-xl border transition-all",
+                        forFriend
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      {forFriend ? "Pour un proche" : "Pour moi"}
+                    </button>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">Titulaire du billet</p>
-                    <p className="text-[11px] text-muted-foreground truncate max-w-[210px]">
-                      {forFriend
-                        ? "Billet réservé pour un proche"
-                        : myName
-                          ? `Billet à mon nom (${myName})`
-                          : "Veuillez saisir votre nom"}
-                    </p>
+
+                  {(forFriend || (!forFriend && !myName)) && (
+                    <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-border/50">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Prénom du voyageur
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Moussa"
+                          value={friendFirstName}
+                          onChange={(e) => setFriendFirstName(e.target.value)}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Nom du voyageur
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Sarr"
+                          value={friendLastName}
+                          onChange={(e) => setFriendLastName(e.target.value)}
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Moyen de paiement Wave */}
+                <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-4 space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <PaymentMark method="wave" className="h-8" />
+                      <div>
+                        <p className="text-xs font-black text-foreground flex items-center gap-1.5">
+                          Paiement Sécurisé Wave
+                          <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5">
+                            Instantané
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">Génération immédiate du billet QR Code</p>
+                      </div>
+                    </div>
+                    <div className="size-6 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-black flex items-center justify-center shadow-sm">
+                      <Check className="size-3.5 stroke-[3]" />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-card/80 p-3 border border-border/70 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-2.5 shadow-xs">
+                    <Info className="size-4 shrink-0 text-primary-accent mt-0.5" />
+                    <span>
+                      Indiquez le numéro de votre compte Wave pour valider votre réservation en 1 clic et recevoir immédiatement votre e-billet.
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      Numéro de téléphone Wave
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 text-xs font-bold text-muted-foreground select-none">
+                        🇸🇳 +221
+                      </span>
+                      <input
+                        type="tel"
+                        placeholder="77 123 45 67"
+                        value={payerPhone}
+                        onChange={(e) => setPayerPhone(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-card pl-20 pr-3 py-2.5 text-sm font-black tracking-wide outline-none focus:ring-2 focus:ring-primary shadow-xs"
+                      />
+                    </div>
                   </div>
                 </div>
+
+                {/* Récapitulatif du prix */}
+                <div className="rounded-2xl bg-muted/40 p-4 space-y-2 border border-border/60 text-xs">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>
+                      Billet King-Bus ({seatsCount} place{seatsCount > 1 ? "s" : ""})
+                      {selectedStop ? ` · Montée ${selectedStop.city}` : ` · ${caravane.from}`}
+                    </span>
+                    <span className="font-bold text-foreground">{formatPrice(total)} FCFA</span>
+                  </div>
+                  {isLayoutAvailable && selectedSeats.length > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Siège(s) choisi(s)</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {selectedSeats.map(getSeatLabel).join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t border-border/60 pt-2.5 flex items-center justify-between text-sm">
+                    <span className="font-extrabold text-foreground">Total à régler</span>
+                    <span className="text-xl font-black text-primary-accent">
+                      {formatPrice(total)} FCFA
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bouton de confirmation finale */}
                 <button
                   type="button"
-                  onClick={() => setForFriend(!forFriend)}
-                  className={cn(
-                    "text-xs font-extrabold px-3 py-1.5 rounded-xl border transition-all",
-                    forFriend
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
+                  disabled={
+                    booking.isPending ||
+                    payerPhone.replace(/\D/g, "").length < 9 ||
+                    (forFriend && (!friendFirstName.trim() || !friendLastName.trim()))
+                  }
+                  onClick={() => booking.mutate()}
+                  className="w-full rounded-2xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 py-4 text-sm font-black text-black shadow-lg shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {forFriend ? "Pour un proche" : "Pour moi"}
+                  {booking.isPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Traitement du paiement en cours…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="size-4" />
+                      <span>Confirmer et payer {formatPrice(total)} FCFA</span>
+                    </>
+                  )}
                 </button>
-              </div>
-
-              {(forFriend || (!forFriend && !myName)) && (
-                <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-border/50">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Prénom du voyageur
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Moussa"
-                      value={friendFirstName}
-                      onChange={(e) => setFriendFirstName(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Nom du voyageur
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Sarr"
-                      value={friendLastName}
-                      onChange={(e) => setFriendLastName(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Payment method */}
-            <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-4 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <PaymentMark method="wave" className="h-8" />
-                  <div>
-                    <p className="text-xs font-black text-foreground flex items-center gap-1.5">
-                      Paiement Sécurisé Wave
-                      <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5">
-                        Instantané
-                      </span>
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">Génération immédiate du billet QR Code</p>
-                  </div>
-                </div>
-                <div className="size-6 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-black flex items-center justify-center shadow-sm">
-                  <Check className="size-3.5 stroke-[3]" />
-                </div>
-              </div>
-
-              {/* Informative Security Banner */}
-              <div className="rounded-xl bg-card/80 p-3 border border-border/70 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-2.5 shadow-xs">
-                <Info className="size-4 shrink-0 text-primary-accent mt-0.5" />
-                <span>
-                  Indiquez le numéro de votre compte Wave pour valider votre réservation en 1 clic et recevoir immédiatement votre e-billet.
-                </span>
-              </div>
-
-              {/* Phone Input */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                  Numéro de téléphone Wave
-                </label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-bold text-muted-foreground select-none">
-                    🇸🇳 +221
-                  </span>
-                  <input
-                    type="tel"
-                    placeholder="77 123 45 67"
-                    value={payerPhone}
-                    onChange={(e) => setPayerPhone(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-card pl-20 pr-3 py-2.5 text-sm font-black tracking-wide outline-none focus:ring-2 focus:ring-primary shadow-xs"
-                  />
-                </div>
+                <p className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-muted-foreground pb-2">
+                  <ShieldCheck className="size-3.5 text-emerald-500" />
+                  Paiement sécurisé par Wave SN • Billet numérique garanti
+                </p>
               </div>
             </div>
-
-            {/* Price breakdown */}
-            <div className="rounded-2xl bg-muted/40 p-4 space-y-2 border border-border/60 text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>
-                  Billet King-Bus ({seats} place{seats > 1 ? "s" : ""})
-                  {selectedStop ? ` · Montée ${selectedStop.city} (${selectedStop.time_offset ? `~${selectedStop.time_offset}` : "Escale"})` : ` · ${caravane.from}`}
-                </span>
-                <span className="font-bold text-foreground">{formatPrice(total)} FCFA</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Bagages en soute (jusqu'à 25 kg)</span>
-                <span className="font-bold text-emerald-600">Inclus (Gratuit)</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Climatisation & Prises USB</span>
-                <span className="font-bold text-emerald-600">Inclus</span>
-              </div>
-              <div className="border-t border-border/60 pt-2.5 flex items-center justify-between text-sm">
-                <span className="font-extrabold text-foreground">Total à régler</span>
-                <span className="text-xl font-black text-primary-accent">
-                  {formatPrice(total)} FCFA
-                </span>
-              </div>
-            </div>
-
-            {/* Action CTA Button */}
-            <button
-              type="button"
-              disabled={
-                booking.isPending ||
-                payerPhone.replace(/\D/g, "").length < 9 ||
-                (forFriend && (!friendFirstName.trim() || !friendLastName.trim()))
-              }
-              onClick={() => booking.mutate()}
-              className="w-full rounded-2xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 py-4 text-sm font-black text-black shadow-lg shadow-primary/25 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {booking.isPending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Traitement du paiement en cours…</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="size-4" />
-                  <span>Confirmer et payer {formatPrice(total)} FCFA</span>
-                </>
-              )}
-            </button>
-
-            <p className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-              <ShieldCheck className="size-3.5 text-emerald-500" />
-              Paiement sécurisé par Wave SN • Billet numérique garanti
-            </p>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

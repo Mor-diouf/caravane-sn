@@ -60,8 +60,8 @@ function DashboardPage() {
     caravans.find((c) => c.status === "published" && new Date(c.departureAt) > new Date()) ??
     caravans[0];
 
-  const booked = nextCaravan ? nextCaravan.totalSeats - nextCaravan.seatsLeft : 0;
-  const capacity = nextCaravan?.totalSeats ?? 0;
+  const booked = nextCaravan ? nextCaravan.booked : 0;
+  const capacity = nextCaravan?.capacity ?? 0;
   const available = Math.max(0, capacity - booked);
   const occupancy = capacity ? Math.round((booked / capacity) * 100) : 0;
 

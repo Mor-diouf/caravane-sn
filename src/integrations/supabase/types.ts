@@ -54,6 +54,7 @@ export type Database = {
           passenger_name: string | null
           reference: string
           seats: number
+          selected_seats: string[]
           status: Database["public"]["Enums"]["booking_status"]
           updated_at: string
           user_id: string
@@ -67,6 +68,7 @@ export type Database = {
           passenger_name?: string | null
           reference: string
           seats?: number
+          selected_seats?: string[]
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
           user_id: string
@@ -80,6 +82,7 @@ export type Database = {
           passenger_name?: string | null
           reference?: string
           seats?: number
+          selected_seats?: string[]
           status?: Database["public"]["Enums"]["booking_status"]
           updated_at?: string
           user_id?: string
@@ -105,6 +108,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_hidden: boolean
+          layout: Json | null
           organizer_id: string
           payment_link: string | null
           pickup: string
@@ -126,6 +130,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_hidden?: boolean
+          layout?: Json | null
           organizer_id: string
           payment_link?: string | null
           pickup: string
@@ -147,6 +152,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_hidden?: boolean
+          layout?: Json | null
           organizer_id?: string
           payment_link?: string | null
           pickup?: string
@@ -642,6 +648,7 @@ export type Database = {
           created_at: string
           id: string
           qr_code: string
+          seat_number: string | null
           status: Database["public"]["Enums"]["ticket_status"]
         }
         Insert: {
@@ -651,6 +658,7 @@ export type Database = {
           created_at?: string
           id?: string
           qr_code: string
+          seat_number?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
         }
         Update: {
@@ -660,6 +668,7 @@ export type Database = {
           created_at?: string
           id?: string
           qr_code?: string
+          seat_number?: string | null
           status?: Database["public"]["Enums"]["ticket_status"]
         }
         Relationships: [

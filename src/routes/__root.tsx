@@ -7,14 +7,46 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { BusConfigurator } from "@/features/bus-configurator";
 
 
 function NotFoundComponent() {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const isTestBus = isClient && typeof window !== "undefined" && window.location.pathname.includes("test-bus");
+
+  if (isTestBus) {
+    return (
+      <div className="min-h-screen bg-[#0b0d12] flex flex-col text-slate-100">
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 flex items-center justify-between text-xs text-amber-300 sticky top-0 z-50 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
+              <strong>Studio KING-BUS (Test Indépendant) :</strong> Configurez et glissez vos sièges librement.
+            </span>
+          </div>
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            ← Retour à l'accueil
+          </Link>
+        </div>
+        <div className="flex-1">
+          <BusConfigurator />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">

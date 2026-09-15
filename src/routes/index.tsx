@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { CaravanCard } from "@/components/CaravanCard";
 import { BottomNav } from "@/components/BottomNav";
+import { BusConfigurator } from "@/features/bus-configurator";
 import {
   caravansQuery,
   profileQuery,
@@ -105,6 +106,12 @@ function Index() {
   const [selectedRoute, setSelectedRoute] = useState<string>("all");
   const [query, setQuery] = useState("");
   const { favorites, toggle } = useStudentFavorites();
+  const [showBusStudio, setShowBusStudio] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("studio") === "true";
+    }
+    return false;
+  });
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -134,6 +141,32 @@ function Index() {
       return timeA.localeCompare(timeB);
     });
   }, [selectedRoute, query, caravanes]);
+
+  if (showBusStudio) {
+    return (
+      <div className="min-h-screen bg-[#0b0d12] flex flex-col">
+        {/* Barre de retour et mode test */}
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 flex items-center justify-between text-xs text-amber-300 sticky top-0 z-50 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
+              <strong>Mode Studio KING-BUS Actif :</strong> Configurez visuellement votre bus.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowBusStudio(false)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            ← Fermer le Studio (Retour au site)
+          </button>
+        </div>
+        <div className="flex-1">
+          <BusConfigurator />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-28 text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -192,6 +225,18 @@ function Index() {
                   <span className="sm:hidden">Staff</span>
                 </Link>
               )}
+
+              {/* Bouton de test Studio Bus */}
+              <button
+                type="button"
+                onClick={() => setShowBusStudio(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-xs font-black text-slate-950 shadow-md hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer"
+                title="Tester le Studio de configuration de bus"
+              >
+                <Armchair className="size-3.5 text-slate-950" />
+                <span className="hidden sm:inline">Studio Bus</span>
+                <span className="sm:hidden">Studio</span>
+              </button>
 
               {user ? (
                 <Link
@@ -445,6 +490,16 @@ function Index() {
         </section>
 
       </main>
+
+      {/* Bouton Flottant d'accès rapide au Studio de configuration */}
+      <button
+        type="button"
+        onClick={() => setShowBusStudio(true)}
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-xs font-black text-slate-950 shadow-2xl border-2 border-amber-400/80 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+      >
+        <Armchair className="size-4 text-slate-950" />
+        <span>Studio KING-BUS</span>
+      </button>
 
       <BottomNav />
     </div>

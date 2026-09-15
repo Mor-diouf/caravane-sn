@@ -6,7 +6,7 @@ import { CaravanCard } from "@/components/CaravanCard";
 import { OrganizerLogo } from "@/components/OrganizerLogo";
 
 export const Route = createFileRoute("/organisateurs/$id")({
-  head: ({ loaderData }) => ({
+  head: ({ loaderData }: { loaderData?: any }) => ({
     meta: [
       { title: `${loaderData?.name ?? "Partenaire"} — CaravaneHub` },
       { name: "description", content: loaderData?.slogan ?? "Découvrez les caravanes de cet organisateur." },
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/organisateurs/$id")({
   }),
   loader: async ({ context, params: { id } }) => {
     try {
-      const data = await context.queryClient.ensureQueryData(organizerQuery(id));
+      const data: any = await context.queryClient.ensureQueryData(organizerQuery(id));
       if (!data) throw notFound();
       return { name: data.name, slogan: data.slogan };
     } catch {
@@ -114,7 +114,7 @@ function OrganizerProfile() {
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {org.caravans.map((caravane) => (
+              {org.caravans.map((caravane: any) => (
                 <CaravanCard key={caravane.id} caravane={caravane} />
               ))}
             </div>

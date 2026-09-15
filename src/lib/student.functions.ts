@@ -62,8 +62,17 @@ export const getCaravan = createServerFn({ method: "GET" })
       .eq("is_hidden", false)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const result = row ? mapCaravan(row as never) : null;
-    return setCached(cacheKey, result, 30 * 1000); // 30 seconds
+    if (!row) return null;
+
+    const { data: bookings } = await createPublicClient()
+      .from("bookings")
+      .select("selected_seats")
+      .eq("caravan_id", data.id)
+      .in("status", ["pending", "confirmed"]);
+
+    const reservedSeats = bookings ? bookings.flatMap(b => b.selected_seats || []) : [];
+    const result = { ...mapCaravan(row as never), reservedSeats };
+    return setCached(cacheKey, result, 10 * 1000); // 10 seconds for real-time seat availability
   });
 
 export const getMyProfile = createServerFn({ method: "GET" })
@@ -151,7 +160,7 @@ export const getMyTickets = createServerFn({ method: "GET" })
       .select(
         `id, caravan_id, seats, amount_fcfa, reference, status, created_at, passenger_name,
          caravans(${CARAVAN_SELECT}),
-         tickets(id, qr_code, status, checked_in_at),
+         tickets(id, qr_code, seat_number, status, checked_in_at),
          payments(method, status, amount_fcfa, paid_at)`,
       )
       .eq("user_id", context.userId)
@@ -194,6 +203,7 @@ export const getMyTickets = createServerFn({ method: "GET" })
         pickup_stop: boardingInfo.pickupStop ?? null,
         createdAt: b.created_at,
         caravan: b.caravans ? mapCaravan(b.caravans as never) : null,
+        tickets: b.tickets ?? [],
         ticket: (b.tickets ?? [])[0] ?? null,
         payment: (b.payments ?? [])[0] ?? null,
         review: (reviews ?? []).find((r) => r.caravan_id === b.caravan_id) ?? null,
@@ -212,6 +222,7 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
         passengerName: z.string().optional(),
         stopId: z.string().optional(),
         pickupStop: z.string().optional(),
+        selectedSeats: z.array(z.string()).optional(),
       })
       .parse(data),
   )
@@ -269,6 +280,7 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
       status: "pending",
       payer_phone: data.payerPhone.replace(/\s/g, ""),
       passenger_name: passengerNameWithBoarding,
+      selected_seats: data.selectedSeats || [],
     };
     if (selectedStopName) {
       insertPayload['pickup_stop'] = selectedStopName;
@@ -311,6 +323,7 @@ export const createBooking = createServerFn({ method: "POST" })
         seats: z.number().int().min(1).max(6),
         method: z.enum(["wave", "orange", "free"]),
         passengerName: z.string().optional(),
+        selectedSeats: z.array(z.string()).optional(),
       })
       .parse(data),
   )
@@ -349,6 +362,7 @@ export const createBooking = createServerFn({ method: "POST" })
         reference,
         status: "confirmed",
         passenger_name: basePassengerName || null,
+        selected_seats: data.selectedSeats || [],
       })
       .select("id, reference")
       .single();
@@ -366,11 +380,23 @@ export const createBooking = createServerFn({ method: "POST" })
     });
     if (paymentError) throw new Error(paymentError.message);
 
-    const { error: ticketError } = await context.supabase.from("tickets").insert({
-      booking_id: booking.id,
-      qr_code: crypto.randomUUID(),
-      status: "valid",
-    });
+    // We need to insert a ticket for EACH seat
+    const ticketsToInsert: {
+      booking_id: string;
+      qr_code: string;
+      status: "valid" | "used" | "void";
+      seat_number: string | null;
+    }[] = [];
+    for (let i = 0; i < data.seats; i++) {
+      ticketsToInsert.push({
+        booking_id: booking.id,
+        qr_code: crypto.randomUUID(),
+        status: "valid",
+        seat_number: data.selectedSeats && data.selectedSeats[i] ? String(data.selectedSeats[i]) : null,
+      });
+    }
+
+    const { error: ticketError } = await context.supabase.from("tickets").insert(ticketsToInsert);
     if (ticketError) throw new Error(ticketError.message);
 
     invalidateCache("caravan");
@@ -633,7 +659,7 @@ export const listOrganizers = createServerFn({ method: "GET" }).handler(
 
 export const getOrganizer = createServerFn({ method: "GET" })
   .validator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<any> => {
     const cacheKey = `organizer:${data.id}`;
     const cached = getCached<any>(cacheKey);
     if (cached !== null && cached !== undefined) return cached;

@@ -590,7 +590,7 @@ export const adminFinance = createServerFn({ method: "GET" })
         .limit(200),
       supabase
         .from("payouts")
-        .select("id, amount_fcfa, method, status, requested_at, processed_at, caravan_id, organizers(name), caravans(from_label, to_label)")
+        .select("id, amount_fcfa, method, status, requested_at, processed_at, caravan_id, organizers(name)")
         .order("requested_at", { ascending: false }),
       supabase
         .from("caravans")
@@ -632,11 +632,13 @@ export const adminFinance = createServerFn({ method: "GET" })
         let cPayoutsTotal = 0;
         
         if (cId) {
-          const cBookings = bookingsData.filter(b => b.caravan_id === cId);
-          const cPayments = paymentsData.filter(pay => cBookings.some(b => b.id === pay.booking_id && pay.status === "paid"));
-          const cGross = cPayments.reduce((a, pay) => a + pay.amount_fcfa, 0);
-          const cCommission = cPayments.reduce((a, pay) => a + pay.commission_fcfa, 0);
-          cNet = cGross - cCommission;
+          const caravan = caravans.data?.find((c) => c.id === cId);
+          if (caravan) {
+            const booked = caravan.total_seats - caravan.seats_left;
+            const cGross = booked * caravan.price_fcfa;
+            const cCommission = cGross * 0.08;
+            cNet = cGross - cCommission;
+          }
           
           cPayoutsTotal = (payouts.data ?? [])
             .filter(po => po.caravan_id === cId && (po.status === "requested" || po.status === "approved" || po.status === "paid"))
@@ -646,7 +648,12 @@ export const adminFinance = createServerFn({ method: "GET" })
         return {
           id: p.id,
           organizer: p.organizers?.name ?? "—",
-          caravanRoute: p.caravans ? `${p.caravans.from_label} → ${p.caravans.to_label}` : null,
+          caravanRoute: cId && caravans.data 
+            ? (() => {
+                const c = caravans.data.find(x => x.id === cId);
+                return c ? `${c.from_label} → ${c.to_label}` : null;
+              })()
+            : null,
           amount: p.amount_fcfa,
           method: p.method,
           status: p.status,
@@ -709,12 +716,12 @@ export const adminSetPayoutStatus = createServerFn({ method: "POST" })
       }
 
       // SMS Notification
-      const webhookUrl = process.env.MACRODROID_SMS_WEBHOOK_URL;
-      if (webhookUrl && phone) {
+      const macrodroidUrl = process.env["MACRODROID_SMS_WEBHOOK_URL"];
+      if (macrodroidUrl && phone) {
         const msg = `CaravaneHub: Votre demande de retrait de ${amount} FCFA a été traitée et envoyée sur votre compte.`;
         
         // Fire and forget (don't await or catch silently to not block the UI)
-        fetch(`${webhookUrl}?phone=${encodeURIComponent(phone)}&msg=${encodeURIComponent(msg)}`)
+        fetch(`${macrodroidUrl}?phone=${encodeURIComponent(phone)}&msg=${encodeURIComponent(msg)}`)
           .catch(e => console.error("MacroDroid SMS Webhook failed:", e));
       }
     }

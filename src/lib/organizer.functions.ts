@@ -18,7 +18,7 @@ export const organizerOverview = createServerFn({ method: "GET" })
       supabase
         .from("caravans")
         .select(
-          `id, from_label, to_label, departure_at, price_fcfa, total_seats, seats_left, status,
+          `id, from_label, to_label, departure_at, price_fcfa, total_seats, seats_left, status, layout,
            is_hidden, bookings(id, seats, amount_fcfa, status, created_at, user_id)`,
         )
         .eq("organizer_id", organizerId)
@@ -95,6 +95,7 @@ export const organizerOverview = createServerFn({ method: "GET" })
           .reduce((a, b) => a + b.amount_fcfa, 0),
         status: c.status,
         hidden: c.is_hidden,
+        layout: c.layout,
       })),
     };
   });
@@ -117,7 +118,7 @@ export const organizerListCaravans = createServerFn({ method: "GET" })
       .from("caravans")
       .select(
         `id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, total_seats,
-         seats_left, status, is_hidden, image_url, amenities, about, university_id, created_at`,
+         seats_left, status, is_hidden, image_url, amenities, about, university_id, created_at, layout`,
       )
       .eq("organizer_id", organizerId)
       .order("departure_at", { ascending: false });
@@ -147,6 +148,7 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
         about: z.string().max(1000).optional(),
         image_url: z.string().url().optional(),
         university_id: z.string().max(40).optional(),
+        layout: z.any().optional(),
         status: z.enum(["draft", "pending", "published", "full", "completed", "cancelled"]).default("draft"),
         stops: z
           .array(
@@ -197,6 +199,9 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
         about: encodedAbout,
         status: targetStatus,
       };
+      if (fields.layout && (fields.layout as any).seats) {
+        updateData['total_seats'] = (fields.layout as any).seats.length;
+      }
       if (stops !== undefined) {
         updateData['stops'] = stops;
       }
@@ -230,6 +235,10 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
       organizer_id: organizerId,
       seats_left: fields.total_seats,
     };
+    if (fields.layout && (fields.layout as any).seats) {
+      insertData['total_seats'] = (fields.layout as any).seats.length;
+      insertData['seats_left'] = (fields.layout as any).seats.length;
+    }
     if (stops !== undefined) {
       insertData['stops'] = stops;
     }
@@ -448,7 +457,7 @@ export const organizerConfirmBookingManual = createServerFn({ method: "POST" })
     // 1. Fetch booking and check organizer ownership
     const { data: booking, error: bError } = await client
       .from("bookings")
-      .select("id, caravan_id, user_id, amount_fcfa, seats, status, reference, passenger_name, payer_phone, caravans(id, organizer_id, from_label, to_label, organizers(commission_rate))")
+      .select("id, caravan_id, user_id, amount_fcfa, seats, selected_seats, status, reference, passenger_name, payer_phone, caravans(id, organizer_id, from_label, to_label, organizers(commission_rate))")
       .eq("id", data.bookingId)
       .maybeSingle();
 
@@ -519,11 +528,18 @@ export const organizerConfirmBookingManual = createServerFn({ method: "POST" })
         return `kb-${Math.random().toString(36).substring(2, 10)}-${Date.now().toString(36)}`;
       };
 
-      const ticketsToInsert = Array.from({ length: booking.seats }).map(() => ({
-        booking_id: booking.id,
-        qr_code: generateQrCode(),
-        status: "valid" as const,
-      }));
+      const ticketsToInsert = (booking.selected_seats && booking.selected_seats.length === booking.seats)
+        ? booking.selected_seats.map((seatNumber: string) => ({
+            booking_id: booking.id,
+            seat_number: seatNumber,
+            qr_code: generateQrCode(),
+            status: "valid" as const,
+          }))
+        : Array.from({ length: booking.seats }).map(() => ({
+            booking_id: booking.id,
+            qr_code: generateQrCode(),
+            status: "valid" as const,
+          }));
 
       const { error: ticketError } = await client.from("tickets").insert(ticketsToInsert as never);
       if (ticketError) {
