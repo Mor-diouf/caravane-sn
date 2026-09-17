@@ -254,10 +254,14 @@ function CaravaneDetail() {
   const handleShare = async () => {
     if (!data) return;
     
-    const url = window.location.href;
+    // Ajout d'un paramètre 'v' pour forcer WhatsApp à recharger la belle image (contourner le cache)
+    const urlObj = new URL(window.location.href);
+    urlObj.searchParams.set("v", Date.now().toString());
+    const finalUrl = urlObj.toString();
+    
     const shareData = {
       title: `Voyage King-Bus : ${data.from} ➔ ${data.to}`,
-      url: url,
+      url: finalUrl,
     };
 
     if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
@@ -268,7 +272,7 @@ function CaravaneDetail() {
       }
     } else {
       // Fallback
-      navigator.clipboard.writeText(url);
+      navigator.clipboard.writeText(finalUrl);
       toast.success("Lien de partage copié dans le presse-papier !");
     }
   };
