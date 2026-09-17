@@ -59,7 +59,12 @@ export const Route = createFileRoute("/caravane/$id")({
       ? `Départ King-Bus ${c.from} vers ${c.to} le ${c.date} à ${c.time} depuis ${c.pickup}. ${formatPrice(c.price)} FCFA, ${c.seatsLeft} places restantes. Confort, climatisation et sécurité assurée.`
       : "Détail du départ officiel King-Bus 2.0.";
     const baseUrl = "https://caravane-sn-indol.vercel.app";
-    const imageUrl = c?.image ? (c.image.startsWith("http") ? c.image : `${baseUrl}${c.image}`) : `${baseUrl}/images/king-bus/logo.jpg`;
+    const rawImageUrl = c?.image ? (c.image.startsWith("http") ? c.image : `${baseUrl}${c.image}`) : `${baseUrl}/images/king-bus/logo.jpg`;
+    
+    // WhatsApp est très strict sur la taille des images (< 300KB). 
+    // On utilise un proxy gratuit et rapide (Images.weserv.nl) pour redimensionner et compresser l'image à la volée.
+    const optimizedImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawImageUrl)}&w=800&h=418&fit=cover&output=jpg&q=80`;
+
     return {
       meta: [
         { title },
@@ -68,16 +73,16 @@ export const Route = createFileRoute("/caravane/$id")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
-        { property: "og:image", content: imageUrl },
-        { property: "og:image:secure_url", content: imageUrl },
+        { property: "og:image", content: optimizedImageUrl },
+        { property: "og:image:secure_url", content: optimizedImageUrl },
         { property: "og:image:type", content: "image/jpeg" },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
+        { property: "og:image:width", content: "800" },
+        { property: "og:image:height", content: "418" },
         { property: "og:image:alt", content: title },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
-        { name: "twitter:image", content: imageUrl },
+        { name: "twitter:image", content: optimizedImageUrl },
       ],
     };
   },
