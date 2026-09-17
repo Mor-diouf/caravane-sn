@@ -13,6 +13,7 @@ export type IntermediateStop = {
   pickup: string;
   price_fcfa: number;
   time_offset?: string | undefined;
+  payment_link?: string | undefined;
 };
 
 const STOPS_MARKER_START = "<!-- STOPS_DATA:";
@@ -26,6 +27,7 @@ export function parseStops(stopsField: unknown, aboutField?: string | null): Int
       pickup: String(s.pickup || ""),
       price_fcfa: Number(s.price_fcfa || 0),
       ...(s.time_offset ? { time_offset: String(s.time_offset) } : {}),
+      ...(s.payment_link ? { payment_link: String(s.payment_link) } : {}),
     }));
   }
   if (aboutField && aboutField.includes(STOPS_MARKER_START)) {
@@ -42,6 +44,7 @@ export function parseStops(stopsField: unknown, aboutField?: string | null): Int
             pickup: String(s.pickup || ""),
             price_fcfa: Number(s.price_fcfa || 0),
             ...(s.time_offset ? { time_offset: String(s.time_offset) } : {}),
+            ...(s.payment_link ? { payment_link: String(s.payment_link) } : {}),
           }));
         }
       }

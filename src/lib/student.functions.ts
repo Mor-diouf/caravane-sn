@@ -244,12 +244,16 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
     const stops = parseStops((caravan as any)?.stops, caravan?.about);
     let unitPrice = caravan.price_fcfa;
     let selectedStopName = data.pickupStop;
+    let paymentLinkToUse = caravan.payment_link;
 
     if (data.stopId) {
       const foundStop = stops.find((s) => s.id === data.stopId);
       if (foundStop) {
         unitPrice = foundStop.price_fcfa;
         selectedStopName = foundStop.city;
+        if (foundStop.payment_link) {
+          paymentLinkToUse = foundStop.payment_link;
+        }
       }
     }
 
@@ -309,7 +313,7 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
 
     // Redirect to the Wave Business Link
     return { 
-      redirectUrl: caravan.payment_link,
+      redirectUrl: paymentLinkToUse,
       bookingId: booking.id 
     };
   });

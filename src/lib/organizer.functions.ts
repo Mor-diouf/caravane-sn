@@ -159,6 +159,7 @@ export const organizerSaveCaravan = createServerFn({ method: "POST" })
               pickup: z.string().min(1),
               price_fcfa: z.number().int().min(0),
               time_offset: z.string().optional(),
+              payment_link: z.string().url().or(z.literal("")).optional(),
             }),
           )
           .optional(),

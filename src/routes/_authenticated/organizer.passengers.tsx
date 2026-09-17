@@ -56,6 +56,7 @@ function PassengersPage() {
         amount: b.amount,
         paymentStatus: b.paymentStatus,
         status: b.status,
+        pickupStop: b.pickupStop,
         lastTrip: b.departureAt ? new Date(b.departureAt).toLocaleDateString("fr-FR") : new Date(b.createdAt).toLocaleDateString("fr-FR"),
       }));
     }
@@ -122,6 +123,13 @@ function PassengersPage() {
   const totalSeats = rows.reduce((a, p) => a + (p.seats || p.trips || 1), 0);
 
   const handleExportPdf = () => {
+    if (selectedCaravanId === "all") {
+      toast.error("Action requise", {
+        description: "Veuillez sélectionner une caravane spécifique avant de télécharger la liste.",
+      });
+      return;
+    }
+
     if (rows.length === 0) {
       toast.error("Aucun passager à exporter.");
       return;

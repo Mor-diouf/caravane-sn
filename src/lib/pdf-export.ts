@@ -155,7 +155,8 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text(`${totalAmount.toLocaleString("fr-FR")} FCFA`, 14 + (kpiBoxWidth + 3) * 2 + 4, currentY + 9.5);
+  const formattedTotal = `${totalAmount}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  doc.text(`${formattedTotal} FCFA`, 14 + (kpiBoxWidth + 3) * 2 + 4, currentY + 9.5);
 
   currentY += 18;
 
@@ -165,27 +166,34 @@ export function exportPassengerManifestPdf(options: ExportPdfOptions) {
 
   if (isCaravanSpecific) {
     headers = [["#", "Nom du Passager", "Téléphone", "Lieu de montée", "Réf / Billet", "Places", "Montant", "Paiement"]];
-    tableData = options.passengers.map((p, index) => [
-      (index + 1).toString(),
-      p.name,
-      p.phone || "—",
-      p.pickupStop || "Départ initial",
-      p.reference || "—",
-      `${p.seats || p.trips || 1}`,
-      `${(p.amount || p.spent || 0).toLocaleString("fr-FR")} F`,
-      p.paymentStatus === "paid" || p.status === "confirmed" ? "Payé (Wave)" : "En attente",
-    ]);
+    tableData = options.passengers.map((p, index) => {
+      const sanitizedPickup = (p.pickupStop || "Départ initial").replace(/⏰/g, '').replace(/·/g, '-').replace(/\s+/g, ' ').trim();
+      const formattedAmount = `${p.amount || p.spent || 0}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      return [
+        (index + 1).toString(),
+        p.name,
+        p.phone || "—",
+        sanitizedPickup,
+        p.reference || "—",
+        `${p.seats || p.trips || 1}`,
+        `${formattedAmount} F`,
+        p.paymentStatus === "paid" || p.status === "confirmed" ? "Payé (Wave)" : "En attente",
+      ];
+    });
   } else {
     headers = [["#", "Nom & Prénom", "Téléphone", "Université", "Voyages", "Total Payé", "Dernier Voyage"]];
-    tableData = options.passengers.map((p, index) => [
-      (index + 1).toString(),
-      p.name,
-      p.phone || "—",
-      p.university || "—",
-      `${p.trips || p.seats || 1}`,
-      `${(p.spent || p.amount || 0).toLocaleString("fr-FR")} FCFA`,
-      p.lastTrip || "—",
-    ]);
+    tableData = options.passengers.map((p, index) => {
+      const formattedTotal = `${p.spent || p.amount || 0}`.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      return [
+        (index + 1).toString(),
+        p.name,
+        p.phone || "—",
+        p.university || "—",
+        `${p.trips || p.seats || 1}`,
+        `${formattedTotal} FCFA`,
+        p.lastTrip || "—",
+      ];
+    });
   }
 
   autoTable(doc, {

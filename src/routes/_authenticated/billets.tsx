@@ -409,7 +409,15 @@ function Billets() {
                         </dt>
                         <dd className="font-black text-foreground mt-0.5">
                           {(b as any).tickets && (b as any).tickets.some((t: any) => t.seat_number) 
-                            ? `Siège(s): ${(b as any).tickets.map((t: any) => t.seat_number).filter(Boolean).join(", ")}`
+                            ? `Siège(s): ${(b as any).tickets.map((t: any) => {
+                                const seatId = t.seat_number;
+                                if (!seatId) return null;
+                                if (c?.layout?.seats && Array.isArray(c.layout.seats)) {
+                                  const seat = c.layout.seats.find((s: any) => s.id === seatId);
+                                  if (seat && seat.number) return seat.number;
+                                }
+                                return seatId;
+                              }).filter(Boolean).join(", ")}`
                             : `${b.seats} place${b.seats > 1 ? "s" : ""} réservée${b.seats > 1 ? "s" : ""}`
                           }
                         </dd>

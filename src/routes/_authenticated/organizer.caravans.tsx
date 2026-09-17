@@ -759,6 +759,24 @@ function CaravansPage() {
                           />
                         </div>
                       </div>
+                      <div className="mt-2.5">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                          Lien de paiement Wave/Orange (Optionnel)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="Ex: https://pay.wave.com/m/..."
+                          value={stop.payment_link || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setForm((f) => ({
+                              ...f,
+                              stops: f.stops.map((s) => (s.id === stop.id ? { ...s, payment_link: val } : s)),
+                            }));
+                          }}
+                          className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
