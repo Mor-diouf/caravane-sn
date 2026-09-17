@@ -444,7 +444,7 @@ function CaravansPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              const caravanBookings = (dbBookings ?? []).filter((b) => b.caravanId === c.id);
+                              const caravanBookings = (dbBookings ?? []).filter((b) => b.caravanId === c.id && b.status === "confirmed");
                               if (caravanBookings.length === 0) {
                                 toast.info("Aucun passager inscrit pour cette caravane pour l'instant.");
                                 return;

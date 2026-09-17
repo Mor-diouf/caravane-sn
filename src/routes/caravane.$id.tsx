@@ -384,7 +384,7 @@ function CaravaneDetail() {
           alt={`Bus de la caravane ${caravane.from} vers ${caravane.to}`}
           width={1280}
           height={800}
-          className="h-52 w-full object-cover sm:h-72"
+          className="h-72 w-full object-cover sm:h-96 md:h-[450px]"
         />
         <div
           aria-hidden

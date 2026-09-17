@@ -34,8 +34,9 @@ function PassengersPage() {
   // Filtrage selon la caravane sélectionnée
   const filteredBookings = useMemo(() => {
     if (!dbBookings) return [];
-    if (selectedCaravanId === "all") return dbBookings;
-    return dbBookings.filter((b) => b.caravanId === selectedCaravanId);
+    const paidBookings = dbBookings.filter((b) => b.status === "confirmed");
+    if (selectedCaravanId === "all") return paidBookings;
+    return paidBookings.filter((b) => b.caravanId === selectedCaravanId);
   }, [dbBookings, selectedCaravanId]);
 
   const passengerList = useMemo(() => {
