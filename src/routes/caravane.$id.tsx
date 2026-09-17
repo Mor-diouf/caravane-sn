@@ -58,6 +58,8 @@ export const Route = createFileRoute("/caravane/$id")({
     const description = c
       ? `Départ King-Bus ${c.from} vers ${c.to} le ${c.date} à ${c.time} depuis ${c.pickup}. ${formatPrice(c.price)} FCFA, ${c.seatsLeft} places restantes. Confort, climatisation et sécurité assurée.`
       : "Détail du départ officiel King-Bus 2.0.";
+    const baseUrl = "https://caravane-sn-indol.vercel.app";
+    const imageUrl = c?.image ? (c.image.startsWith("http") ? c.image : `${baseUrl}${c.image}`) : `${baseUrl}/images/king-bus/logo.jpg`;
     return {
       meta: [
         { title },
@@ -66,8 +68,8 @@ export const Route = createFileRoute("/caravane/$id")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
-        { property: "og:image", content: c?.image || "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
-        { property: "og:image:secure_url", content: c?.image || "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+        { property: "og:image", content: imageUrl },
+        { property: "og:image:secure_url", content: imageUrl },
         { property: "og:image:type", content: "image/jpeg" },
         { property: "og:image:width", content: "1200" },
         { property: "og:image:height", content: "630" },
@@ -75,7 +77,7 @@ export const Route = createFileRoute("/caravane/$id")({
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
-        { name: "twitter:image", content: c?.image || "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+        { name: "twitter:image", content: imageUrl },
       ],
     };
   },
