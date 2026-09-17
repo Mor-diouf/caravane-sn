@@ -23,7 +23,7 @@ import { QrCode } from "@/components/QrCode";
 import { formatPrice, findStopForBoarding } from "@/lib/student-shared";
 import { PaymentMark } from "@/components/PaymentMark";
 import { ticketsQuery, profileQuery } from "@/lib/student-queries";
-import { submitCaravanReview } from "@/lib/student.functions";
+import { submitCaravanReview, cancelBooking } from "@/lib/student.functions";
 import { OrganizerLogo } from "@/components/OrganizerLogo";
 import {
   Dialog,
@@ -93,20 +93,34 @@ function Billets() {
   const [hoverRating, setHoverRating] = useState<number>(0);
 
   const reviewMutation = useMutation({
-    mutationFn: (data: { caravanId: string; rating: number; comment?: string }) =>
-      submitReviewFn({ data }),
-    onSuccess: (res) => {
-      toast.success(res.message);
-      setReviewModal((m) => ({ ...m, open: false }));
+    mutationFn: (data: any) => submitReviewFn({ data }),
+    onSuccess: () => {
+      toast.success("Votre avis a été publié !");
+      setReviewModal((prev) => ({ ...prev, open: false }));
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      confetti({
-        particleCount: 100,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ["#fbbf24", "#f59e0b", "#d97706"],
-      });
+      // Trigger a mini-confetti for positive review
+      if (reviewModal.rating >= 4) {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.8 },
+          colors: ["#fbbf24", "#f59e0b", "#10b981"],
+          disableForReducedMotion: true,
+          zIndex: 100,
+        });
+      }
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (error) => toast.error("Erreur", { description: error.message }),
+  });
+
+  const cancelBookingFn = useServerFn(cancelBooking);
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => cancelBookingFn({ data: { bookingId: id } }),
+    onSuccess: () => {
+      toast.success("Réservation annulée. Les places ont été libérées.");
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+    onError: (err) => toast.error("Erreur", { description: err.message }),
   });
 
   useEffect(() => {
@@ -126,18 +140,18 @@ function Billets() {
   const downloadTicket = async (id: string, ref: string) => {
     const el = document.getElementById(`ticket-card-${id}`);
     if (!el) return;
-    const toastId = toast.loading("Génération de l'image haute définition...");
+    const toastId = toast.loading("Génération de l'image ultra haute définition...");
     try {
       const dataUrl = await toPng(el, {
         cacheBust: true,
-        pixelRatio: 3,
+        pixelRatio: 5, // HD export
       });
       toast.dismiss(toastId);
       const a = document.createElement("a");
       a.download = `Billet-KingBus-${ref}.png`;
       a.href = dataUrl;
       a.click();
-      toast.success("Billet téléchargé avec succès !");
+      toast.success("Billet HD téléchargé avec succès !");
     } catch (err) {
       toast.dismiss(toastId);
       toast.error("Erreur lors du téléchargement de l'image");
@@ -147,11 +161,11 @@ function Billets() {
   const shareTicket = async (id: string, ref: string, text: string) => {
     const el = document.getElementById(`ticket-card-${id}`);
     if (!el) return;
-    const toastId = toast.loading("Préparation du partage...");
+    const toastId = toast.loading("Préparation du partage HD...");
     try {
       const blob = await toBlob(el, {
         cacheBust: true,
-        pixelRatio: 3,
+        pixelRatio: 5, // HD export
       });
       toast.dismiss(toastId);
       if (!blob) return;
@@ -163,7 +177,7 @@ function Billets() {
           text: text,
         });
       } else {
-        const dataUrl = await toPng(el, { cacheBust: true, pixelRatio: 3 });
+        const dataUrl = await toPng(el, { cacheBust: true, pixelRatio: 5 });
         const a = document.createElement("a");
         a.download = `Billet-KingBus-${ref}.png`;
         a.href = dataUrl;
@@ -241,175 +255,100 @@ function Billets() {
 
             return (
               <div key={b.id} className="mx-auto max-w-[380px]">
-                {/* ── PRINTABLE TICKET CARD ── */}
+                {/* ── PRINTABLE TICKET CARD (COMPACT & PRO) ── */}
                 <article
                   id={`ticket-card-${b.id}`}
-                  className="relative overflow-hidden rounded-3xl border border-border/90 bg-card shadow-xl transition-all"
+                  className="relative overflow-hidden rounded-[2rem] border-2 border-border/60 bg-card shadow-2xl mx-auto max-w-sm"
                 >
-                  {/* ── Top Boarding Header ── */}
-                  <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 px-5 py-4 text-white border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-md bg-amber-400/20 border border-amber-400/30 px-2 py-0.5 text-[10px] font-black tracking-widest text-amber-300 uppercase">
-                        PASS EMBARQUEMENT
-                      </span>
-                      <span
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider",
-                          used
-                            ? "bg-slate-800 text-slate-400 border border-slate-700"
-                            : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "size-1.5 rounded-full",
-                            used ? "bg-slate-500" : "bg-emerald-400 animate-pulse"
-                          )}
-                        />
-                        {used ? "BILLET SCANNÉ" : "BILLET VALIDE"}
-                      </span>
+                  {/* ── Header: Organizer & Ref ── */}
+                  <div className="bg-slate-900 text-white p-5 pb-7 flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <OrganizerLogo
+                        url={c.organizerLogoUrl}
+                        name={c.organizer}
+                        className="size-10 rounded-xl p-1 bg-white/10 border border-white/15 shrink-0"
+                        iconClassName="size-5 text-white"
+                      />
+                      <div>
+                        <h3 className="font-black text-xs uppercase tracking-wider leading-none">{c.organizer}</h3>
+                        <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-1 mt-1.5">
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              used ? "bg-slate-500" : b.status === "pending" ? "bg-orange-500 animate-pulse" : "bg-emerald-400 animate-pulse"
+                            )}
+                          />
+                          {used ? "SCANNÉ" : b.status === "pending" ? "EN ATTENTE" : "BILLET VALIDE"}
+                        </span>
+                      </div>
                     </div>
-
-                    {/* Organizer Brand line */}
-                    <div className="mt-3.5 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <OrganizerLogo
-                          url={c.organizerLogoUrl}
-                          name={c.organizer}
-                          className="size-11 rounded-xl p-1 bg-white/10 border border-white/15 shrink-0"
-                          iconClassName="size-6 text-white"
-                        />
-                        <div>
-                          <h3 className="text-sm font-black text-white leading-tight">{c.organizer}</h3>
-                          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[170px]">
-                            {c.organizerSlogan || "Transport officiel certifié"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                          RÉFÉRENCE
-                        </span>
-                        <span className="font-mono text-xs font-black text-amber-400 tracking-wider">
-                          {b.reference}
-                        </span>
-                      </div>
+                    <div className="text-right">
+                      <span className="block text-[8px] font-extrabold uppercase tracking-widest text-slate-400 mb-0.5">
+                        RÉFÉRENCE
+                      </span>
+                      <span className={cn(
+                        "font-mono text-sm font-black tracking-wider px-2 py-0.5 rounded-lg border",
+                        b.status === "pending"
+                          ? "text-orange-400 bg-orange-400/10 border-orange-400/20"
+                          : "text-amber-400 bg-amber-400/10 border-amber-400/20"
+                      )}>
+                        {b.reference}
+                      </span>
                     </div>
                   </div>
 
-                  {/* ── Route & Schedule Display ── */}
-                  <div className="bg-gradient-to-b from-muted/20 via-card to-card p-5 space-y-3.5">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3.5">
-                      <div className="min-w-0">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">
-                          {matchedStop ? "POINT DE MONTÉE (ESCALE)" : pickupStop ? "MONTÉE / EMBARQUEMENT" : "DÉPART"}
-                        </span>
-                        <h4 className="text-lg font-black text-foreground tracking-tight truncate">
-                          {matchedStop ? matchedStop.city : pickupStop || c.from}
-                        </h4>
-                        <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="size-3 shrink-0" />
-                          <span className="truncate">
-                            {matchedStop
-                              ? matchedStop.pickup
-                              : pickupStop
-                                ? `Escale intermédiaire (${pickupStop})`
-                                : c.pickup}
-                          </span>
+                  {/* ── Main Body (overlapping header) ── */}
+                  <div className="bg-card mx-2.5 -mt-4 rounded-2xl p-4 shadow-sm border border-border/80">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex-1">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-extrabold truncate">
+                          {matchedStop ? "Point d'embarquement" : "Départ"}
                         </p>
+                        <h2 className="text-xl sm:text-2xl font-black text-foreground truncate mt-0.5">
+                          {matchedStop ? matchedStop.city : c.from}
+                        </h2>
                       </div>
-
-                      <div className="flex flex-col items-center px-2 shrink-0">
-                        <div className="size-8 rounded-full bg-amber-400/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                          <Bus className="size-4" />
-                        </div>
-                        <span className="text-[9px] font-extrabold uppercase tracking-wider text-muted-foreground mt-0.5">
-                          {matchedStop ? "Escale" : "Direct"}
+                      <div className="mx-2 flex shrink-0">
+                        <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-primary">
+                          <Bus className="size-3.5" />
                         </span>
                       </div>
-
-                      <div className="min-w-0 text-right">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground block">
-                          ARRIVÉE
-                        </span>
-                        <h4 className="text-lg font-black text-foreground tracking-tight truncate">
+                      <div className="flex-1 text-right">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-extrabold truncate">
+                          Terminus
+                        </p>
+                        <h2 className="text-xl sm:text-2xl font-black text-foreground truncate mt-0.5">
                           {c.to}
-                        </h4>
-                        <p className="text-[11px] font-bold text-muted-foreground mt-0.5">
-                          {c.dropoff || "Gare terminus"}
+                        </h2>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 bg-muted/40 rounded-xl p-3 border border-border/50">
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-extrabold">Date & Heure</p>
+                        <p className="text-[11px] font-black text-foreground">
+                          {c.date} • {matchedStop?.time_offset || c.time}
                         </p>
                       </div>
-                    </div>
-
-                    {/* Date & Time pill */}
-                    <div className="flex items-center justify-between rounded-2xl bg-muted/50 px-3.5 py-2.5 border border-border/60 text-xs">
-                      <div className="flex items-center gap-1.5 font-black text-foreground">
-                        <Calendar className="size-3.5 text-primary-accent" />
-                        <span>{c.date}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 font-black text-foreground">
-                        <Clock className={cn("size-3.5", matchedStop?.time_offset ? "text-amber-500" : "text-primary-accent")} />
-                        {matchedStop?.time_offset ? (
-                          <span className="flex items-center gap-1">
-                            <span className="text-amber-600 dark:text-amber-400 font-extrabold">
-                              ~{matchedStop.time_offset}
-                            </span>
-                            <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
-                              Montée
-                            </span>
-                          </span>
-                        ) : (
-                          <span>{c.time}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Notice spécifique escale avec heure approximative pour le passager */}
-                    {matchedStop && (
-                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2 shadow-xs">
-                        <Clock className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                        <div className="space-y-0.5 leading-snug">
-                          <p className="font-bold text-amber-900 dark:text-amber-100">
-                            Heure estimée de passage à {matchedStop.city} : {matchedStop.time_offset ? `${matchedStop.time_offset}` : "En cours de route"}
-                          </p>
-                          <p className="text-[10px] text-amber-700 dark:text-amber-300">
-                            Le car part de {c.from} à <strong>{c.time}</strong>. Rendez-vous à l'arrêt <strong>{matchedStop.pickup}</strong> 15 minutes avant l'heure de passage estimée.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Scalloped Cutout & Ticket Tear Perforation ── */}
-                  <div className="relative flex items-center justify-between my-0.5">
-                    <div className="size-5 -ml-2.5 rounded-full bg-background border border-border/80" />
-                    <div className="flex-1 border-t-2 border-dashed border-border/70 mx-2" />
-                    <div className="size-5 -mr-2.5 rounded-full bg-background border border-border/80" />
-                  </div>
-
-                  {/* ── Passenger & Payment Breakdown ── */}
-                  <div className="p-5 pt-3 space-y-3.5">
-                    <div className="grid grid-cols-2 gap-2.5 rounded-2xl bg-muted/40 p-3.5 border border-border/60 text-xs">
-                      <div>
-                        <dt className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                          <User className="size-3 text-muted-foreground" /> Passager
-                        </dt>
-                        <dd className="font-black text-foreground truncate mt-0.5">
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-extrabold">Passager</p>
+                        <p className="text-[11px] font-black text-foreground truncate">
                           {b.passenger_name || profile?.full_name || "Voyageur"}
-                        </dd>
-                        {(matchedStop || (b as any).pickup_stop) && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded mt-1 w-fit">
-                            Montée : {matchedStop ? `${matchedStop.city} (~${matchedStop.time_offset || c.time})` : (b as any).pickup_stop}
-                          </span>
-                        )}
+                        </p>
                       </div>
-                      <div>
-                        <dt className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
-                          Place(s)
-                        </dt>
-                        <dd className="font-black text-foreground mt-0.5">
-                          {(b as any).tickets && (b as any).tickets.some((t: any) => t.seat_number) 
-                            ? `Siège(s): ${(b as any).tickets.map((t: any) => {
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-extrabold">Siège(s)</p>
+                        <p className="text-[11px] font-black text-primary">
+                          {b.status === "pending" && (b as any).selected_seats && (b as any).selected_seats.length > 0
+                            ? (b as any).selected_seats.map((seatId: string) => {
+                                if (c?.layout?.seats && Array.isArray(c.layout.seats)) {
+                                  const seat = c.layout.seats.find((s: any) => s.id === seatId);
+                                  if (seat && seat.number) return seat.number;
+                                }
+                                return seatId;
+                              }).join(", ")
+                            : (b as any).tickets && (b as any).tickets.some((t: any) => t.seat_number) 
+                            ? `${(b as any).tickets.map((t: any) => {
                                 const seatId = t.seat_number;
                                 if (!seatId) return null;
                                 if (c?.layout?.seats && Array.isArray(c.layout.seats)) {
@@ -418,126 +357,162 @@ function Billets() {
                                 }
                                 return seatId;
                               }).filter(Boolean).join(", ")}`
-                            : `${b.seats} place${b.seats > 1 ? "s" : ""} réservée${b.seats > 1 ? "s" : ""}`
+                            : `${b.seats} place${b.seats > 1 ? "s" : ""}`
                           }
-                        </dd>
+                        </p>
                       </div>
-                      <div>
-                        <dt className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
-                          Paiement
-                        </dt>
-                        <dd className="font-bold flex items-center gap-1.5 mt-0.5">
-                          {b.payment ? <PaymentMark method={b.payment.method} /> : "—"}
-                          <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">
-                            Validé
-                          </span>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider">
-                          Montant total
-                        </dt>
-                        <dd className="font-black text-amber-600 dark:text-amber-400 text-sm mt-0.5">
-                          {formatPrice(b.amount)} FCFA
-                        </dd>
+                      <div className="space-y-0.5">
+                        <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-extrabold">Paiement</p>
+                        <p className="text-[11px] font-black flex items-center gap-1.5 text-foreground">
+                          {b.status === "pending" ? (
+                            <span className="text-orange-500">Non payé</span>
+                          ) : (
+                            <>
+                              <PaymentMark method={b.payment?.method} className="h-2.5" />
+                              <span className="text-emerald-600 dark:text-emerald-400">Validé</span>
+                            </>
+                          )}
+                        </p>
                       </div>
                     </div>
 
-                    {/* ── Official QR Code Container ── */}
-                    <div className="flex flex-col items-center rounded-2xl bg-white p-4 border border-border/80 shadow-inner">
-                      <div className="p-1.5 bg-white rounded-xl">
-                        <QrCode value={b.ticket?.qr_code ?? b.reference} size={185} />
-                      </div>
-                      <div className="mt-2.5 flex items-center gap-2">
-                        <span className="rounded-full bg-slate-900 px-3 py-1 font-mono text-[11px] font-black text-amber-400">
-                          {b.reference}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-center text-[10px] font-bold text-slate-600">
-                        Scannez ce QR Code lors de la montée dans le bus
+                    {matchedStop && (
+                      <p className="mt-2 text-[10px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-500/20 leading-tight">
+                        <Clock className="inline-block size-3 mr-1 -mt-0.5" />
+                        Rendez-vous à <strong>{matchedStop.pickup}</strong> au moins 15 min avant {matchedStop.time_offset}.
                       </p>
-                    </div>
-
-                    {/* ── Assistance Phone & Anti-Fraud Stamp ── */}
-                    <div className="pt-1 flex flex-col items-center gap-1 text-center">
-                      {(c.organizerSupportPhone || c.organizerPhone) && (
-                        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary">
-                          <Phone className="size-3" />
-                          <span>Assistance départ : {c.organizerSupportPhone ?? c.organizerPhone}</span>
-                        </div>
-                      )}
-                      <p className="text-[9px] text-muted-foreground font-medium">
-                        Billet nominatif officiel KING-BUS 2.0 • Présentez une pièce d'identité avec ce QR code
-                      </p>
-                    </div>
+                    )}
                   </div>
+
+                  {/* ── Scalloped Cutout & Ticket Tear Perforation ── */}
+                  <div className="relative flex items-center justify-between mt-3 mb-1">
+                    <div className="size-6 -ml-3 rounded-full bg-background border-r-2 border-border/60 shadow-inner" />
+                    <div className="flex-1 border-t-[3px] border-dashed border-border/50 mx-2" />
+                    <div className="size-6 -mr-3 rounded-full bg-background border-l-2 border-border/60 shadow-inner" />
+                  </div>
+
+                  {/* ── GIANT QR Code Section ── */}
+                  {b.status === "pending" ? (
+                    <div className="pb-6 pt-2 px-5 flex flex-col items-center bg-card">
+                      <div className="p-4 bg-orange-500/10 rounded-2xl border border-orange-500/20 text-center w-full mt-2">
+                        <p className="text-orange-600 dark:text-orange-400 font-bold text-sm">
+                          Paiement en attente
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Vos places sont réservées pour 30 minutes.
+                        </p>
+                        <p className="text-[10px] text-orange-600/80 dark:text-orange-400/80 mt-2 font-medium leading-tight px-2">
+                          Si vous avez déjà payé, l'organisateur validera votre paiement dans quelques minutes.<br/>
+                          Sinon, veuillez procéder au paiement.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pb-6 pt-2 px-5 flex flex-col items-center bg-card">
+                      <div className="p-2.5 bg-white rounded-3xl shadow-sm border-2 border-slate-100">
+                        <QrCode value={b.ticket?.qr_code ?? b.reference} size={220} />
+                      </div>
+                      <p className="mt-3.5 text-center text-[10px] font-extrabold text-muted-foreground leading-snug">
+                        Ce QR Code sera scanné par le contrôleur lors de la montée.
+                        {(c.organizerSupportPhone || c.organizerPhone) && (
+                          <span className="block mt-1 font-bold text-primary">
+                            <Phone className="inline-block size-3 -mt-0.5 mr-1" />
+                            Assistance : {c.organizerSupportPhone ?? c.organizerPhone}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </article>
 
                 {/* ── Action Buttons & Reviews ── */}
                 <div className="mt-3.5 flex flex-col gap-2.5">
-                  {/* Télécharger Button: High-contrast, radiant gold/amber with crisp black text */}
-                  <button
-                    type="button"
-                    onClick={() => downloadTicket(b.id, b.reference)}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 py-3.5 px-4 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <Download className="size-4 stroke-[2.5]" />
-                    <span>Télécharger le billet (Image HD)</span>
-                  </button>
+                  {b.status === "pending" ? (
+                    <>
+                      <a
+                        href={matchedStop?.payment_link || c.payment_link || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-orange-400 to-orange-500 py-3.5 px-4 text-xs font-black text-white shadow-lg hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        Payer maintenant ({formatPrice(b.amount)} FCFA)
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => cancelMutation.mutate(b.id)}
+                        disabled={cancelMutation.isPending}
+                        className="flex w-full items-center justify-center gap-2.5 rounded-2xl border-2 border-border/60 bg-transparent py-3 px-4 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        {cancelMutation.isPending ? "Annulation..." : "Annuler la réservation"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Télécharger Button */}
+                      <button
+                        type="button"
+                        onClick={() => downloadTicket(b.id, b.reference)}
+                        className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 py-3.5 px-4 text-xs font-black text-slate-950 shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        <Download className="size-4 stroke-[2.5]" />
+                        <span>Télécharger le billet (Image HD)</span>
+                      </button>
 
-                  {/* Laisser un avis Button */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openReviewDialog(
-                        c.id,
-                        c.organizer,
-                        `${c.from} → ${c.to}`,
-                        existingReview?.rating,
-                        existingReview?.comment
-                      )
-                    }
-                    className={cn(
-                      "flex w-full items-center justify-center gap-2 rounded-2xl border-2 py-3 text-xs font-extrabold transition-all cursor-pointer shadow-sm",
-                      existingReview
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
-                        : "border-amber-400/40 bg-amber-400/10 text-foreground hover:bg-amber-400/20"
-                    )}
-                  >
-                    <Star className="size-4 fill-amber-400 text-amber-400" />
-                    <span>
-                      {existingReview
-                        ? `Mon avis (${existingReview.rating}/5) — Modifier`
-                        : "Laisser un avis sur ce voyage"}
-                    </span>
-                  </button>
+                      {/* Laisser un avis Button */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          openReviewDialog(
+                            c.id,
+                            c.organizer,
+                            `${c.from} → ${c.to}`,
+                            existingReview?.rating,
+                            existingReview?.comment
+                          )
+                        }
+                        className={cn(
+                          "flex w-full items-center justify-center gap-2 rounded-2xl border-2 py-3 text-xs font-extrabold transition-all cursor-pointer shadow-sm",
+                          existingReview
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
+                            : "border-amber-400/40 bg-amber-400/10 text-foreground hover:bg-amber-400/20"
+                        )}
+                      >
+                        <Star className="size-4 fill-amber-400 text-amber-400" />
+                        <span>
+                          {existingReview
+                            ? `Mon avis (${existingReview.rating}/5) — Modifier`
+                            : "Laisser un avis sur ce voyage"}
+                        </span>
+                      </button>
 
-                  {/* Secondary buttons: WhatsApp & Wallet */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const shareMsg = matchedStop
-                          ? `Mon billet King-Bus 2.0 ${b.reference} : Embarquement à ${matchedStop.city} (${matchedStop.pickup}) le ${c.date} vers ${matchedStop.time_offset || c.time}. Trajet ${c.from} → ${c.to} (Départ initial de ${c.from} à ${c.time}).`
-                          : `Mon billet King-Bus 2.0 ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`;
-                        shareTicket(b.id, b.reference, shareMsg);
-                      }}
-                      className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-400 transition-colors hover:bg-emerald-500/20 active:scale-[0.98] cursor-pointer"
-                    >
-                      <Share2 className="size-4 text-emerald-500" /> Partager WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        toast.info(
-                          "Votre billet est sauvegardé dans votre espace. Le format Apple/Google Wallet sera activé très bientôt."
-                        )
-                      }
-                      className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3 text-xs font-bold text-foreground transition-colors hover:bg-accent active:scale-[0.98] cursor-pointer shadow-xs"
-                    >
-                      <Wallet className="size-4 text-primary" /> Sauvegarder
-                    </button>
-                  </div>
+                      {/* Secondary buttons: WhatsApp & Wallet */}
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const shareMsg = matchedStop
+                              ? `Mon billet King-Bus 2.0 ${b.reference} : Embarquement à ${matchedStop.city} (${matchedStop.pickup}) le ${c.date} vers ${matchedStop.time_offset || c.time}. Trajet ${c.from} → ${c.to} (Départ initial de ${c.from} à ${c.time}).`
+                              : `Mon billet King-Bus 2.0 ${b.reference} : ${c.from} → ${c.to}, ${c.date} à ${c.time} (${c.pickup}).`;
+                            shareTicket(b.id, b.reference, shareMsg);
+                          }}
+                          className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 py-3 text-xs font-bold text-emerald-700 dark:text-emerald-400 transition-colors hover:bg-emerald-500/20 active:scale-[0.98] cursor-pointer"
+                        >
+                          <Share2 className="size-4 text-emerald-500" /> Partager WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            toast.info(
+                              "Votre billet est sauvegardé dans votre espace. Le format Apple/Google Wallet sera activé très bientôt."
+                            )
+                          }
+                          className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card py-3 text-xs font-bold text-foreground transition-colors hover:bg-accent active:scale-[0.98] cursor-pointer shadow-xs"
+                        >
+                          <Wallet className="size-4 text-primary" /> Sauvegarder
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             );

@@ -21,7 +21,6 @@ import {
   Wifi,
 } from "lucide-react";
 import { CaravanCard } from "@/components/CaravanCard";
-import { BottomNav } from "@/components/BottomNav";
 import { BusConfigurator } from "@/features/bus-configurator";
 import {
   caravansQuery,
@@ -505,7 +504,6 @@ function Index() {
         </button>
       )}
 
-      <BottomNav />
     </div>
   );
 }

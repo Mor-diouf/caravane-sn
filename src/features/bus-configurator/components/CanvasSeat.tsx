@@ -24,7 +24,7 @@ export const CanvasSeat: React.FC<CanvasSeatProps> = ({
   const primaryLeather = isSelected
     ? '#FF5722'
     : isBooked
-    ? '#1E2430'
+    ? '#10B981'
     : isVip
     ? '#2D1B4E'
     : '#121620';
@@ -32,14 +32,14 @@ export const CanvasSeat: React.FC<CanvasSeatProps> = ({
   const accentBorder = isSelected
     ? '#FFA000'
     : isBooked
-    ? '#334155'
+    ? '#34D399'
     : isVip
     ? '#A855F7'
     : '#334155';
 
-  const stitchColor = isSelected ? '#FFE082' : isVip ? '#D8B4FE' : '#475569';
-  const headrestFill = isSelected ? '#D84315' : isVip ? '#1E1135' : '#0B0E14';
-  const textColor = isSelected ? '#FFFFFF' : isBooked ? '#64748B' : '#F8FAFC';
+  const stitchColor = isSelected ? '#FFE082' : isBooked ? '#A7F3D0' : isVip ? '#D8B4FE' : '#475569';
+  const headrestFill = isSelected ? '#D84315' : isBooked ? '#059669' : isVip ? '#1E1135' : '#0B0E14';
+  const textColor = isSelected ? '#FFFFFF' : isBooked ? '#ECFDF5' : '#F8FAFC';
 
   return (
     <div
@@ -59,9 +59,9 @@ export const CanvasSeat: React.FC<CanvasSeatProps> = ({
         if (!isInteractive) return;
         onPointerDown(e, seat.id);
       }}
-      className={`group select-none flex items-center justify-center cursor-grab active:cursor-grabbing transition-transform duration-150 hover:scale-105 ${
-        isSelected ? 'z-30' : 'z-10'
-      }`}
+      className={`group select-none flex items-center justify-center transition-transform duration-150 ${
+        isInteractive ? 'cursor-grab active:cursor-grabbing hover:scale-105' : ''
+      } ${isSelected ? 'z-30' : 'z-10'} ${isBooked ? 'opacity-80' : ''}`}
       title={`Siège ${seat.number} (${seat.category}) - Orienté vers le chauffeur`}
     >
       <div className="relative w-full h-full flex items-center justify-center">

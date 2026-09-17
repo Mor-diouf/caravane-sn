@@ -39,6 +39,7 @@ export const listCaravans = createServerFn({ method: "GET" }).handler(
       .select(CARAVAN_SELECT)
       .eq("status", "published")
       .eq("is_hidden", false)
+      .gte("departure_at", new Date().toISOString())
       .order("departure_at", { ascending: true });
     if (error) throw new Error(error.message);
     const result = (data ?? []).map((row) => mapCaravan(row as never));
@@ -64,13 +65,24 @@ export const getCaravan = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!row) return null;
 
-    const { data: bookings } = await createPublicClient()
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: bookings } = await supabaseAdmin
       .from("bookings")
-      .select("selected_seats")
+      .select("status, created_at, selected_seats")
       .eq("caravan_id", data.id)
       .in("status", ["pending", "confirmed"]);
 
-    const reservedSeats = bookings ? bookings.flatMap(b => b.selected_seats || []) : [];
+    const now = new Date();
+    const reservedSeats = (bookings || []).flatMap((b) => {
+      if (b.status === "confirmed") return b.selected_seats || [];
+      // 30 minutes expiration for pending
+      const createdAt = new Date(b.created_at);
+      const diffMinutes = (now.getTime() - createdAt.getTime()) / 60000;
+      if (diffMinutes <= 30) {
+        return b.selected_seats || [];
+      }
+      return [];
+    });
     const result = { ...mapCaravan(row as never), reservedSeats };
     return setCached(cacheKey, result, 10 * 1000); // 10 seconds for real-time seat availability
   });
@@ -158,13 +170,13 @@ export const getMyTickets = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("bookings")
       .select(
-        `id, caravan_id, seats, amount_fcfa, reference, status, created_at, passenger_name,
+        `id, caravan_id, seats, amount_fcfa, reference, status, created_at, passenger_name, selected_seats,
          caravans(${CARAVAN_SELECT}),
          tickets(id, qr_code, seat_number, status, checked_in_at),
          payments(method, status, amount_fcfa, paid_at)`,
       )
       .eq("user_id", context.userId)
-      .eq("status", "confirmed")
+      .in("status", ["confirmed", "pending"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
@@ -311,11 +323,38 @@ export const initiateWavePayment = createServerFn({ method: "POST" })
     if (bookingError || !booking)
       throw new Error(bookingError?.message || "Erreur lors de la création de la réservation");
 
+    // Invalidate server-side cache for this caravan
+    invalidateCache("caravan");
+
     // Redirect to the Wave Business Link
     return { 
       redirectUrl: paymentLinkToUse,
       bookingId: booking.id 
     };
+  });
+
+export const cancelBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data) => z.object({ bookingId: z.string().uuid() }).parse(data))
+  .handler(async ({ context, data }) => {
+    const { data: booking, error: fetchError } = await context.supabase
+      .from("bookings")
+      .select("id, status")
+      .eq("id", data.bookingId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+
+    if (fetchError || !booking) throw new Error("Réservation introuvable");
+    if (booking.status !== "pending") throw new Error("Seules les réservations en attente peuvent être annulées");
+
+    const { error: updateError } = await context.supabase
+      .from("bookings")
+      .update({ status: "cancelled" })
+      .eq("id", data.bookingId);
+
+    if (updateError) throw new Error(updateError.message);
+    invalidateCache("caravan");
+    return { success: true };
   });
 
 export const createBooking = createServerFn({ method: "POST" })

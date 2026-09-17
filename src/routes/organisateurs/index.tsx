@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Bus, ChevronLeft, Star } from "lucide-react";
 import { organizersQuery } from "@/lib/student-queries";
-import { BottomNav } from "@/components/BottomNav";
 import { OrganizerLogo } from "@/components/OrganizerLogo";
 
 export const Route = createFileRoute("/organisateurs/")({
@@ -95,7 +94,6 @@ function OrganizersIndex() {
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }

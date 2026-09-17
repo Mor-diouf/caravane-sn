@@ -27,7 +27,6 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { BottomNav } from "@/components/BottomNav";
 import { UniversityMark } from "@/components/UniversityMark";
 import { formatPrice, type ProfileUpdate } from "@/lib/student-shared";
 import {
@@ -740,7 +739,6 @@ function Profil() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }

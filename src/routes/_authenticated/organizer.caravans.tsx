@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   AlertCircle,
   BookmarkPlus,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, Panel, ProgressBar } from "@/components/organizer/ui";
 import { orgCaravansQuery, orgBookingsQuery } from "@/lib/dash-queries";
-import { organizerSaveCaravan, organizerSetCaravanStatus, organizerDeleteCaravan } from "@/lib/organizer.functions";
+import { organizerSaveCaravan, organizerSetCaravanStatus, organizerDeleteCaravan, duplicateCaravan } from "@/lib/organizer.functions";
 import { dateTimeFr } from "@/lib/dash-shared";
 import { fcfa, pct } from "@/lib/organizer";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,7 @@ function CaravansPage() {
   const saveCaravanFn = useServerFn(organizerSaveCaravan);
   const setStatusFn = useServerFn(organizerSetCaravanStatus);
   const deleteCaravanFn = useServerFn(organizerDeleteCaravan);
+  const duplicateCaravanFn = useServerFn(duplicateCaravan);
 
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("all");
   const [query, setQuery] = useState("");
@@ -127,6 +129,9 @@ function CaravansPage() {
   const [isConfiguringBus, setIsConfiguringBus] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [deletingCaravan, setDeletingCaravan] = useState<NonNullable<typeof caravans>[number] | null>(null);
+  
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [selectedDuplicateId, setSelectedDuplicateId] = useState<string>("");
 
   const { templates: savedTemplates, saveTemplate } = useSavedBusTemplates();
   const [isSaveModelDialogOpen, setIsSaveModelDialogOpen] = useState(false);
@@ -140,6 +145,15 @@ function CaravansPage() {
       toast.success("Voyage supprimé définitivement avec succès");
       setDeletingCaravan(null);
       setOpen(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: (caravanId: string) => duplicateCaravanFn({ data: { id: caravanId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Voyage dupliqué avec succès en brouillon");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -253,13 +267,22 @@ function CaravansPage() {
         title="Lignes & Départs de Bus"
         subtitle="Programmez, publiez et gérez les trajets officiels King-Bus (Dakar ⇄ Ziguinchor, VIP Nuit, etc.)."
         actions={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-4 py-2.5 text-sm font-black text-black shadow-md hover:brightness-110 active:scale-[0.98]"
-          >
-            <Plus className="size-4" /> Programmer un voyage bus
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsDuplicateDialogOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-white border border-border px-4 py-2.5 text-sm font-bold text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground active:scale-[0.98] transition-all"
+            >
+              <Copy className="size-4" /> Dupliquer un voyage
+            </button>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-primary to-orange-500 px-4 py-2.5 text-sm font-black text-black shadow-md hover:brightness-110 active:scale-[0.98]"
+            >
+              <Plus className="size-4" /> Programmer un voyage bus
+            </button>
+          </div>
         }
       />
 
@@ -1184,6 +1207,66 @@ function CaravansPage() {
               <Trash2 className="size-3.5" />
               {deleteMutation.isPending ? "Suppression en cours…" : "Supprimer définitivement"}
             </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DUPLICATE DIALOG */}
+      <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+        <DialogContent className="max-w-md sm:rounded-3xl border-border/40 p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl font-black">Dupliquer un voyage</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Sélectionnez un voyage existant pour copier ses informations (trajet, arrêts, prix, plan de bus) et planifier un nouveau départ.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-muted-foreground ml-1">Sélectionnez le voyage à copier</label>
+              <select
+                value={selectedDuplicateId}
+                onChange={(e) => setSelectedDuplicateId(e.target.value)}
+                className="w-full rounded-xl border-2 border-border/50 bg-muted/20 px-3 py-2.5 text-sm font-medium focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all"
+              >
+                <option value="">-- Choisir une caravane --</option>
+                {(caravans || []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.from_label} ⇄ {c.to_label} ({c.price_fcfa} FCFA) - {c.departure_at ? dateTimeFr(c.departure_at) : 'Pas de date'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border mt-6">
+              <button
+                type="button"
+                onClick={() => setIsDuplicateDialogOpen(false)}
+                className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={!selectedDuplicateId}
+                onClick={() => {
+                  const selected = caravans?.find(c => c.id === selectedDuplicateId);
+                  if (selected) {
+                    setIsDuplicateDialogOpen(false);
+                    openEdit(selected);
+                    setForm(prev => ({
+                      ...prev,
+                      id: undefined, // Create a new one instead of updating
+                      status: "draft",
+                    }));
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:brightness-110 active:scale-95 disabled:opacity-60 transition-all shadow-sm"
+              >
+                <Copy className="size-3.5" />
+                Copier et configurer
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

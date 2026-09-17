@@ -176,8 +176,11 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+import { BottomNav } from "@/components/BottomNav";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useRouter().state.location; // or useLocation()
 
   // Supprime activement le badge Lovable du DOM dès son injection
   useEffect(() => {
@@ -207,10 +210,15 @@ function RootComponent() {
     return () => observer.disconnect();
   }, []);
 
+  const isDashboard = location.pathname.startsWith('/admin') || location.pathname.startsWith('/organizer');
+  const isTestBus = location.pathname.includes('test-bus');
+  const showBottomNav = !isDashboard && !isTestBus;
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      {showBottomNav && <BottomNav />}
       <Toaster position="top-center" />
     </QueryClientProvider>
   );

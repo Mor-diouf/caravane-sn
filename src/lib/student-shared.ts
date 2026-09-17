@@ -166,6 +166,7 @@ export type CaravanView = {
   stops: IntermediateStop[];
   layout?: any;
   reservedSeats?: string[];
+  payment_link?: string | null;
 };
 
 export const BUS_PRESET_IMAGES = [
@@ -232,6 +233,7 @@ type RawCaravan = {
   } | null;
   layout?: any;
   reservedSeats?: string[];
+  payment_link?: string | null;
 };
 
 export function mapCaravan(row: RawCaravan): CaravanView {
@@ -266,11 +268,12 @@ export function mapCaravan(row: RawCaravan): CaravanView {
     stops,
     layout: row.layout,
     reservedSeats: row.reservedSeats || [],
+    payment_link: row.payment_link,
   };
 }
 
 export const CARAVAN_SELECT =
-  "id, university_id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, seats_left, total_seats, image_url, amenities, about, layout, organizer_id, organizers(name, rating, is_pro, phone, logo_url, slogan, support_phone)";
+  "id, university_id, from_label, to_label, departure_at, pickup, dropoff, price_fcfa, seats_left, total_seats, image_url, amenities, about, layout, payment_link, organizer_id, organizers(name, rating, is_pro, phone, logo_url, slogan, support_phone)";
 
 export const paymentLabels: Record<string, string> = {
   wave: "Wave",

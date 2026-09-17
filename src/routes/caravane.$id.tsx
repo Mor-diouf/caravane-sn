@@ -21,6 +21,7 @@ import {
   Wifi,
   MapPin,
   X,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -65,16 +66,16 @@ export const Route = createFileRoute("/caravane/$id")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
-        { property: "og:image", content: "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
-        { property: "og:image:secure_url", content: "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+        { property: "og:image", content: c?.image || "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+        { property: "og:image:secure_url", content: c?.image || "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
         { property: "og:image:type", content: "image/jpeg" },
-        { property: "og:image:width", content: "800" },
-        { property: "og:image:height", content: "800" },
-        { property: "og:image:alt", content: "Logo Officiel KING-BUS 2.0" },
-        { name: "twitter:card", content: "summary" },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { property: "og:image:alt", content: title },
+        { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
         { name: "twitter:description", content: description },
-        { name: "twitter:image", content: "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
+        { name: "twitter:image", content: c?.image || "https://caravane-sn-indol.vercel.app/images/king-bus/logo.jpg" },
       ],
     };
   },
@@ -208,7 +209,7 @@ function ZoomableBusCanvas({ layout, children }: { layout: any, children: React.
           <span className="text-amber-300 font-bold">Sélectionné</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[4px] bg-[#1E2430] border border-slate-700 opacity-60 inline-block" />
+          <span className="size-3 rounded-[4px] bg-[#10B981] border border-[#34D399] opacity-80 inline-block" />
           <span>Occupé</span>
         </div>
       </div>
@@ -247,6 +248,28 @@ function CaravaneDetail() {
   const queryClient = useQueryClient();
   const { favorites, toggle } = useStudentFavorites();
   const { user } = useAuth();
+  
+  const handleShare = async () => {
+    if (!data) return;
+    
+    const url = window.location.href;
+    const shareData = {
+      title: `Voyage King-Bus : ${data.from} ➔ ${data.to}`,
+      url: url,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // user cancelled or error
+      }
+    } else {
+      // Fallback
+      navigator.clipboard.writeText(url);
+      toast.success("Lien de partage copié dans le presse-papier !");
+    }
+  };
   
   const { data: profile } = useQuery({
     ...profileQuery,
@@ -306,6 +329,8 @@ function CaravaneDetail() {
       });
     },
     onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["caravan"] });
+      setSelectedSeats([]);
       setOpen(false);
       if (res.redirectUrl) {
         window.location.href = res.redirectUrl;
@@ -340,7 +365,7 @@ function CaravaneDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-40">
       <div className="relative">
         <img
           src={caravane.image}
@@ -361,18 +386,28 @@ function CaravaneDetail() {
           >
             <ArrowLeft className="size-5" />
           </Link>
-          <button
-            type="button"
-            aria-label="Favori"
-            aria-pressed={favorite}
-            onClick={() => toggle(caravane.id)}
-            className={cn(
-              "grid size-10 place-items-center rounded-full border border-white/30 bg-black/25 backdrop-blur-xl",
-              favorite ? "text-danger" : "text-white",
-            )}
-          >
-            <Heart className={cn("size-5", favorite && "fill-current")} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Partager"
+              onClick={handleShare}
+              className="grid size-10 place-items-center rounded-full border border-white/30 bg-black/25 text-white backdrop-blur-xl transition-all hover:bg-black/40"
+            >
+              <Share2 className="size-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Favori"
+              aria-pressed={favorite}
+              onClick={() => toggle(caravane.id)}
+              className={cn(
+                "grid size-10 place-items-center rounded-full border border-white/30 bg-black/25 backdrop-blur-xl transition-all hover:bg-black/40",
+                favorite ? "text-danger" : "text-white",
+              )}
+            >
+              <Heart className={cn("size-5", favorite && "fill-current")} />
+            </button>
+          </div>
         </div>
         <span
           className={cn(
@@ -387,97 +422,117 @@ function CaravaneDetail() {
       </div>
 
       <main className="mx-auto -mt-4 max-w-3xl space-y-4 px-5">
-        <section className="rounded-3xl border border-border/70 bg-card p-5 shadow-ambient">
+        <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+          {/* Ligne de dégradé supérieure */}
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-400 via-primary to-orange-500" />
+          
           <div className="flex items-start gap-4">
             {caravane.organizerLogoUrl ? (
               <img
                 src={caravane.organizerLogoUrl}
                 alt={caravane.organizer}
-                className="size-14 shrink-0 rounded-full border border-border/60 bg-white object-contain p-1 shadow-sm"
+                className="size-16 shrink-0 rounded-2xl border border-border/60 bg-white object-contain p-1.5 shadow-sm"
               />
             ) : (
-              <UniversityMark abbr={caravane.from} active className="size-14 shrink-0" />
+              <UniversityMark abbr={caravane.from} active className="size-16 shrink-0 rounded-2xl shadow-sm" />
             )}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 pt-0.5">
               {university && (
-                <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="flex items-center gap-1.5 truncate text-[11px] font-bold uppercase tracking-wider text-primary mb-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                   {university.name}
                 </p>
               )}
-              <h1 className="mt-1 text-xl font-extrabold leading-tight tracking-tight sm:text-2xl">
-                {caravane.from} <span className="text-muted-foreground">→</span> {caravane.to}
+              <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-3xl text-foreground">
+                {caravane.from} <span className="text-primary mx-1.5">➔</span> {caravane.to}
               </h1>
             </div>
-            <p className="shrink-0 text-right text-lg font-extrabold leading-tight text-primary-accent sm:text-xl">
-              {formatPrice(caravane.price)}
-              <span className="ml-1 block text-[10px] font-semibold text-muted-foreground">
+            <div className="shrink-0 text-right pt-0.5">
+              <p className="text-2xl font-black leading-none text-primary drop-shadow-sm">
+                {formatPrice(caravane.price)}
+              </p>
+              <p className="mt-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
                 FCFA / place
-              </span>
-            </p>
+              </p>
+            </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <span className="flex items-center gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-xs font-semibold">
-              <CalendarDays className="size-4 shrink-0 text-primary-accent" />
+          <div className="mt-6 flex flex-wrap gap-2.5 border-b border-border/40 pb-6">
+            <span className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-2 text-xs font-bold text-primary shadow-sm">
+              <CalendarDays className="size-4 shrink-0" />
               <span className="min-w-0 truncate">{caravane.date}</span>
             </span>
-            <span className="flex items-center gap-2 rounded-2xl bg-muted/60 px-3 py-2 text-xs font-semibold">
-              <Clock className="size-4 shrink-0 text-primary-accent" />
+            <span className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-2 text-xs font-bold text-primary shadow-sm">
+              <Clock className="size-4 shrink-0" />
               {caravane.time}
+            </span>
+            <span className="flex items-center gap-2 rounded-xl bg-muted/40 border border-border/60 px-3.5 py-2 text-xs font-bold text-muted-foreground shadow-sm">
+              <MapPin className="size-4 shrink-0 opacity-70" />
+              Trajet direct {caravane.stops && caravane.stops.length > 0 ? `+ ${caravane.stops.length} Escale${caravane.stops.length > 1 ? 's' : ''}` : ""}
             </span>
           </div>
 
-          <ol className="mt-4 space-y-4 border-l border-dashed border-border pl-5 text-sm">
-            <li className="relative">
-              <span
-                aria-hidden
-                className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-primary-accent ring-4 ring-card"
-              />
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Départ · {caravane.from}
-                </p>
-                <span className="text-xs font-black text-primary-accent">
-                  {formatPrice(caravane.price)} FCFA
-                </span>
-              </div>
-              <p className="font-semibold leading-snug">{caravane.pickup}</p>
-            </li>
-
-            {(caravane.stops || []).map((stop) => (
-              <li key={stop.id} className="relative">
+          <div className="mt-6 relative px-2">
+            {/* Ligne verticale de la timeline */}
+            <div className="absolute left-[17px] top-3 bottom-4 w-0.5 bg-border/80" />
+            
+            <ol className="space-y-7 relative">
+              {/* Départ */}
+              <li className="relative pl-10">
                 <span
                   aria-hidden
-                  className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-amber-500 ring-4 ring-card"
+                  className="absolute left-[3px] top-1.5 grid size-3.5 place-items-center rounded-full bg-primary ring-4 ring-card shadow-sm"
                 />
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 flex items-center gap-1.5 flex-wrap">
-                    <span>Escale · {stop.city}</span>
-                    {stop.time_offset && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300">
-                        <Clock className="size-2.5" /> Passage ~{stop.time_offset}
-                      </span>
-                    )}
+                  <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <span className="text-primary">Départ</span> • {caravane.from}
                   </p>
-                  <span className="text-xs font-black text-amber-600 dark:text-amber-400">
-                    {formatPrice(stop.price_fcfa)} FCFA
+                  <span className="text-xs font-black text-foreground bg-muted/40 border border-border/50 px-2 py-0.5 rounded-md">
+                    {formatPrice(caravane.price)} FCFA
                   </span>
                 </div>
-                <p className="text-xs font-medium text-muted-foreground">{stop.pickup}</p>
+                <p className="font-bold text-[15px] leading-snug mt-1 text-foreground">{caravane.pickup}</p>
               </li>
-            ))}
 
-            <li className="relative">
-              <span
-                aria-hidden
-                className="absolute -left-[26px] top-1 grid size-4 place-items-center rounded-full bg-muted-foreground/50 ring-4 ring-card"
-              />
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Arrivée · {caravane.to}
-              </p>
-              <p className="font-semibold leading-snug">{caravane.dropoff}</p>
-            </li>
-          </ol>
+              {/* Escales */}
+              {(caravane.stops || []).map((stop) => (
+                <li key={stop.id} className="relative pl-10">
+                  <span
+                    aria-hidden
+                    className="absolute left-[4px] top-1.5 grid size-3 place-items-center rounded-full bg-amber-400 ring-4 ring-card shadow-sm"
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <span className="text-amber-500">Escale</span> • {stop.city}
+                      </p>
+                      {stop.time_offset && (
+                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-black text-amber-600 dark:text-amber-400">
+                          <Clock className="size-3" /> ~{stop.time_offset}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs font-black text-foreground bg-muted/40 border border-border/50 px-2 py-0.5 rounded-md">
+                      {formatPrice(stop.price_fcfa)} FCFA
+                    </span>
+                  </div>
+                  <p className="font-semibold text-[13px] leading-snug mt-1 text-muted-foreground">{stop.pickup}</p>
+                </li>
+              ))}
+
+              {/* Arrivée */}
+              <li className="relative pl-10">
+                <span
+                  aria-hidden
+                  className="absolute left-[3px] top-1.5 grid size-3.5 place-items-center rounded-full bg-slate-300 dark:bg-slate-600 ring-4 ring-card shadow-sm"
+                />
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <span className="text-slate-500 dark:text-slate-400">Arrivée</span> • {caravane.to}
+                </p>
+                <p className="font-bold text-[15px] leading-snug mt-1 text-foreground">{caravane.dropoff}</p>
+              </li>
+            </ol>
+          </div>
         </section>
 
         <section className="flex items-center gap-3 rounded-3xl border border-border/70 bg-card p-4 shadow-ambient">
@@ -599,7 +654,7 @@ function CaravaneDetail() {
         </section>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-surface-blur px-5 py-4 backdrop-blur-xl">
+      <div className="fixed inset-x-0 bottom-[64px] z-40 border-t border-border/70 bg-surface-blur px-5 py-4 backdrop-blur-xl pb-safe">
         <div className="mx-auto grid max-w-3xl grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-medium text-muted-foreground">
@@ -718,38 +773,37 @@ function CaravaneDetail() {
             /* ÉTAPE 2 : RÉCAPITULATIF + PAIEMENT */
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
               {/* Header : bouton retour (←) vers l'étape 1 pour changer de siège si besoin */}
-              <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 p-5 text-white border-b border-white/10 shrink-0">
-                <div className="flex items-center justify-between mb-2">
+              <div className="relative overflow-hidden bg-card p-6 border-b border-border/60 shrink-0">
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 via-primary to-orange-500" />
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider">
+                    <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[10px] font-black text-primary uppercase tracking-wider">
                       Réservation King-Bus
                     </span>
-                    <span className="text-[10px] text-slate-400">• Étape 2 sur 2</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">• Étape 2 sur 2</span>
                   </div>
                   {isLayoutAvailable && (
                     <button
                       type="button"
                       onClick={() => setStep("seats")}
-                      className="flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors pr-6"
+                      className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors bg-muted/50 hover:bg-primary/10 px-3 py-1.5 rounded-full"
                     >
                       <ArrowLeft className="size-3.5" /> Changer de siège
                     </button>
                   )}
                 </div>
-                <h2 className="text-xl font-black tracking-tight text-white">
-                  {caravane.from} <span className="text-amber-400">➔</span> {caravane.to}
+                <h2 className="text-xl font-black tracking-tight text-foreground">
+                  {caravane.from} <span className="text-primary mx-1">➔</span> {caravane.to}
                 </h2>
-                <p className="mt-1 text-xs text-slate-300 flex items-center gap-2 flex-wrap">
-                  <span>📅 {caravane.date}</span>
-                  <span>•</span>
-                  <span>⏰ {caravane.time}</span>
-                  <span>•</span>
-                  <span className="truncate">📍 {caravane.pickup}</span>
-                </p>
+                <div className="mt-2 text-xs text-muted-foreground flex items-center gap-3 flex-wrap font-medium">
+                  <span className="flex items-center gap-1"><CalendarDays className="size-3.5 opacity-70" /> {caravane.date}</span>
+                  <span className="flex items-center gap-1"><Clock className="size-3.5 opacity-70" /> {caravane.time}</span>
+                  <span className="flex items-center gap-1 truncate"><MapPin className="size-3.5 opacity-70" /> {caravane.pickup}</span>
+                </div>
                 {isLayoutAvailable && selectedSeats.length > 0 && (
-                  <div className="mt-2.5 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-xs text-slate-200">
-                    <span className="text-amber-300 font-bold">Siège(s) choisi(s) :</span>
-                    <span className="font-extrabold text-white">
+                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-foreground">
+                    <span className="text-muted-foreground font-semibold">Siège(s) choisi(s) :</span>
+                    <span className="font-black text-primary">
                       {selectedSeats.map(getSeatLabel).join(", ")}
                     </span>
                   </div>
@@ -810,33 +864,33 @@ function CaravaneDetail() {
                       )}
                     </div>
 
-                    <div className="space-y-2 pt-1">
+                    <div className="space-y-2.5 pt-2">
                       <label
                         onClick={() => setSelectedStopId(null)}
                         className={cn(
-                          "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                          "group flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all",
                           selectedStopId === null
-                            ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                            : "border-border/70 bg-muted/30 hover:bg-muted/60"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm"
+                            : "border-border/60 bg-card hover:border-border hover:shadow-sm"
                         )}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-3.5 min-w-0">
                           <div
                             className={cn(
-                              "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                              selectedStopId === null ? "border-primary bg-primary" : "border-muted-foreground"
+                              "size-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
+                              selectedStopId === null ? "border-primary bg-primary" : "border-muted-foreground/30 group-hover:border-primary/50"
                             )}
                           >
-                            {selectedStopId === null && <div className="size-1.5 rounded-full bg-white" />}
+                            {selectedStopId === null && <div className="size-2 rounded-full bg-white" />}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-foreground truncate">
+                            <p className="text-[13px] font-bold text-foreground truncate">
                               {caravane.from} (Départ principal)
                             </p>
-                            <p className="text-[11px] text-muted-foreground truncate">{caravane.pickup}</p>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{caravane.pickup}</p>
                           </div>
                         </div>
-                        <span className="text-xs font-extrabold text-foreground shrink-0 ml-2">
+                        <span className="text-[13px] font-black text-foreground shrink-0 ml-3">
                           {formatPrice(caravane.price)} FCFA
                         </span>
                       </label>
@@ -849,39 +903,44 @@ function CaravaneDetail() {
                             key={stop.id}
                             onClick={() => setSelectedStopId(stop.id)}
                             className={cn(
-                              "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                              "group flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all",
                               isSelected
-                                ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/30"
-                                : "border-border/70 bg-muted/30 hover:bg-muted/60"
+                                ? "border-primary bg-primary/5 ring-1 ring-primary/20 shadow-sm"
+                                : "border-border/60 bg-card hover:border-border hover:shadow-sm"
                             )}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-center gap-3.5 min-w-0">
                               <div
                                 className={cn(
-                                  "size-4 rounded-full border-2 flex items-center justify-center shrink-0",
-                                  isSelected ? "border-amber-500 bg-amber-500" : "border-muted-foreground"
+                                  "size-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
+                                  isSelected ? "border-primary bg-primary" : "border-muted-foreground/30 group-hover:border-primary/50"
                                 )}
                               >
-                                {isSelected && <div className="size-1.5 rounded-full bg-white" />}
+                                {isSelected && <div className="size-2 rounded-full bg-white" />}
                               </div>
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-foreground truncate flex items-center gap-1.5 flex-wrap">
+                              <div className="min-w-0 space-y-1">
+                                <p className="text-[13px] font-bold text-foreground truncate flex items-center gap-2 flex-wrap">
                                   <span>{stop.city}</span>
-                                  {stop.time_offset && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px] font-black px-1.5 py-0.5 border border-amber-500/30">
-                                      <Clock className="size-2.5" /> Passage ~{stop.time_offset}
-                                    </span>
-                                  )}
                                   {diff > 0 && (
-                                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
                                       -{formatPrice(diff)} F
                                     </span>
                                   )}
                                 </p>
-                                <p className="text-[11px] text-muted-foreground truncate">{stop.pickup}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                                  <span>{stop.pickup}</span>
+                                  {stop.time_offset && (
+                                    <>
+                                      <span className="w-1 h-1 rounded-full bg-border" />
+                                      <span className="inline-flex items-center gap-1 text-primary-accent font-semibold">
+                                        <Clock className="size-3" /> ~{stop.time_offset}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            <span className="text-xs font-black text-amber-600 dark:text-amber-400 shrink-0 ml-2">
+                            <span className="text-[13px] font-black text-primary shrink-0 ml-3">
                               {formatPrice(stop.price_fcfa)} FCFA
                             </span>
                           </label>
@@ -1000,25 +1059,25 @@ function CaravaneDetail() {
                 </div>
 
                 {/* Récapitulatif du prix */}
-                <div className="rounded-2xl bg-muted/40 p-4 space-y-2 border border-border/60 text-xs">
-                  <div className="flex justify-between text-muted-foreground">
+                <div className="rounded-2xl bg-primary/5 p-5 space-y-3 border border-primary/20 text-[13px]">
+                  <div className="flex justify-between text-muted-foreground font-medium">
                     <span>
                       Billet King-Bus ({seatsCount} place{seatsCount > 1 ? "s" : ""})
-                      {selectedStop ? ` · Montée ${selectedStop.city}` : ` · ${caravane.from}`}
+                      {selectedStop ? ` · ${selectedStop.city}` : ` · ${caravane.from}`}
                     </span>
                     <span className="font-bold text-foreground">{formatPrice(total)} FCFA</span>
                   </div>
                   {isLayoutAvailable && selectedSeats.length > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
+                    <div className="flex justify-between text-muted-foreground font-medium">
                       <span>Siège(s) choisi(s)</span>
-                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                      <span className="font-bold text-primary">
                         {selectedSeats.map(getSeatLabel).join(", ")}
                       </span>
                     </div>
                   )}
-                  <div className="border-t border-border/60 pt-2.5 flex items-center justify-between text-sm">
-                    <span className="font-extrabold text-foreground">Total à régler</span>
-                    <span className="text-xl font-black text-primary-accent">
+                  <div className="border-t border-primary/20 pt-3 flex items-center justify-between text-sm">
+                    <span className="font-extrabold text-foreground uppercase tracking-wide">Total à régler</span>
+                    <span className="text-2xl font-black text-primary drop-shadow-sm">
                       {formatPrice(total)} FCFA
                     </span>
                   </div>

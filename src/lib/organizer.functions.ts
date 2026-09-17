@@ -131,6 +131,43 @@ export const organizerListCaravans = createServerFn({ method: "GET" })
     }));
   });
 
+export const duplicateCaravan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ context, data }) => {
+    const { requireOrganizerId } = await import("@/lib/dash.server");
+    const supabase = context.supabase;
+    const organizerId = await requireOrganizerId(supabase, context.userId);
+    
+    // Fetch the caravan to duplicate
+    const { data: existing, error: fetchError } = await supabase
+      .from("caravans")
+      .select("*")
+      .eq("id", data.id)
+      .eq("organizer_id", organizerId)
+      .maybeSingle();
+      
+    if (fetchError || !existing) throw new Error("Caravane introuvable");
+    
+    // Clean up fields for the duplicated caravan
+    const { id, created_at, updated_at, status, bookings, seats_left, ...copyData } = existing as any;
+    
+    // Insert new caravan in draft state
+    const { data: newCaravan, error: insertError } = await supabase
+      .from("caravans")
+      .insert({
+        ...copyData,
+        status: "draft",
+        seats_left: copyData.total_seats,
+      })
+      .select("id")
+      .maybeSingle();
+      
+    if (insertError) throw new Error(insertError.message);
+    
+    return { id: newCaravan?.id };
+  });
+
 export const organizerSaveCaravan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d) =>

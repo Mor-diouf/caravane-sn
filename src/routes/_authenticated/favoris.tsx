@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { BottomNav } from "@/components/BottomNav";
 import { CaravanCard } from "@/components/CaravanCard";
 import { caravansQuery } from "@/lib/student-queries";
 import { useStudentFavorites } from "@/hooks/use-student-favorites";
@@ -78,8 +77,6 @@ function Favoris() {
           </div>
         )}
       </main>
-
-      <BottomNav />
     </div>
   );
 }
