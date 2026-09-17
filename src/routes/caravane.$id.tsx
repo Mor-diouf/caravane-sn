@@ -253,9 +253,10 @@ function CaravaneDetail() {
   
   const handleShare = async () => {
     if (!data) return;
-    
-    // Ajout d'un paramètre 'v' pour forcer WhatsApp à recharger la belle image (contourner le cache)
-    const urlObj = new URL(window.location.href);
+    // Utiliser le domaine de production pour que le partage fonctionne même depuis localhost
+    const baseUrl = "https://caravane-sn-indol.vercel.app";
+    const path = window.location.pathname;
+    const urlObj = new URL(`${baseUrl}${path}`);
     urlObj.searchParams.set("v", Date.now().toString());
     const finalUrl = urlObj.toString();
     
