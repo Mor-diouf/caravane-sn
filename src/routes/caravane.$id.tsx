@@ -63,7 +63,8 @@ export const Route = createFileRoute("/caravane/$id")({
     
     // WhatsApp est très strict sur la taille des images (< 300KB). 
     // On utilise un proxy gratuit et rapide (Images.weserv.nl) pour redimensionner et compresser l'image à la volée.
-    const optimizedImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawImageUrl)}&w=800&h=418&fit=cover&output=jpg&q=80`;
+    // Format carré (800x800) pour occuper le maximum d'espace vertical dans les statuts WhatsApp.
+    const optimizedImageUrl = `https://wsrv.nl/?url=${encodeURIComponent(rawImageUrl)}&w=800&h=800&fit=cover&output=jpg&q=80`;
 
     return {
       meta: [
@@ -77,7 +78,7 @@ export const Route = createFileRoute("/caravane/$id")({
         { property: "og:image:secure_url", content: optimizedImageUrl },
         { property: "og:image:type", content: "image/jpeg" },
         { property: "og:image:width", content: "800" },
-        { property: "og:image:height", content: "418" },
+        { property: "og:image:height", content: "800" },
         { property: "og:image:alt", content: title },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: title },
