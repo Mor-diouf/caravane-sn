@@ -75,10 +75,10 @@ export const getCaravan = createServerFn({ method: "GET" })
     const now = new Date();
     const reservedSeats = (bookings || []).flatMap((b) => {
       if (b.status === "confirmed") return b.selected_seats || [];
-      // 30 minutes expiration for pending
+      // 4 hours expiration for pending (demande King Bus)
       const createdAt = new Date(b.created_at);
       const diffMinutes = (now.getTime() - createdAt.getTime()) / 60000;
-      if (diffMinutes <= 30) {
+      if (diffMinutes <= 4 * 60) {
         return b.selected_seats || [];
       }
       return [];

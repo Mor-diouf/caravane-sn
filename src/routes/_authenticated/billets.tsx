@@ -399,7 +399,7 @@ function Billets() {
                           Paiement en attente
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Vos places sont réservées pour 30 minutes.
+                          Vos places sont réservées pour 4 heures.
                         </p>
                         <p className="text-[10px] text-orange-600/80 dark:text-orange-400/80 mt-2 font-medium leading-tight px-2">
                           Si vous avez déjà payé, l'organisateur validera votre paiement dans quelques minutes.<br/>

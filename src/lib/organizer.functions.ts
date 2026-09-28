@@ -641,6 +641,52 @@ export const organizerCancelBookingManual = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const organizerDeleteCancelledBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) =>
+    z
+      .object({
+        bookingId: z.string().uuid(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { requireOrganizerId } = await import("@/lib/dash.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const supabase = context.supabase;
+    const organizerId = await requireOrganizerId(supabase, context.userId);
+    const client = supabaseAdmin || supabase;
+
+    const { data: booking, error: bError } = await client
+      .from("bookings")
+      .select("id, status, caravan_id, caravans(organizer_id)")
+      .eq("id", data.bookingId)
+      .maybeSingle();
+
+    if (bError || !booking) throw new Error("Réservation introuvable");
+    const caravan = booking.caravans as { organizer_id: string } | null;
+    if (!caravan || caravan.organizer_id !== organizerId) {
+      throw new Error("Non autorisé à gérer cette réservation");
+    }
+
+    if (booking.status !== "cancelled") {
+      throw new Error("Seules les réservations annulées peuvent être supprimées");
+    }
+
+    // Supprimer les tickets et paiements associés
+    await client.from("tickets").delete().eq("booking_id", booking.id);
+    await client.from("payments").delete().eq("booking_id", booking.id);
+
+    const { error: delError } = await client
+      .from("bookings")
+      .delete()
+      .eq("id", booking.id);
+
+    if (delError) throw new Error(delError.message);
+
+    return { ok: true };
+  });
+
 export const organizerScanTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d) => z.object({ 

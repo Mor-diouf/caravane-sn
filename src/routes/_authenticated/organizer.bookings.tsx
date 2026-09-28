@@ -17,6 +17,7 @@ import {
   MapPin,
   Clock,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,7 +29,11 @@ import {
   StatusPill,
 } from "@/components/organizer/ui";
 import { orgBookingsQuery } from "@/lib/dash-queries";
-import { organizerConfirmBookingManual, organizerCancelBookingManual } from "@/lib/organizer.functions";
+import {
+  organizerConfirmBookingManual,
+  organizerCancelBookingManual,
+  organizerDeleteCancelledBooking,
+} from "@/lib/organizer.functions";
 import { fcfa, statusLabels, type Status } from "@/lib/organizer";
 import { PaymentMark } from "@/components/PaymentMark";
 import { cn } from "@/lib/utils";
@@ -71,11 +76,13 @@ function BookingsPage() {
 
   const confirmBookingFn = useServerFn(organizerConfirmBookingManual);
   const cancelBookingFn = useServerFn(organizerCancelBookingManual);
+  const deleteBookingFn = useServerFn(organizerDeleteCancelledBooking);
 
   const [validatingBooking, setValidatingBooking] = useState<any>(null);
   const [confirmMethod, setConfirmMethod] = useState<"wave" | "orange" | "free">("wave");
   const [confirmNote, setConfirmNote] = useState("");
   const [cancellingBooking, setCancellingBooking] = useState<any>(null);
+  const [deletingBooking, setDeletingBooking] = useState<any>(null);
 
   const confirmMutation = useMutation({
     mutationFn: (data: { bookingId: string; method: "wave" | "orange" | "free"; note?: string }) =>
@@ -98,6 +105,17 @@ function BookingsPage() {
       queryClient.invalidateQueries({ queryKey: ["organizer"] });
       toast.success("Réservation annulée. Les places ont été libérées.");
       setCancellingBooking(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (data: { bookingId: string }) =>
+      deleteBookingFn({ data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizer"] });
+      toast.success("Réservation annulée supprimée définitivement de votre liste.");
+      setDeletingBooking(null);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -323,6 +341,15 @@ function BookingsPage() {
                         <span className="inline-flex items-center gap-1 rounded-md border border-info/20 bg-info/10 px-2.5 py-1 text-xs font-bold text-info">
                           Embarqué
                         </span>
+                      ) : b.status === "cancelled" ? (
+                        <button
+                          type="button"
+                          onClick={() => setDeletingBooking(b)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/10 px-2.5 py-1.5 text-xs font-bold text-destructive hover:bg-destructive/20 active:scale-[0.98] transition-all"
+                          title="Supprimer cette réservation annulée pour ne pas encombrer"
+                        >
+                          <Trash2 className="size-3.5" /> Supprimer
+                        </button>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -539,6 +566,58 @@ function BookingsPage() {
                   </>
                 ) : (
                   "Confirmer l'annulation"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Suppression Définitive d'une Réservation Annulée */}
+      {deletingBooking && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3 text-destructive">
+              <div className="grid size-10 place-items-center rounded-xl bg-destructive/10">
+                <Trash2 className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Supprimer la réservation ?</h3>
+                <p className="text-xs text-muted-foreground">Réservation annulée</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Voulez-vous supprimer définitivement la réservation annulée de{" "}
+              <span className="font-bold text-foreground">{deletingBooking.student}</span> (réf :{" "}
+              <span className="font-mono font-bold text-foreground">{deletingBooking.id}</span>) ? Elle sera
+              retirée de votre liste pour ne plus encombrer votre espace King-Bus.
+            </p>
+            <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
+              <button
+                type="button"
+                onClick={() => setDeletingBooking(null)}
+                className="rounded-xl border border-border px-3.5 py-1.5 text-xs font-semibold hover:bg-muted transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={deleteMutation.isPending}
+                onClick={() =>
+                  deleteMutation.mutate({
+                    bookingId: deletingBooking.bookingId,
+                  })
+                }
+                className="inline-flex items-center gap-1.5 rounded-xl bg-destructive px-3.5 py-1.5 text-xs font-bold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60 transition-all"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" /> Suppression…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="size-3.5" /> Supprimer
+                  </>
                 )}
               </button>
             </div>

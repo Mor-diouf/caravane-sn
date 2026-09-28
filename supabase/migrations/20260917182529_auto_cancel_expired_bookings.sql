@@ -3,7 +3,7 @@
 update public.bookings
 set status = 'cancelled'
 where status = 'pending'
-  and created_at < now() - interval '30 minutes';
+  and created_at < now() - interval '4 hours';
 
 -- Activer pg_cron s'il n'est pas actif
 create extension if not exists pg_cron with schema extensions;
@@ -18,7 +18,7 @@ as $$
   update public.bookings
   set status = 'cancelled'
   where status = 'pending'
-    and created_at < now() - interval '30 minutes';
+    and created_at < now() - interval '4 hours';
 $$;
 
 -- Dévérouiller si déjà planifié
